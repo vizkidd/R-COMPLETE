@@ -1,0 +1,45 @@
+README:
+
+File is split into 4 segments bugs/WIP, dependancies, parameters, script flow, folder structure, file formats & naming convention
+
+* Genomes are deleted after transcripts are extracted (to save space)
+* Only transcripts which are experimentally are selected from the reference species
+
+Reference species genomes:
+
+Xenopus tropicalis : Xenbase - v10 (genome), v9-10lift (annotation)
+Xenopus laevis : Xenbase - v9.2(genome & anno)
+Danio rerio : Ensembl - GRCz11 (genome & anno)
+
+Bugs:
+
+
+Dependancies:
+
+GNU Parallel/parasllel_script.sh	(>=20200922)
+File::Temp (perl-cpan)
+extract_transcript_regions.sh (https://github.com/stephenfloor/extract-transcript-regions)
+Python		(>=2.7.16)
+R		(>=4.0.2)
+bedtools	(>=2.29.2)
+
+Parameters:
+
+script(in/to) - program - params - comment
+do_blast.sh(in) - tblastx - { -word_size 5 -outfmt 11 -evalue 0.01 } - Overall BLAST
+
+
+WIP:
+
+all-toall tBLASTx (all2alltblastx.sh)
+Trim gene-names only in extract_genomic_regions.sh
+
+Script Flow:
+
+START the pipeline: run_pipeline_ensembl.sh - the script takes only one parameter - file containing the gene list 
+
+ qsub run_pipeline_ensembl.sh files/genelist.txt 
+
+Folder structure, file formats & naming convention:
+
+all-all tblastx: $gene.$query.$subject
