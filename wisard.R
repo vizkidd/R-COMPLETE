@@ -162,9 +162,37 @@ create_GRObject <- function(blast_output){
   return(tmp_gr)
 }
 
-run_WISARD <- function(query_id, gr){
-  result <- get_wis(gr[which(gr$query_id == query_id),],max_score = "Hsp_score", overlap = 0) 
-  if(result$max_score > 0){
+run_WISARD <- function(query_id,subject_ids, gr,score_col){
+  result_list <- c()
+  for(sub_id in subject_ids){
+  result <- get_wis(gr[which(gr$query_id == query_id & seqnames(gr) == sub_id),],max_score = score_col,overlap = 0) 
+  if(result$max_score > 0 && length(result$alignments) > 0){
+    #print(result)
+    #g_name <- unique(result$alignments$subject_gene)
+    #all_results[[g_name]] <- merge_wis(all_results[[g_name]], result)
+    #return(merge_wis(all_results[[g_name]], result))
+    #print(result)
+    #g_name <- unique(unlist(stri_split_fixed(result$alignments$subject_gene,pattern=seqID_delimiter,n = 1,tokens_only = T)))
+    #print(g_name)
+    #if(!is.null(g_name)){
+      #if(is.null(result_list)){
+      #  result_list[[g_name]] <- result
+      #}else{
+      #  result_list[[g_name]] <- merge_wis(result_list[[g_name]], result)
+      #}
+    #}
+    result_list <- c(result_list, result)
+    #print(result_list)
+  }
+  #print(result_list)
+  
+  }
+  return(result_list)
+}
+
+run_WISARD_gene <- function(subject_gene, gr,score_col){
+  result <- get_wis(gr[which(gr$subject_gene==subject_gene),],max_score = score_col, overlap = 0) 
+  if(result$max_score > 0 && length(result$alignments)>0){
     #print(result)
     #g_name <- unique(result$alignments$subject_gene)
     #all_results[[g_name]] <- merge_wis(all_results[[g_name]], result)
@@ -173,18 +201,7 @@ run_WISARD <- function(query_id, gr){
   }
 }
 
-run_WISARD_gene <- function(subject_gene, gr){
-  result <- get_wis(gr[which(gr$subject_gene==subject_gene),],max_score = "Hsp_score", overlap = 0) 
-  if(result$max_score > 0){
-    #print(result)
-    #g_name <- unique(result$alignments$subject_gene)
-    #all_results[[g_name]] <- merge_wis(all_results[[g_name]], result)
-    #return(merge_wis(all_results[[g_name]], result))
-    return(result)
-  }
-}
-
-exec_WISARD <- function(gr){
+exec_WISARD <- function(gr, score_col){
   all_results <- list()
   #for (sseq in unique(gr$query_id)){   
   #  result <- get_wis(gr[which(sseq == gr$query_id),],max_score = "Hsp_score", overlap = 0) 
@@ -198,26 +215,34 @@ exec_WISARD <- function(gr){
   if(is.na(n_cores)){
     n_cores=2
   }
+  
   query_vector <- unique(gr$query_id)
-  child_results <- mcmapply(FUN=run_WISARD, query_vector, MoreArgs=list(gr=gr) ,mc.cores = n_cores-1, SIMPLIFY = FALSE)
+  #print(runValue(seqnames(gr)))
+  subject_vector <- unique(runValue(seqnames(gr)))
+  child_results <- mcmapply(FUN=run_WISARD, query_vector, MoreArgs=list(subject_ids=subject_vector,gr=gr,score_col=score_col) ,mc.cores = n_cores-1, SIMPLIFY = FALSE,USE.NAMES = F)
   for (child in child_results) {
-    #print(child)
-    #g_name <- unique(child$alignments$subject_gene)
+    print(child)
+  #  #g_name <- unique(child$alignments$subject_gene)
     g_name <- unique(unlist(stri_split_fixed(child$alignments$subject_gene,pattern=seqID_delimiter,n = 1,tokens_only = T)))
+    #g_name <- names(child)
     print(g_name)
+    
+    #all_results<- c(all_results, child)
     if(!is.null(g_name)){
       if(is.null(all_results)){
         all_results[[g_name]] <- child
       }else{
         all_results[[g_name]] <- merge_wis(all_results[[g_name]], child)
       }
+     # names(all_results[[g_name]]) <- g_name
     }
   }
+  #return(all_results)
   return(all_results)
   #return(tmp_cr)
 }
 
-exec_WISARD_gene <- function(gr){
+exec_WISARD_gene <- function(gr,score_col){
   all_results <- list()
   
   n_cores <- detectCores(all.tests = TRUE, logical = TRUE)
@@ -225,7 +250,7 @@ exec_WISARD_gene <- function(gr){
     n_cores=2
   }
   subject_gene <- unique(gr$subject_gene)
-  child_results <- mcmapply(FUN=run_WISARD_gene, subject_gene, MoreArgs=list(gr=gr) ,mc.cores = n_cores-1, SIMPLIFY = FALSE)
+  child_results <- mcmapply(FUN=run_WISARD_gene, subject_gene, MoreArgs=list(gr=gr,score_col=score_col) ,mc.cores = n_cores-1, SIMPLIFY = FALSE)
   for (child in child_results) {
     #g_name <- unique(child$alignments$subject_gene)
     g_name <- unique(unlist(stri_split_fixed(child$alignments$subject_gene,pattern=seqID_delimiter,n = 1,tokens_only = T)))
@@ -311,15 +336,15 @@ dissolve_GR_Overlaps <- function(GR_object){
 }
 
 #HSP_Coverage(query_mRNA = query_mRNA, org_fw = q_fw,org_bk=s_fw, s_gtf=ref_gtf, q_gtf=org_gtf)
-HSP_Coverage <- function(query_mRNA, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"){
+HSP_Coverage <- function(query, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"){
   # org_fw <- q_fw
   # org_bk <- s_fw
   tmp_df <- c()
-  for(query in unique(query_mRNA)){
+  #for(query in unique(query_mRNA)){
     #print(query)
     q_result <- org_fw[which(org_fw$query_id == query),]
     #print(q_result)
-    #q_result <- q_result[which(q_result$Hsp_query.frame == 1),]
+    ##q_result <- q_result[which(q_result$Hsp_query.frame == 1),]
     if(length(q_result) > 0){
       id_query <- unlist(stri_split_fixed(query,pattern = delimiter))[1]
       q_CDS_length <- unique(q_result$query_len) #feature_length(id_query, q_gtf, feature=feature)
@@ -329,9 +354,10 @@ HSP_Coverage <- function(query_mRNA, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"
       #print(length(q_result))
       for(subject in subject_mRNA){
         result <- org_bk[which(org_bk$query_id == subject),]
-        subject_result <- result[which(seqnames(result)@values == query)]
+        subject_result <- result[which(seqnames(result) == query)]
         #subject_result <- subject_result[which(subject_result$Hsp_hit.frame==1),]
-        query_result <- q_result[intersect(which(q_result$query_id == query),which(q_result@seqnames@values == subject)),]
+        query_result <- q_result[intersect(which(q_result$query_id == query),which(seqnames(q_result) == subject)),]
+        
         if(length(query_result) > 0 && length(subject_result) > 0){
           id_subject <- unlist(stri_split_fixed(subject,pattern = delimiter))[1]
           if(length(subject_result) > 0){
@@ -360,7 +386,7 @@ HSP_Coverage <- function(query_mRNA, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"
         }
       }
     }
-  }
+  #}
   return(tmp_df)
 }
 
@@ -404,17 +430,17 @@ calc_delta_cov <- function(query_mRNA,org_bk_result,org_fw_result){
 
 ###ENTRYPOINT
 set.seed(123)
-#source("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/rob/phages/robert_phage/wisard/R/WIS_functions.R")
-#source("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/rob/phages/robert_phage/wisard/R/greedy.R")
-#source("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/rob/phages/robert_phage/wisard/R/read_blast.R")
+#source("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/rob/wisard/wisard/R/WIS_functions.R")
+#source("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/rob/wisard/wisard/R/greedy.R")
+#source("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/rob/wisard/wisard/R/read_blast.R")
 
-#source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/phages/robert_phage/wisard/R/WIS_functions.R")
-#source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/phages/robert_phage/wisard/R/greedy.R")
-#source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/phages/robert_phage/wisard/R/read_blast.R")
+#source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/wisard/wisard/R/WIS_functions.R")
+#source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/wisard/wisard/R/greedy.R")
+#source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/wisard/wisard/R/read_blast.R")
 
-source("/data/meyer/rob/phages/robert_phage/wisard/R/WIS_functions.R")
-source("/data/meyer/rob/phages/robert_phage/wisard/R/greedy.R")
-source("/data/meyer/rob/phages/robert_phage/wisard/R/read_blast.R")
+source("/data/meyer/rob/wisard/wisard/R/WIS_functions.R")
+source("/data/meyer/rob/wisard/wisard/R/greedy.R")
+source("/data/meyer/rob/wisard/wisard/R/read_blast.R")
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -489,8 +515,8 @@ if(is.null(all_fw_results) || is.null(all_bk_results)){
           gr_fw <- create_GRObject(orths0)
           gr_bk <- create_GRObject(orths1)
           
-          all_fw_results[[ref]][[org]] <- exec_WISARD(gr_fw)
-          all_bk_results[[ref]][[org]] <- exec_WISARD(gr_bk)
+          all_fw_results[[ref]][[org]] <- exec_WISARD(gr_fw,"Hsp_score")
+          all_bk_results[[ref]][[org]] <- exec_WISARD(gr_bk,"Hsp_score")
           
           #for (sseq in unique(gr$subject_gene)){   
           #    result <- get_wis(gr[which(sseq == gr$subject_gene),],max_score = "Hsp_score", overlap = 0) 
@@ -554,16 +580,16 @@ for(ref_org in orgs.ref){
           for(gene in gene_list){
             print(gene)
             
-            fw_org_fw_indices <- which(names(all_fw_results[[ref_org]][[org]]) == gene) # org(A)::transcript(i) -> org(B)::transcript(j)
-            bk_org_fw_indices <- which(names(all_fw_results[[org]][[ref_org]]) == gene) # org(A)::transcript(i) -> org(B)::transcript(j)
-            fw_org_bk_indices <- which(names(all_bk_results[[ref_org]][[org]]) == gene) # org(A)::transcript(i) <- org(B)::transcript(j)
-            bk_org_bk_indices <- which(names(all_bk_results[[org]][[ref_org]]) == gene) # org(A)::transcript(i) <- org(B)::transcript(j)
+            #fw_org_fw_indices <- which(names(all_fw_results[[ref_org]][[org]]) == gene) # org(A)::transcript(i) -> org(B)::transcript(j)
+            #bk_org_fw_indices <- which(names(all_fw_results[[org]][[ref_org]]) == gene) # org(A)::transcript(i) -> org(B)::transcript(j)
+            #fw_org_bk_indices <- which(names(all_bk_results[[ref_org]][[org]]) == gene) # org(A)::transcript(i) <- org(B)::transcript(j)
+            #bk_org_bk_indices <- which(names(all_bk_results[[org]][[ref_org]]) == gene) # org(A)::transcript(i) <- org(B)::transcript(j)
             
-            if(length(fw_org_fw_indices) > 0 && length(fw_org_bk_indices) > 0){ # && length(bk_org_fw_indices) > 0 && length(bk_org_bk_indices) > 0){
-              gene_fw_result <- all_fw_results[[ref_org]][[org]][[fw_org_fw_indices]]$alignments
-              s_gene_fw <- all_fw_results[[org]][[ref_org]][[bk_org_fw_indices]]$alignments
-              gene_bk_result <- all_bk_results[[ref_org]][[org]][[fw_org_bk_indices]]$alignments
-              s_gene_bk <- all_bk_results[[org]][[ref_org]][[bk_org_bk_indices]]$alignments
+            #if(length(fw_org_fw_indices) > 0 && length(fw_org_bk_indices) > 0){ # && length(bk_org_fw_indices) > 0 && length(bk_org_bk_indices) > 0){
+              #gene_fw_result <- all_fw_results[[ref_org]][[org]][[gene]]$alignments
+              #s_gene_fw <- all_fw_results[[org]][[ref_org]][[gene]]$alignments
+              #gene_bk_result <- all_bk_results[[ref_org]][[org]][[gene]]$alignments
+              #s_gene_bk <- all_bk_results[[org]][[ref_org]][[gene]]$alignments
               #query_mRNA <- unique(org_fw_result$query_id)
               
               #technically, q_fw == s_bk, & s_fw == q_bk
@@ -572,12 +598,13 @@ for(ref_org in orgs.ref){
               #bk_org_fw_indices point to s_fw
               #bk_org_bk_indices point to s_bk
               
-              q_fw <- gene_fw_result[which(gene_fw_result$subject_org == ref_org & gene_fw_result$query_org == org),]
-              q_bk <- gene_bk_result[which(gene_bk_result$query_org == ref_org & gene_bk_result$subject_org == org),]
-              s_fw <- s_gene_fw[which(s_gene_fw$subject_org == org & s_gene_fw$query_org == ref_org),]
-              s_bk <- s_gene_bk[which(s_gene_bk$subject_org == ref_org & s_gene_bk$query_org == org),]
+              q_fw <- all_fw_results[[ref_org]][[org]][[gene]]$alignments #gene_fw_result[which(gene_fw_result$subject_org == ref_org & gene_fw_result$query_org == org),]
+              q_bk <- all_bk_results[[ref_org]][[org]][[gene]]$alignments #gene_bk_result[which(gene_bk_result$query_org == ref_org & gene_bk_result$subject_org == org),]
+              s_fw <- all_fw_results[[org]][[ref_org]][[gene]]$alignments #s_gene_fw[which(s_gene_fw$subject_org == org & s_gene_fw$query_org == ref_org),]
+              s_bk <- all_bk_results[[org]][[ref_org]][[gene]]$alignments #s_gene_bk[which(s_gene_bk$subject_org == ref_org & s_gene_bk$query_org == org),]
               queries <- unique(unique(q_fw$query_id),unique(s_bk$query_id))
               subjects <- unique(unique(s_fw$query_id),unique(q_bk$query_id))
+              #subjects <- unique(unique(seqnames(q_fw)@values),unique(seqnames(q_bk)@values))
               #print(query_mRNA)
               
               ##DELTA_COV code
@@ -607,7 +634,7 @@ for(ref_org in orgs.ref){
               
               #sum of length of HSPs / length of CDS
               HSP_fw_results <- mcmapply(FUN=HSP_Coverage, queries, MoreArgs=list(org_bk=q_bk,org_fw=q_fw,q_gtf=org_gtf,s_gtf=ref_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
-              HSP_bk_results <- mcmapply(FUN=HSP_Coverage, subjects, MoreArgs=list(org_bk=s_bk,org_fw=s_fw,q_gtf=ref_gtf,s_gtf=org_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE)
+              HSP_bk_results <- mcmapply(FUN=HSP_Coverage, subjects, MoreArgs=list(org_bk=s_bk,org_fw=s_fw,q_gtf=ref_gtf,s_gtf=org_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
               
               for(fw in HSP_fw_results){
                 HSP_fw[[gene]] <- rbind(HSP_fw[[gene]],fw)
@@ -617,7 +644,7 @@ for(ref_org in orgs.ref){
               }
               #print(head(HSP_fw))
               #print(str(HSP_fw))
-            }
+            #}
           }
           
           ##PLOT_CODE
@@ -665,6 +692,7 @@ for(ref_org in orgs.ref){
             #tmp6 <- tmp6[which(tmp6$min_cov <= 1),] #tmp6[!which(tmp6$min_cov > 1),]
             #tmp6 <- tmp6[which(tmp6$max_cov <= 1),]
             tmp6 <- unique(tmp6)
+            
             #print(head(tmp6))
             #ggplot(tmp6, aes(x=min_cov*100, fill=same_CDS_count)) + geom_density(aes(y=..density..),position = 'identity', alpha=0.65) + xlab("Min.Coverage of all transcripts(pairwise)") + ylab("Proportion") + facet_wrap(~direction)
             if(nrow(tmp6)>0){
