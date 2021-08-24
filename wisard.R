@@ -221,7 +221,7 @@ exec_WISARD <- function(gr, score_col){
   subject_vector <- unique(runValue(seqnames(gr)))
   child_results <- mcmapply(FUN=run_WISARD, query_vector, MoreArgs=list(subject_ids=subject_vector,gr=gr,score_col=score_col) ,mc.cores = n_cores-1, SIMPLIFY = FALSE,USE.NAMES = F)
   for (child in child_results) {
-    print(child)
+    #print(child)
   #  #g_name <- unique(child$alignments$subject_gene)
     g_name <- unique(unlist(stri_split_fixed(child$alignments$subject_gene,pattern=seqID_delimiter,n = 1,tokens_only = T)))
     #g_name <- names(child)
@@ -352,6 +352,7 @@ HSP_Coverage <- function(query, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"){
       #subject_mRNA <- unique(seqnames(org_fw)@values)
       #print(subject_mRNA)
       #print(length(q_result))
+      
       for(subject in subject_mRNA){
         result <- org_bk[which(org_bk$query_id == subject),]
         subject_result <- result[which(seqnames(result) == query)]
@@ -381,10 +382,11 @@ HSP_Coverage <- function(query, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"){
             #print(cov_s)
             feature_comp <- (feature_count(id_query,q_gtf)==feature_count(id_subject,s_gtf))
             
-            tmp_df <- rbind(tmp_df, data.frame(query=query, subject=subject,min_cov=min(cov_q, cov_s),max_cov=max(cov_q, cov_s), same_CDS_count=feature_comp,cov_q=cov_q, cov_s=cov_s,hit_from=subject_result$Hsp_hit.from,hit_to=subject_result$Hsp_hit.to,subject_len=s_CDS_length,align_len=subject_result$Hsp_align.len,query_from=subject_result$Hsp_query.from,query_to=subject_result$Hsp_query.to,query_len=q_CDS_length, pident=subject_result$Hsp_pidentity))
+            tmp_df <- rbind(tmp_df, data.frame(query=query, subject=subject,min_cov=min(cov_q, cov_s),max_cov=max(cov_q, cov_s), same_CDS_count=feature_comp,cov_q=cov_q, cov_s=cov_s,hit_from=subject_result$Hsp_hit.from,hit_to=subject_result$Hsp_hit.to,query_len=q_CDS_length,subject_len=s_CDS_length,q_align_len=q_align_length,s_align_len=s_align_length,query_from=subject_result$Hsp_query.from,query_to=subject_result$Hsp_query.to, pident=subject_result$Hsp_pidentity))
           }
         }
       }
+    
     }
   #}
   return(tmp_df)
@@ -426,7 +428,19 @@ calc_delta_cov <- function(query_mRNA,org_bk_result,org_fw_result){
     }
   }
 }
-
+reverse_BLAST <- function(gr_results){
+    #Reversing BLAST direction
+    tmp_org_fw <- c()
+    tmp_org_fw <- as.data.frame(gr_results)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"seqnames", "query_id", swap_names = F)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"start", "Hsp_query.from", swap_names = F)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"end", "Hsp_query.to", swap_names = F)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"query_len", "subject_len", swap_names = F)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"query_org", "subject_org", swap_names = F)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"query_gene", "subject_gene", swap_names = F)
+    tmp_org_fw <- swap_columns(tmp_org_fw,"Hsp_query.frame", "Hsp_hit.frame", swap_names = F)
+    return(GRanges(tmp_org_fw))
+}
 
 ###ENTRYPOINT
 set.seed(123)
@@ -602,10 +616,25 @@ for(ref_org in orgs.ref){
               q_bk <- all_bk_results[[ref_org]][[org]][[gene]]$alignments #gene_bk_result[which(gene_bk_result$query_org == ref_org & gene_bk_result$subject_org == org),]
               s_fw <- all_fw_results[[org]][[ref_org]][[gene]]$alignments #s_gene_fw[which(s_gene_fw$subject_org == org & s_gene_fw$query_org == ref_org),]
               s_bk <- all_bk_results[[org]][[ref_org]][[gene]]$alignments #s_gene_bk[which(s_gene_bk$subject_org == ref_org & s_gene_bk$query_org == org),]
+
+              if(!is.null(q_bk) && is.null(q_fw)){
+                q_fw <- reverse_BLAST(q_bk)
+              }
+              if(is.null(q_bk) && !is.null(q_fw)){
+                q_bk <- reverse_BLAST(q_fw)
+              }
+              if(is.null(s_fw) && !is.null(s_bk)){
+                s_fw <- reverse_BLAST(s_bk)
+              }
+              if(!is.null(s_fw) && is.null(s_bk)){
+                s_bk <- reverse_BLAST(s_fw)
+              }
               queries <- unique(unique(q_fw$query_id),unique(s_bk$query_id))
               subjects <- unique(unique(s_fw$query_id),unique(q_bk$query_id))
               #subjects <- unique(unique(seqnames(q_fw)@values),unique(seqnames(q_bk)@values))
-              #print(query_mRNA)
+              
+              #print(queries)
+              #print(subjects)
               
               ##DELTA_COV code
               # child_results <- mcmapply(FUN=calc_delta_cov, query_mRNA, MoreArgs=list(org_fw_result=q_fw,org_bk_result=s_fw) ,mc.cores = n_cores-1, SIMPLIFY = FALSE)
@@ -633,15 +662,18 @@ for(ref_org in orgs.ref){
               HSP_bk_results <- c()
               
               #sum of length of HSPs / length of CDS
-              HSP_fw_results <- mcmapply(FUN=HSP_Coverage, queries, MoreArgs=list(org_bk=q_bk,org_fw=q_fw,q_gtf=org_gtf,s_gtf=ref_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
-              HSP_bk_results <- mcmapply(FUN=HSP_Coverage, subjects, MoreArgs=list(org_bk=s_bk,org_fw=s_fw,q_gtf=ref_gtf,s_gtf=org_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
-              
-              for(fw in HSP_fw_results){
-                HSP_fw[[gene]] <- rbind(HSP_fw[[gene]],fw)
+              if(!is.null(queries)){
+                HSP_fw_results <- mcmapply(FUN=HSP_Coverage, queries, MoreArgs=list(org_bk=q_bk,org_fw=q_fw,q_gtf=org_gtf,s_gtf=ref_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
+                for(fw in HSP_fw_results){
+                  HSP_fw[[gene]] <- rbind(HSP_fw[[gene]],fw)
+                }
               }
-              for(bk in HSP_bk_results){
-                HSP_bk[[gene]] <- rbind(HSP_bk[[gene]],bk)
-              }
+              if(!is.null(subjects)){
+                HSP_bk_results <- mcmapply(FUN=HSP_Coverage, subjects, MoreArgs=list(org_bk=s_bk,org_fw=s_fw,q_gtf=ref_gtf,s_gtf=org_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
+                for(bk in HSP_bk_results){
+                  HSP_bk[[gene]] <- rbind(HSP_bk[[gene]],bk)
+                }
+                }
               #print(head(HSP_fw))
               #print(str(HSP_fw))
             #}
@@ -655,10 +687,10 @@ for(ref_org in orgs.ref){
           tmp6 <- c()
           plot_filename <- paste(ref_org,org,sep = "-")
           tmp3 <- sapply(HSP_fw, USE.NAMES = T ,function(x){
-            return(data.frame(query=x$query,subject=x$subject,min_cov=x$min_cov,max_cov=x$max_cov,cov_q=x$cov_q,cov_s=x$cov_s,same_CDS_count=as.logical(x$same_CDS_count),hit_from=x$hit_from,hit_to=x$hit_to,subject_len=x$subject_len,align_len=x$align_len,query_from=x$query_from,query_to=x$query_to,query_len=x$query_len, pident=x$pident))
+            return(data.frame(query=x$query,subject=x$subject,min_cov=x$min_cov,max_cov=x$max_cov,cov_q=x$cov_q,cov_s=x$cov_s,same_CDS_count=as.logical(x$same_CDS_count),hit_from=x$hit_from,hit_to=x$hit_to,query_len=x$query_len,subject_len=x$subject_len,q_align_len=x$q_align_len,s_align_len=x$s_align_len,query_from=x$query_from,query_to=x$query_to, pident=x$pident))
           })
           tmp4 <- sapply(HSP_bk, USE.NAMES = T ,function(x){
-            return(data.frame(query=x$query,subject=x$subject,min_cov=x$min_cov,max_cov=x$max_cov,cov_q=x$cov_q,cov_s=x$cov_s,same_CDS_count=as.logical(x$same_CDS_count),hit_from=x$hit_from,hit_to=x$hit_to,subject_len=x$subject_len,align_len=x$align_len,query_from=x$query_from,query_to=x$query_to,query_len=x$query_len, pident=x$pident))
+            return(data.frame(query=x$query,subject=x$subject,min_cov=x$min_cov,max_cov=x$max_cov,cov_q=x$cov_q,cov_s=x$cov_s,same_CDS_count=as.logical(x$same_CDS_count),hit_from=x$hit_from,hit_to=x$hit_to,query_len=x$query_len,subject_len=x$subject_len,q_align_len=x$q_align_len,s_align_len=x$s_align_len,query_from=x$query_from,query_to=x$query_to, pident=x$pident))
           })
           #print(str(tmp3))
           if(length(tmp3)>0){ ##IF length(tmp3) == 0 then there are no genes matching between organisms
