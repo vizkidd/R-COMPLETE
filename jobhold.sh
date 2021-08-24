@@ -26,6 +26,7 @@ fi
 #echo $CLUSTER_QUEUE_CMD
 #echo $CLUSTER_JOBS_CMD
 
+wait 5
 
 alias myqstat=$CLUSTER_JOBS_CMD
 export myqstat
