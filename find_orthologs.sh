@@ -202,9 +202,9 @@ subject=$3
 proc_list=()
 if [[ "$query" != "$subject" ]]; then
 	if [[ ! -s $path/$query-$subject.orths ]]; then
-		nohup ./jobhold.sh "oneway_blast_formatter" blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out &>> /dev/null&
+		nohup blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out &>> /dev/null&
 		proc_list+=("$!")
-		nohup ./jobhold.sh "oneway_blast_formatter" blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out &>> /dev/null&
+		nohup blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out &>> /dev/null&
 		proc_list+=("$!")
 		for proc_id in "${proc_list[@]}"
 		do
@@ -212,8 +212,8 @@ if [[ "$query" != "$subject" ]]; then
 			wait $proc_id || true
 		done
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		nohup ./jobhold.sh "oneway_RBH" python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
-		wait "$!" || true
+		nohup python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
+		wait "$!"
 	fi
 fi
 }
@@ -227,9 +227,9 @@ subject=$3
 proc_list=()
 if [[ "$query" != "$subject" ]]; then
 	if [[ ! -s $path/$query-$subject.orths ]] || [[ ! -s $path/$subject-$query.orths ]]; then
-		nohup ./jobhold.sh "twoway_blast_formatter" blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out &>> /dev/null&
+		nohup blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out &>> /dev/null&
 		proc_list+=("$!")
-		nohup ./jobhold.sh "twoway_blast_formatter" blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out &>> /dev/null&
+		nohup blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out &>> /dev/null&
 		proc_list+=("$!")
 		for proc_id in "${proc_list[@]}"
 		do
@@ -238,9 +238,9 @@ if [[ "$query" != "$subject" ]]; then
 		done
 		proc_list=()
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		nohup ./jobhold.sh "twoway_RBH" python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
+		nohup python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
 		proc_list+=("$!")
-		nohup ./jobhold.sh "twoway_RBH" python RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
+		nohup python RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
 		proc_list+=("$!")
 		for proc_id in "${proc_list[@]}"
 		do
