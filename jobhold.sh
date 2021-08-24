@@ -7,7 +7,7 @@
 # For commands that are submitted to cluster, hold until jobs have completed
 #NOT TESTED FOR SLURM(sbatch)
 shopt -s expand_aliases
-sleep_time=2 # seconds; don't make this too short! don't want to tax system with excessive qstat calls
+sleep_time=300 # seconds; don't make this too short! don't want to tax system with excessive qstat calls
 me=`whoami`
 CLUSTER="sh"
 CLUSTER_QUEUE_CMD="sh $(echo $@ | awk '{$1="";print}')"
