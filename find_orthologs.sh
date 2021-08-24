@@ -75,7 +75,7 @@ if [[ ! -s $4/all2all.$query.$subject ]]; then
 			makeblastdb -in "$5/$query.$6" -dbtype nucl  -hash_index || true 
 		fi
 		printf "$query\n$subject" > files/pairwise_ORGS.txt
-		nohup ./jobhold.sh "qsub -N "$query-$subject" do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+		nohup ./jobhold.sh $query-$subject" do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
 		proc_list+=("$!")
 	fi
 fi
@@ -111,7 +111,7 @@ if [[ ! -s $4/$line.$species.all ]]; then
   #j_name=$(echo $line | sed "s/://g")
   j_name=$(echo $line | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
   ##THIS is how you submit qsub jobs from within a script
-  nohup ./jobhold.sh "qsub -N "$j_name" do_blast.sh $4 $2/$species/$j_name.$6 $5/$j_name.$7 $8 $j_name $species all" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+  nohup ./jobhold.sh $j_name" do_blast.sh $4 $2/$species/$j_name.$6 $5/$j_name.$7 $8 $j_name $species all" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
   ##proc_id=$("qsub -V -cwd -l data -N "$j_name" do_blast.sh $1 $2 "$line" $4 $5 $6 $7 $n_proc") #n_proc=2
   #id=`echo $proc_id | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'` ##GET QSUB IDs
   ##proc_list+=("$id",)
@@ -164,9 +164,9 @@ if [[ ! -s $4/all2all.$query.$subject ]] || [[ ! -s $4/all2all.$subject.$query ]
 			makeblastdb -in "$5/$query.$6" -dbtype nucl  -hash_index || true 
 		fi
 		printf "$query\n$subject" > files/pairwise_ORGS.txt
-		nohup ./jobhold.sh "qsub -N "$query-$subject" do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+		nohup ./jobhold.sh $query-$subject" do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
 		proc_list+=("$!")
-		nohup ./jobhold.sh "qsub -N "$subject-$query" do_blast.sh $4 $5/$subject.$7 $5/$query.$6 $8 all2all $subject $query" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+		nohup ./jobhold.sh $subject-$query" do_blast.sh $4 $5/$subject.$7 $5/$query.$6 $8 all2all $subject $query" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
 		proc_list+=("$!")
 	fi
 fi
@@ -199,12 +199,21 @@ oneway_RBH() {
 path=$1
 query=$2
 subject=$3
+proc_list=()
 if [[ "$query" != "$subject" ]]; then
 	if [[ ! -s $path/$query-$subject.orths ]]; then
-		blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out
-		blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out
+		nohup ./jobhold.sh "oneway_blast_formatter" blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out &>> /dev/null&
+		proc_list+=("$!")
+		nohup ./jobhold.sh "oneway_blast_formatter" blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out &>> /dev/null&
+		proc_list+=("$!")
+		for proc_id in "${proc_list[@]}"
+		do
+			echo $proc_id
+			wait $proc_id || true
+		done
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths
+		nohup ./jobhold.sh "oneway_RBH" python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
+		wait "$!" || true
 	fi
 fi
 }
@@ -215,13 +224,29 @@ twoway_RBH() {
 path=$1
 query=$2
 subject=$3
+proc_list=()
 if [[ "$query" != "$subject" ]]; then
 	if [[ ! -s $path/$query-$subject.orths ]] || [[ ! -s $path/$subject-$query.orths ]]; then
-		blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out
-		blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out
+		nohup ./jobhold.sh "twoway_blast_formatter" blast_formatter -archive $path/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$query-$subject.out &>> /dev/null&
+		proc_list+=("$!")
+		nohup ./jobhold.sh "twoway_blast_formatter" blast_formatter -archive $path/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out $path/$subject-$query.out &>> /dev/null&
+		proc_list+=("$!")
+		for proc_id in "${proc_list[@]}"
+		do
+			echo $proc_id
+			wait $proc_id || true
+		done
+		proc_list=()
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths
-		python RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths
+		nohup ./jobhold.sh "twoway_RBH" python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
+		proc_list+=("$!")
+		nohup ./jobhold.sh "twoway_RBH" python RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
+		proc_list+=("$!")
+		for proc_id in "${proc_list[@]}"
+		do
+			echo $proc_id
+			wait $proc_id || true
+		done
 	fi
 fi
 }
