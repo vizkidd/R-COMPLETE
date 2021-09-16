@@ -26,5 +26,5 @@ user_genomes=files/user_data.txt= Path to file containing (org_name,genome_link/
 macse_path=/data/meyer/viz/tools/macse_v2.05.jar= Path to MACSE jar file or the installed executable (for coding sequence alignment) (Input)
 mafft_path=~/.guix-profile/bin/mafft-qinsi= Path to MAFFT executable (for UTR alignment) (Input)
 alignments_path=files/alns= Path to save alignments (Output)
-gap_threshold=0.25= Minimum proportion of GAPS in an alignment column to remove the said column (Input)
+gap_threshold=0.50= The largest gap proportion to delete the column (higher values will give more gaps and discards less sequences) (Input)
 mincov_threshold=0.5= Threshold for minimum coverage(higher values give highly conserved sequences) (Input)

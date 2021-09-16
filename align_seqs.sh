@@ -38,9 +38,9 @@ align_cds() {
 		#java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/$gene.ref_orgs_NT.cds -p2 $ALN_PATH/$gene.orgs_NT.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
 		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}.ref_orgs.cds -out_NT $ALN_PATH/{}.ref_orgs_NT.cds -out_AA $ALN_PATH/{}.ref_orgs_AA.cds" ::: ${genes[@]}
 		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}.orgs.cds -out_NT $ALN_PATH/{}.orgs_NT.cds -out_AA $ALN_PATH/{}.orgs_AA.cds" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/{}.ref_orgs_NT.cds -p2 $ALN_PATH/{}.orgs_NT.cds -out_NT $ALN_PATH/{}_NT.cds.aln -out_AA $ALN_PATH/{}_AA.cds.aln" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/{}.ref_orgs_NT.cds -p2 $ALN_PATH/{}.orgs_NT.cds -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln" ::: ${genes[@]}
 	else 	
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}.cds -out_NT $ALN_PATH/{}_NT.cds.aln -out_AA $ALN_PATH/{}_AA.cds.aln" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}.cds -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln" ::: ${genes[@]}
 		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
 	fi
 
@@ -48,12 +48,14 @@ align_cds() {
 	#if [[ -s $ALN_PATH/"$gene"_NT.cds.aln ]]; then
 	#	Rscript remove_Gaps.R $ALN_PATH/"$gene"_NT.cds.aln
 	#fi
+	##CONVERTING frameshift mutations(!) to gaps(-)
+	parallel -j ${#genes[@]} "sed 's/!/-/g' $ALN_PATH/{}_NT.cds.aln.fm > $ALN_PATH/{}_NT.cds.aln" ::: ${genes[@]}
 	parallel -j ${#genes[@]} "Rscript remove_Gaps.R $ALN_PATH/{}_NT.cds.aln" ::: ${genes[@]}
 }
 
 align_3utr() {
 
-	parallel -j ${#genes[@]} "mafft-qinsi --inputorder --treeout --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.3utr > $ALN_PATH/{}_NT.3utr.aln" ::: ${genes[@]}
+	parallel -j ${#genes[@]} "$MAFFT_PATH --inputorder --treeout --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.3utr > $ALN_PATH/{}_NT.3utr.aln" ::: ${genes[@]}
 
 	##GAP REMOVAL
 	#if [[ -s $ALN_PATH/"$gene"_NT.cds.aln ]]; then
@@ -64,13 +66,47 @@ align_3utr() {
 
 align_5utr() {
 
-	parallel -j ${#genes[@]} "mafft-qinsi --inputorder --treeout --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.5utr > $ALN_PATH/{}_NT.5utr.aln" ::: ${genes[@]}
+	parallel -j ${#genes[@]} "$MAFFT_PATH  --inputorder --treeout --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.5utr > $ALN_PATH/{}_NT.5utr.aln" ::: ${genes[@]}
 
 	##GAP REMOVAL
 	#if [[ -s $ALN_PATH/"$gene"_NT.cds.aln ]]; then
 	#	Rscript remove_Gaps.R $ALN_PATH/"$gene"_NT.cds.aln
 	#fi
 	parallel -j ${#genes[@]} "Rscript remove_Gaps.R $ALN_PATH/{}_NT.5utr.aln" ::: ${genes[@]}
+}
+
+stitch_alns() {
+	for gn in ${genes[@]}
+	do
+		echo $gn
+		min_seqs=$(printf 3utr,$(grep ">" $ALN_PATH/"$gn"_NT.3utr.aln | wc -l)"\n"cds,$(grep ">" $ALN_PATH/"$gn"_NT.cds.aln | wc -l)"\n"5utr,$(grep ">" $ALN_PATH/"$gn"_NT.5utr.aln | wc -l) | sort -k2  | head -n 1)
+		reg=$(echo $min_seqs | awk -F',' '{print $1}')
+		tr_list=($(grep ">" $ALN_PATH/"$gn"_NT."$reg".aln | sed 's/>//g' | sed "s/$reg/full/g"))
+		rm $ALN_PATH/"$gn".aln
+		rm $ALN_PATH/"$gn".lens
+		printf "five_start,five_end,cds_start,cds_end,three_start,three_end" > $ALN_PATH/"$gn".lens
+		for tr in ${tr_list[@]}
+		do
+			five_seq=$(seqkit grep -n -p $(echo $tr | sed "s/full/5utr/g") $ALN_PATH/"$gn"_NT.5utr.aln | grep ">" -v )
+			cds_seq=$(seqkit grep -n -p $(echo $tr | sed "s/full/cds/g") $ALN_PATH/"$gn"_NT.cds.aln | grep ">" -v )
+			three_seq=$(seqkit grep -n -p $(echo $tr | sed "s/full/3utr/g") $ALN_PATH/"$gn"_NT.3utr.aln | grep ">" -v )
+			five_len=$(echo $five_seq | wc -m )
+			cds_len=$(echo $cds_seq | wc -m )
+			three_len=$(echo $three_seq | wc -m )
+			if [ "$five_seq" != "" ] && [ "$cds_seq" != "" ] && [ "$three_seq" != "" ]; then
+				#printf -- 1,"$five_len",$(($five_len + 1)),$(($five_len + 1 + $cds_len )),$(( $five_len + 1 + $cds_len +1 )),$(( $five_len + 1 + $cds_len + $three_len ))"""\n"
+				printf -- ">$tr\n$five_seq|$cds_seq|$three_seq\n"  >> $ALN_PATH/"$gn".aln #| sed 's/!/-/g' >> $ALN_PATH/"$gn".aln
+				#printf -- "$(echo $five_seq | wc -m )","$(echo $cds_seq | wc -m )","$(echo $three_seq | wc -m )""\n" >> $ALN_PATH/"$gn".lens
+				printf -- 1,"$five_len",$(($five_len + 1)),$(($five_len + 1 + $cds_len )),$(( $five_len + 1 + $cds_len +1 )),$(( $five_len + 1 + $cds_len + $three_len ))"""\n" >> $ALN_PATH/"$gn".lens
+			fi
+		done
+
+		#awk '/^>/ {print (NR>1?"\n":"")$0;; next} {printf "%s",$0;} END{print "";}' $ALN_PATH/"$gn".tmp > $ALN_PATH/"$gn".aln
+		#rm $ALN_PATH/"$gn".tmp
+	done
+
+	#parallel -j ${#genes[@]} "sed 's/ //g' $ALN_PATH/{}.aln > $ALN_PATH/{}.aln" ::: ${genes[@]}
+	parallel -j ${#genes[@]} "Rscript remove_Gaps.R $ALN_PATH/{}.aln" ::: ${genes[@]}
 }
 
 ###ENTRYPOINT
@@ -108,6 +144,9 @@ done < "$gene_list"
 readarray genes < $gene_list
 
 ##ALIGN 
-#align_cds
+align_cds
 align_3utr
 align_5utr
+
+stitch_alns
+

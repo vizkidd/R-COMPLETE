@@ -390,4 +390,6 @@ done < "$reference_ORGS"
 
 Rscript wisard.R files/oneway/set.tmp files/all2all_final
 
+./align_seqs.sh
+
 exit
