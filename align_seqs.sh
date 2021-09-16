@@ -95,7 +95,7 @@ stitch_alns() {
 			three_len=$(echo $three_seq | wc -m )
 			if [ "$five_seq" != "" ] && [ "$cds_seq" != "" ] && [ "$three_seq" != "" ]; then
 				#printf -- 1,"$five_len",$(($five_len + 1)),$(($five_len + 1 + $cds_len )),$(( $five_len + 1 + $cds_len +1 )),$(( $five_len + 1 + $cds_len + $three_len ))"""\n"
-				printf -- ">$tr\n$five_seq|$cds_seq|$three_seq\n"  >> $ALN_PATH/"$gn".aln #| sed 's/!/-/g' >> $ALN_PATH/"$gn".aln
+				printf -- ">$tr\n$five_seq$cds_seq$three_seq\n"  >> $ALN_PATH/"$gn".aln #| sed 's/!/-/g' >> $ALN_PATH/"$gn".aln
 				#printf -- "$(echo $five_seq | wc -m )","$(echo $cds_seq | wc -m )","$(echo $three_seq | wc -m )""\n" >> $ALN_PATH/"$gn".lens
 				printf -- 1,"$five_len",$(($five_len + 1)),$(($five_len + 1 + $cds_len )),$(( $five_len + 1 + $cds_len +1 )),$(( $five_len + 1 + $cds_len + $three_len ))"""\n" >> $ALN_PATH/"$gn".lens
 			fi
@@ -103,10 +103,14 @@ stitch_alns() {
 
 		#awk '/^>/ {print (NR>1?"\n":"")$0;; next} {printf "%s",$0;} END{print "";}' $ALN_PATH/"$gn".tmp > $ALN_PATH/"$gn".aln
 		#rm $ALN_PATH/"$gn".tmp
+		gzip -c $ALN_PATH/"$gn"_NT.*.aln $ALN_PATH/"$gn".tree $ALN_PATH/"$gn"_AA.*.aln $ALN_PATH/"$gn"_NT.cds.aln.fm $ALN_PATH/"$gn".orgs.* $ALN_PATH/"$gn".ref_orgs.* $ALN_PATH/"$gn".ref_orgs_NT.* $ALN_PATH/"$gn".orgs_NT.* $ALN_PATH/"$gn".ref_orgs_AA.* $ALN_PATH/"$gn".orgs_AA.* > $ALN_PATH/$gn.gz
+		rm $ALN_PATH/"$gn"_NT.*.aln $ALN_PATH/"$gn".tree $ALN_PATH/"$gn"_AA.*.aln $ALN_PATH/"$gn"_NT.cds.aln.fm $ALN_PATH/"$gn".orgs.* $ALN_PATH/"$gn".ref_orgs.* $ALN_PATH/"$gn".ref_orgs_NT.* $ALN_PATH/"$gn".orgs_NT.* $ALN_PATH/"$gn".ref_orgs_AA.* $ALN_PATH/"$gn".orgs_AA.*
 	done
 
+	##DOING this because its not a lot of MSA programs support special chars like frameshift mutations(!) or stitched alignments(5utr|cds|3utr) (which was something I was trying to do)
 	#parallel -j ${#genes[@]} "sed 's/ //g' $ALN_PATH/{}.aln > $ALN_PATH/{}.aln" ::: ${genes[@]}
-	parallel -j ${#genes[@]} "Rscript remove_Gaps.R $ALN_PATH/{}.aln" ::: ${genes[@]}
+	#parallel -j ${#genes[@]} "Rscript remove_Gaps.R $ALN_PATH/{}.aln" ::: ${genes[@]}
+
 }
 
 ###ENTRYPOINT
