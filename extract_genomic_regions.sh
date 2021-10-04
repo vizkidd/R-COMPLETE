@@ -55,6 +55,56 @@ fi
 #done
 }
 
+check_gene() {
+  gene_full=$1
+  if [[ $gene_full !=  "" ]] ; then
+  gene=$(echo $gene_full | sed 's/.$//')
+  echo $gene $gene_full
+  file_out=$(echo $gene_full | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
+
+  #grep -i "$gene" $2 | awk -F'\t' '{print $9}' | awk -F';' '{print $3}' | awk '{print $2}' | sed 's/"//g' | sort | uniq > files/genes/$5/$gene.rna_list
+  if grep -q -w -i "$gene_full" $ANNO_FILE ; then
+    echo "1 - Gene name has perfect match"
+    grep -i -w "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+  elif grep -q -i "$gene_full" $ANNO_FILE ; then
+    #grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
+      echo "2 - Gene name matches a supergroup or subgroup, checking OrthoDB"
+     check_OrthoDB $gene_full
+    fi
+  else
+    #grep -i "$gene" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
+      echo "3 - Gene name has a partial/no match, checking OrthoDB"
+      check_OrthoDB $gene_full
+    fi
+  fi
+  if [ ! -s files/genes/$5/$file_out.rna_list ]; then
+    grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+  fi
+  cat files/genes/$5/$file_out.rna_list
+  if [ -s files/genes/$5/$file_out.rna_list ]
+  then
+    #if [ ! -s $FASTA_PATH/$5/$file_out.cds ]; then #$6/$5/$7.$2
+    #  get_fasta $gene_full cds $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE ##CDS should come first because the 3utr flanks depend on cds coordinates
+    #fi
+    #if [ ! -s $FASTA_PATH/$5/$file_out.exons ]; then
+    # get_fasta $gene_full exons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+    #fi
+    #if [ ! -s $FASTA_PATH/$5/$file_out.noncodingexons ]; then
+    #  get_fasta $gene_full noncodingexons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+    #fi
+    #if [ ! -s $FASTA_PATH/$5/$file_out.3utr ]; then
+    #  get_fasta $gene_full 3utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+    #fi
+    #if [ ! -s $FASTA_PATH/$5/$file_out.5utr ]; then
+    #  get_fasta $gene_full 5utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+    #fi
+    parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE " ::: ${transcript_regions[@]}
+  fi
+fi
+}
+
 get_fasta() {
 #1 - gene name
 #2 - transcript region (cds/5utr/3utr/exons/noncodingexons)
@@ -66,6 +116,7 @@ get_fasta() {
 #8 - GTF file path (for extracting the 'real' gene annotation)
 #echo $1 $2 $3 $4 $5 $6 $7 $8
 #echo $(grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed)
+if [ ! -s $6/$5/$7.$2 ]; then #$FASTA_PATH/$5/$file_out.cds
 grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed > $TEMP_PATH/$5_"$1"_$2.bed
 
 ##EXTEND regions using bedtools slop
@@ -109,20 +160,26 @@ parallel -j1 --compress --pipepart -a "$FASTA_PATH/$5/$7.$2.tmp" --recstart '>' 
 ##sh label_sequenceIDs.sh $5 $1 $8 $FASTA_PATH/$5/$7.$2.tmp $FASTA_PATH/$5/$7.$2 #-word_size 5 -evalue 1e-25
 
 rm $FASTA_PATH/$5/$7.$2.tmp
+fi
 }
 ####
 
 ##ENTRYPOINT
-GENOMES_PATH=$(grep -i "genomes_path" parameters.txt | awk -F'=' '{print $2}') 
-ANNOS_PATH=$(grep -i "annos_path" parameters.txt | awk -F'=' '{print $2}') 
-FASTA_PATH=$(grep -i "fasta_path" parameters.txt | awk -F'=' '{print $2}') 
-TEMP_PATH=$(grep -i "temp_path" parameters.txt | awk -F'=' '{print $2}') 
-CLEAN_EXTRACT=$(grep -i "clean_extract" parameters.txt | awk -F'=' '{print $2}') 
-ORTHODB_PATH=$(grep -i "orthodb_files_path" parameters.txt | awk -F'=' '{print $2}') 
-ORTHODB_PREFIX=$(grep -i "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
-flank_len=$(grep -i "flank_len" parameters.txt | awk -F'=' '{print $2}')   #2000
-REF_ORGS=$(grep -i "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
+GENOMES_PATH=$(grep -i -w "genomes_path" parameters.txt | awk -F'=' '{print $2}') 
+ANNOS_PATH=$(grep -i -w "annos_path" parameters.txt | awk -F'=' '{print $2}') 
+FASTA_PATH=$(grep -i -w "fasta_path" parameters.txt | awk -F'=' '{print $2}') 
+TEMP_PATH=$(grep -i -w "temp_path" parameters.txt | awk -F'=' '{print $2}') 
+CLEAN_EXTRACT=$(grep -i -w "clean_extract" parameters.txt | awk -F'=' '{print $2}') 
+ORTHODB_PATH=$(grep -i -w "orthodb_files_path" parameters.txt | awk -F'=' '{print $2}') 
+ORTHODB_PREFIX=$(grep -i -w "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
+flank_len=$(grep -i -w "flank_len" parameters.txt | awk -F'=' '{print $2}')   #2000
+REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
+PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
 ORG_IN_ODB="TRUE"
+transcript_regions=("cds" "exons" "noncodingexons" "3utr" "5utr")
+export -f get_fasta
+export -f check_gene
 #export -f parallel_checkODB
 
 f_org_name=$5
@@ -175,7 +232,7 @@ samtools faidx $GENOME_FILE
 
 awk -v OFS='\t' {'print $1,$2'} $GENOME_FILE.fai > $TEMP_PATH/$5_genomeFile.txt
 rm $3*
-python2 /data/meyer/viz/tools/extract-transcript-regions-master/extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3
+$PY2_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3
 
 #if [[ "$7" == "TRUE" ]]; then
 if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
@@ -184,54 +241,59 @@ fi
 mkdir $FASTA_PATH/$5
 
 #FOR each gene
-while IFS= read -r gene_full
-do
-if [[ $gene_full !=  "" ]] ; then
-  gene=$(echo $gene_full | sed 's/.$//')
-  echo $gene $gene_full
-  file_out=$(echo $gene_full | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
+#while IFS= read -r gene_full
+#do
+#if [[ $gene_full !=  "" ]] ; then
+#  gene=$(echo $gene_full | sed 's/.$//')
+#  echo $gene $gene_full
+#  file_out=$(echo $gene_full | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
+#
+#  #grep -i "$gene" $2 | awk -F'\t' '{print $9}' | awk -F';' '{print $3}' | awk '{print $2}' | sed 's/"//g' | sort | uniq > files/genes/$5/$gene.rna_list
+#  if grep -q -w -i "$gene_full" $ANNO_FILE ; then
+#    echo "1 - Gene name has perfect match"
+#    grep -i -w "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+#  elif grep -q -i "$gene_full" $ANNO_FILE ; then
+#    #grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+#    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
+#      echo "2 - Gene name matches a supergroup or subgroup, checking OrthoDB"
+#     check_OrthoDB $gene_full
+#    fi
+#  else
+#    #grep -i "$gene" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+#    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
+#      echo "3 - Gene name has a partial/no match, checking OrthoDB"
+#      check_OrthoDB $gene_full
+#    fi
+#  fi
+#  if [ ! -s files/genes/$5/$file_out.rna_list ]; then
+#    grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+#  fi
+#  cat files/genes/$5/$file_out.rna_list
+#  if [ -s files/genes/$5/$file_out.rna_list ]
+#  then
+#    #if [ ! -s $FASTA_PATH/$5/$file_out.cds ]; then #$6/$5/$7.$2
+#    #  get_fasta $gene_full cds $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE ##CDS should come first because the 3utr flanks depend on cds coordinates
+#    #fi
+#    #if [ ! -s $FASTA_PATH/$5/$file_out.exons ]; then
+#    # get_fasta $gene_full exons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+#    #fi
+#    #if [ ! -s $FASTA_PATH/$5/$file_out.noncodingexons ]; then
+#    #  get_fasta $gene_full noncodingexons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+#    #fi
+#    #if [ ! -s $FASTA_PATH/$5/$file_out.3utr ]; then
+#    #  get_fasta $gene_full 3utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+#    #fi
+#    #if [ ! -s $FASTA_PATH/$5/$file_out.5utr ]; then
+#    #  get_fasta $gene_full 5utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
+#    #fi
+#    parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE " ::: ${transcript_regions[@]}
+#  fi
+#fi
+#done < "$4"
 
-  #grep -i "$gene" $2 | awk -F'\t' '{print $9}' | awk -F';' '{print $3}' | awk '{print $2}' | sed 's/"//g' | sort | uniq > files/genes/$5/$gene.rna_list
-  if grep -q -w -i "$gene_full" $ANNO_FILE ; then
-    echo "1 - Gene name has perfect match"
-    grep -i -w "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-  elif grep -q -i "$gene_full" $ANNO_FILE ; then
-    #grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
-      echo "2 - Gene name matches a supergroup or subgroup, checking OrthoDB"
-     check_OrthoDB $gene_full
-    fi
-  else
-    #grep -i "$gene" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
-      echo "3 - Gene name has a partial/no match, checking OrthoDB"
-      check_OrthoDB $gene_full
-    fi
-  fi
-  if [ ! -s files/genes/$5/$file_out.rna_list ]; then
-    grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-  fi
-  cat files/genes/$5/$file_out.rna_list
-  if [ -s files/genes/$5/$file_out.rna_list ]
-  then
-    if [ ! -s $FASTA_PATH/$5/$file_out.cds ]; then
-      get_fasta $gene_full cds $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE ##CDS should come first because the 3utr flanks depend on cds coordinates
-    fi
-    if [ ! -s $FASTA_PATH/$5/$file_out.exons ]; then
-      get_fasta $gene_full exons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    fi
-    if [ ! -s $FASTA_PATH/$5/$file_out.noncodingexons ]; then
-      get_fasta $gene_full noncodingexons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    fi
-    if [ ! -s $FASTA_PATH/$5/$file_out.3utr ]; then
-      get_fasta $gene_full 3utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    fi
-    if [ ! -s $FASTA_PATH/$5/$file_out.5utr ]; then
-      get_fasta $gene_full 5utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    fi
-  fi
-fi
-done < "$4"
+readarray gene_list < "$4"
+
+parallel -j ${#gene_list[@]} "check_gene {} " ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
 
 find files/genes/$5 -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
 grep -v -i -f $FASTA_PATH/$5/MISSING_GENES $4 | sort > $FASTA_PATH/$5/AVAILABLE_GENES

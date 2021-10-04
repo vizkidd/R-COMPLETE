@@ -75,7 +75,7 @@ if [[ ! -s $4/all2all.$query.$subject ]]; then
 			makeblastdb -in "$5/$query.$6" -dbtype nucl  -hash_index || true 
 		fi
 		printf "$query\n$subject" > files/pairwise_ORGS.txt
-		nohup ./jobhold.sh $query-$subject" do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+		nohup ./jobhold.sh "$query-$subject do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
 		proc_list+=("$!")
 	fi
 fi
@@ -111,7 +111,7 @@ if [[ ! -s $4/$line.$species.all ]]; then
   #j_name=$(echo $line | sed "s/://g")
   j_name=$(echo $line | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
   ##THIS is how you submit qsub jobs from within a script
-  nohup ./jobhold.sh $j_name" do_blast.sh $4 $2/$species/$j_name.$6 $5/$j_name.$7 $8 $j_name $species all" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+  nohup ./jobhold.sh "$j_name do_blast.sh $4 $2/$species/$j_name.$6 $5/$j_name.$7 $8 $j_name $species all" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
   ##proc_id=$("qsub -V -cwd -l data -N "$j_name" do_blast.sh $1 $2 "$line" $4 $5 $6 $7 $n_proc") #n_proc=2
   #id=`echo $proc_id | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'` ##GET QSUB IDs
   ##proc_list+=("$id",)
@@ -164,9 +164,9 @@ if [[ ! -s $4/all2all.$query.$subject ]] || [[ ! -s $4/all2all.$subject.$query ]
 			makeblastdb -in "$5/$query.$6" -dbtype nucl  -hash_index || true 
 		fi
 		printf "$query\n$subject" > files/pairwise_ORGS.txt
-		nohup ./jobhold.sh $query-$subject" do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+		nohup ./jobhold.sh "$query-$subject do_blast.sh $4 $5/$query.$6 $5/$subject.$7 $8 all2all $query $subject" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
 		proc_list+=("$!")
-		nohup ./jobhold.sh $subject-$query" do_blast.sh $4 $5/$subject.$7 $5/$query.$6 $8 all2all $subject $query" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
+		nohup ./jobhold.sh "$subject-$query do_blast.sh $4 $5/$subject.$7 $5/$query.$6 $8 all2all $subject $query" &>> logs/job_status.o& #n_proc=2 #/fast/gridengine/uge-8.6.14/bin/lx-amd64/
 		proc_list+=("$!")
 	fi
 fi
@@ -212,7 +212,7 @@ if [[ "$query" != "$subject" ]]; then
 			wait $proc_id || true
 		done
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		nohup python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
+		nohup $PY2_PATH RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
 		wait "$!"
 	fi
 fi
@@ -238,9 +238,9 @@ if [[ "$query" != "$subject" ]]; then
 		done
 		proc_list=()
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		nohup python RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
+		nohup $PY2_PATH RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
 		proc_list+=("$!")
-		nohup python RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
+		nohup $PY2_PATH RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
 		proc_list+=("$!")
 		for proc_id in "${proc_list[@]}"
 		do
@@ -269,15 +269,20 @@ touch files/gene_thresholds.txt
 
 #orth_path=$5
 selected_orgs=$1
-fasta_path=$(grep -i "fasta_path" parameters.txt | awk -F'=' '{print $2}')
+fasta_path=$(grep -i -w "fasta_path" parameters.txt | awk -F'=' '{print $2}')
 tables_path="files/oneway"
-blastdb_path=$(grep -i "blastdb_path" parameters.txt | awk -F'=' '{print $2}')
+blastdb_path=$(grep -i -w "blastdb_path" parameters.txt | awk -F'=' '{print $2}')
 region=$(grep -i "blast_region" parameters.txt | awk -F'=' '{print $2}')  #"cds"
-reference_ORGS=$(grep -i "ref_orgs" parameters.txt | awk -F'=' '{print $2}')  
-clean_download=$(grep -i "clean_download" parameters.txt | awk -F'=' '{print $2}') 
-clean_extract=$(grep -i "clean_extract" parameters.txt | awk -F'=' '{print $2}') 
-seqID_delimiter=$(grep -i "seqID_delimiter" parameters.txt | awk -F'=' '{print $2}') 
-e_value=$(grep -i "e_value" parameters.txt | awk -F'=' '{print $2}')
+reference_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}')  
+clean_download=$(grep -i -w "clean_download" parameters.txt | awk -F'=' '{print $2}') 
+clean_extract=$(grep -i -w "clean_extract" parameters.txt | awk -F'=' '{print $2}') 
+seqID_delimiter=$(grep -i -w "seqID_delimiter" parameters.txt | awk -F'=' '{print $2}') 
+e_value=$(grep -i -w "e_value" parameters.txt | awk -F'=' '{print $2}')
+PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
+
+export -f oneway_RBH
+export -f twoway_RBH
 
 if [[ $clean_download == "TRUE" ]] || [[ $clean_extract == "TRUE" ]] ; then 
 	rm -rf files/oneway
@@ -289,23 +294,27 @@ fi
 rm -rf $blastdb_path
 mkdir $blastdb_path
 
+readarray ref_orgs < $reference_ORGS
+
 if [[ $(wc -l $reference_ORGS) > 2 ]]; then
 
 all2allblast $reference_ORGS $fasta_path $2 files/all2all $blastdb_path $region $region tblastx
 
-while IFS= read -r subject
-do
-while IFS= read -r query
-do
-		#if [[ ! -s files/all2all/$query-$subject.orths ]]; then
-		#	blast_formatter -archive files/all2all/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all/$query-$subject.out
-		#	blast_formatter -archive files/all2all/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all/$subject-$query.out
-		#	#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		#	python RBH-v1.py files/all2all/$query-$subject.out files/all2all/$subject-$query.out files/all2all/$query-$subject.orths
-		#fi
-		oneway_RBH files/all2all $query $subject
-done < "$reference_ORGS"
-done < "$reference_ORGS"
+#while IFS= read -r subject
+#do
+#while IFS= read -r query
+#do
+#		#if [[ ! -s files/all2all/$query-$subject.orths ]]; then
+#		#	blast_formatter -archive files/all2all/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all/$query-$subject.out
+#		#	blast_formatter -archive files/all2all/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all/$subject-$query.out
+#		#	#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
+#		#	python RBH-v1.py files/all2all/$query-$subject.out files/all2all/$subject-$query.out files/all2all/$query-$subject.orths
+#		#fi
+#		oneway_RBH files/all2all $query $subject
+#done < "$reference_ORGS"
+#done < "$reference_ORGS"
+
+parallel -j $((${#ref_orgs[@]}*${#ref_orgs[@]})) "oneway_RBH files/all2all {1} {2}" ::: ${ref_orgs[@]} ::: ${ref_orgs[@]}
 
 Rscript merge_orths.R $reference_ORGS files/all2all/ files/all2all/final_df.txt $e_value
 
@@ -364,32 +373,34 @@ cat $reference_ORGS files/oneway/SET > files/oneway/set.tmp
 
 all2all_refblast $reference_ORGS $fasta_path files/all2all/all2all.genelist files/all2all_final $blastdb_path $region $region tblastx files/oneway/set.tmp
 
-while IFS= read -r subject
-do
-#	new_subject=$old_subject
-#	old_subject=$subject
-while IFS= read -r query
-do
-		#if [[ ! -s files/all2all_final/$query-$subject.orths ]]; then
-		#	blast_formatter -archive files/all2all_final/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all_final/$query-$subject.out
-		#	blast_formatter -archive files/all2all_final/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all_final/$subject-$query.out
-		#	#blast_formatter -archive files/all2all_final/all2all.$query.$subject -outfmt "5" -out files/all2all_final/$query-$subject.xml
-		#	#blast_formatter -archive files/all2all_final/all2all.$subject.$query -outfmt "5" -out files/all2all_final/$subject-$query.xml
-		#	#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		#	python RBH-v1.py files/all2all_final/$query-$subject.out files/all2all_final/$subject-$query.out files/all2all_final/$query-$subject.orths
-		#	python RBH-v1.py files/all2all_final/$subject-$query.out files/all2all_final/$query-$subject.out files/all2all_final/$subject-$query.orths
-		#fi
-		twoway_RBH files/all2all_final $query $subject
-done < "files/oneway/set.tmp"
-#	if [[ "$new_subject" != "-1" ]]; then
-#		twoway_RBH files/all2all_final $old_subject $subject
-#	fi
-done < "$reference_ORGS"
+#while IFS= read -r subject
+#do
+##	new_subject=$old_subject
+##	old_subject=$subject
+#while IFS= read -r query
+#do
+#		#if [[ ! -s files/all2all_final/$query-$subject.orths ]]; then
+#		#	blast_formatter -archive files/all2all_final/all2all.$query.$subject -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all_final/$query-$subject.out
+#		#	blast_formatter -archive files/all2all_final/all2all.$subject.$query -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" -out files/all2all_final/$subject-$query.out
+#		#	#blast_formatter -archive files/all2all_final/all2all.$query.$subject -outfmt "5" -out files/all2all_final/$query-$subject.xml
+#		#	#blast_formatter -archive files/all2all_final/all2all.$subject.$query -outfmt "5" -out files/all2all_final/$subject-$query.xml
+#		#	#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
+#		#	python RBH-v1.py files/all2all_final/$query-$subject.out files/all2all_final/$subject-$query.out files/all2all_final/$query-$subject.orths
+#		#	python RBH-v1.py files/all2all_final/$subject-$query.out files/all2all_final/$query-$subject.out files/all2all_final/$subject-$query.orths
+#		#fi
+#		twoway_RBH files/all2all_final $query $subject
+#done < "files/oneway/set.tmp"
+##	if [[ "$new_subject" != "-1" ]]; then
+##		twoway_RBH files/all2all_final $old_subject $subject
+##	fi
+#done < "$reference_ORGS"
+
+readarray set_orgs < files/oneway/set.tmp
+
+parallel -j $((${#ref_orgs[@]}*${#set_orgs[@]})) "twoway_RBH files/all2all_final {1} {2}" ::: ${ref_orgs[@]} ::: ${set_orgs[@]}
 
 #Rscript merge_orths.R files/oneway/set.tmp files/all2all_final/ files/all2all_final/final_df.txt 1e-05
 
 Rscript wisard.R files/oneway/set.tmp files/all2all_final
-
-./align_seqs.sh
 
 exit

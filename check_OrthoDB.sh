@@ -15,10 +15,10 @@ org_ID=$3
 ANNO_FILE=$6
 #printf $1 $2 $3 $4 $5 $6
 
-TEMP_PATH=$(grep -i "temp_path" parameters.txt | awk -F'=' '{print $2}') 
-ORTHODB_PATH=$(grep -i "orthodb_files_path" parameters.txt | awk -F'=' '{print $2}')
-ORTHODB_PREFIX=$(grep -i "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
-REF_ORGS=$(grep -i "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
+TEMP_PATH=$(grep -i -w "temp_path" parameters.txt | awk -F'=' '{print $2}') 
+ORTHODB_PATH=$(grep -i -w "orthodb_files_path" parameters.txt | awk -F'=' '{print $2}')
+ORTHODB_PREFIX=$(grep -i -w "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
+REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
 
 ref_org_name=$(echo $ref_org | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;')
 ref_org_ID=$(grep -i -P "\t\b($ref_org_name)\b\t" $ORTHODB_PATH/"$ORTHODB_PREFIX"_species.tab | awk '{print $2}')

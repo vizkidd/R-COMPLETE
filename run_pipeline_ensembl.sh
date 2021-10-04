@@ -1,5 +1,5 @@
 #!/bin/bash
-#$ -N "run_pipe"
+#$ -N "existing_loc"
 #$ -cwd
 #$ -V
 #$ -l data
@@ -23,13 +23,13 @@ cat $2 >> $3
 
 mask_stops_3utr() {
 	#python mask_motifs.py -f $1 -s 3 --pos 1 --mask "N"  -r TRUE --add TRUE -cm "TGA,TAA,TAG" -cmm - -o $1 ##Compare mask is negative, so this will add NNN if stop codon doesnt exist
-	python mask_motifs.py -f $1 -s 3 -m "N" -p 1 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
+	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 1 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
 }
 
 mask_stops_cds() {
-	python mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
-	python mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 2 -o $1
-	python mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 3 -o $1
+	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
+	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 2 -o $1
+	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 3 -o $1
 }
 
 count_seqs4genes() {
@@ -70,14 +70,16 @@ delete_empty_orgs() {
 # $1 is genelist.txt
 echo $1
 
-source /home/vsuresh/.guix-profile/etc/profile
+#source /home/vsuresh/.guix-profile/etc/profile
 
-GENOMES_PATH=$(grep -i "genomes_path" parameters.txt | awk -F'=' '{print $2}')
-ANNOS_PATH=$(grep -i "annos_path" parameters.txt | awk -F'=' '{print $2}')
-FASTA_PATH=$(grep -i "fasta_path" parameters.txt | awk -F'=' '{print $2}')
-TEMP_PATH=$(grep -i "temp_path" parameters.txt | awk -F'=' '{print $2}')
-BLASTDB_PATH=$(grep -i "blastdb_path" parameters.txt | awk -F'=' '{print $2}')
-REF_ORGS=$(grep -i "ref_orgs" parameters.txt | awk -F'=' '{print $2}')
+GENOMES_PATH=$(grep -i -w "genomes_path" parameters.txt | awk -F'=' '{print $2}')
+ANNOS_PATH=$(grep -i -w "annos_path" parameters.txt | awk -F'=' '{print $2}')
+FASTA_PATH=$(grep -i -w "fasta_path" parameters.txt | awk -F'=' '{print $2}')
+TEMP_PATH=$(grep -i -w "temp_path" parameters.txt | awk -F'=' '{print $2}')
+BLASTDB_PATH=$(grep -i -w "blastdb_path" parameters.txt | awk -F'=' '{print $2}')
+REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}')
+PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
 
 mkdir files
 #mkdir files/genes
@@ -140,12 +142,12 @@ count_genes4orgs $FASTA_PATH $1 files/gene_counts_BS.txt
 find $FASTA_PATH -type f -name ".*" -execdir rm -f {} + #Deleting residues 
 find $FASTA_PATH -type f -name "*.fai" -execdir rm -f {} +
 
-awk -F',' 'NR>1 {print $1}' files/collab_Junker/danio_vegetal_pole_ENSDART.csv  > valid_ENSDART.txt ## these transcripts were found in the zebrafish cell
-select_transcripts valid_ENSDART.txt selected_ENSDART.txt all_ENSDART.txt $FASTA_PATH/danio_rerio/
-awk -F'\t' 'NR>1 {print $1}' files/collab_Junker/Xtropicalis_vegetal_isoforms.txt  > valid_ENSDART.txt ## these transcripts were found in the xenopus tropicalis cell
-select_transcripts valid_ENSDART.txt selected_ENSDART.txt all_ENSDART.txt $FASTA_PATH/xenopus_tropicalis/ 
-awk -F'\t' 'NR>1 {print $1}' files/collab_Junker/Xlaevis_vegetal_pole_isoforms.txt  > valid_ENSDART.txt ## these transcripts were found in the xenopus laevis cell
-select_transcripts valid_ENSDART.txt selected_ENSDART.txt all_ENSDART.txt $FASTA_PATH/xenopus_laevis/
+#awk -F',' 'NR>1 {print $1}' files/collab_Junker/danio_vegetal_pole_ENSDART.csv  > valid_ENSDART.txt ## these transcripts were found in the zebrafish cell
+#select_transcripts valid_ENSDART.txt selected_ENSDART.txt all_ENSDART.txt $FASTA_PATH/danio_rerio/
+#awk -F'\t' 'NR>1 {print $1}' files/collab_Junker/Xtropicalis_vegetal_isoforms.txt  > valid_ENSDART.txt ## these transcripts were found in the xenopus tropicalis cell
+#select_transcripts valid_ENSDART.txt selected_ENSDART.txt all_ENSDART.txt $FASTA_PATH/xenopus_tropicalis/ 
+#awk -F'\t' 'NR>1 {print $1}' files/collab_Junker/Xlaevis_vegetal_pole_isoforms.txt  > valid_ENSDART.txt ## these transcripts were found in the xenopus laevis cell
+#select_transcripts valid_ENSDART.txt selected_ENSDART.txt all_ENSDART.txt $FASTA_PATH/xenopus_laevis/
 
 #printf "danio_rerio\nxenopus_tropicalis\nxenopus_laevis\n" > files/reference_ORGS.txt
 
@@ -157,6 +159,10 @@ count_genes4orgs $FASTA_PATH $1 files/gene_counts_AS.txt
 ls $FASTA_PATH > files/selected_ORGS.txt
 
 ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
+
+./align_seqs.sh $1
+
+./predict_structures.sh $1
 
 exit
 
