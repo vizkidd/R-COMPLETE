@@ -37,14 +37,14 @@ align_cds() {
 		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.ref_orgs.cds -out_NT $ALN_PATH/$gene.ref_orgs_NT.cds -out_AA $ALN_PATH/$gene.ref_orgs_AA.cds
 		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.orgs.cds -out_NT $ALN_PATH/$gene.orgs_NT.cds -out_AA $ALN_PATH/$gene.orgs_AA.cds
 		#java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/$gene.ref_orgs_NT.cds -p2 $ALN_PATH/$gene.orgs_NT.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -seq $ALN_PATH/{}.ref_orgs.cds -out_AA $ALN_PATH/{}_AA.ref_orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.ref_orgs.cds.mask -out_trace $ALN_PATH/{}_NT.ref_orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.ref_orgs.cds.trim_info" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.orgs.cds.trimmed -seq $ALN_PATH/{}.orgs.cds -out_AA $ALN_PATH/{}_AA.orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.orgs.cds.mask -out_trace $ALN_PATH/{}_NT.orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.orgs.cds.trim_info" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -out_NT $ALN_PATH/{}.ref_orgs_NT.cds -out_AA $ALN_PATH/{}.ref_orgs_AA.cds" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.orgs.cds.trimmed -out_NT $ALN_PATH/{}.orgs_NT.cds -out_AA $ALN_PATH/{}.orgs_AA.cds" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/{}.ref_orgs_NT.cds -p2 $ALN_PATH/{}.orgs_NT.cds -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -seq $ALN_PATH/{}.ref_orgs.cds -out_AA $ALN_PATH/{}_AA.ref_orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.ref_orgs.cds.mask -out_trace $ALN_PATH/{}_NT.ref_orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.ref_orgs.cds.trim_info" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.orgs.cds.trimmed -seq $ALN_PATH/{}.orgs.cds -out_AA $ALN_PATH/{}_AA.orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.orgs.cds.mask -out_trace $ALN_PATH/{}_NT.orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.orgs.cds.trim_info" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -out_NT $ALN_PATH/{}.ref_orgs_NT.cds -out_AA $ALN_PATH/{}.ref_orgs_AA.cds" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.orgs.cds.trimmed -out_NT $ALN_PATH/{}.orgs_NT.cds -out_AA $ALN_PATH/{}.orgs_AA.cds" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/{}.ref_orgs_NT.cds -p2 $ALN_PATH/{}.orgs_NT.cds -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
 	else 	
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.cds.trimmed -seq $ALN_PATH/{}.cds -out_AA $ALN_PATH/{}_AA.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.cds.mask -out_trace $ALN_PATH/{}_NT.cds.trace -out_trim_info $ALN_PATH/{}_NT.cds.trim_info" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.cds.trimmed -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.cds.trimmed -seq $ALN_PATH/{}.cds -out_AA $ALN_PATH/{}_AA.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.cds.mask -out_trace $ALN_PATH/{}_NT.cds.trace -out_trim_info $ALN_PATH/{}_NT.cds.trim_info" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.cds.trimmed -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
 		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
 	fi
 
@@ -60,7 +60,7 @@ align_cds() {
 
 align_3utr() {
 
-	parallel -j ${#genes[@]} "$MAFFT_PATH  --inputorder --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.3utr > $ALN_PATH/{}_NT.3utr.aln" ::: ${genes[@]} #--treeout #--treein $ALN_PATH/{}.cds.mtree
+	parallel -j ${#genes[@]} "./jobhold.sh mafft_3utr $MAFFT_PATH  --inputorder --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.3utr > $ALN_PATH/{}_NT.3utr.aln" ::: ${genes[@]} #--treeout #--treein $ALN_PATH/{}.cds.mtree
 
 	##GAP REMOVAL
 	#if [[ -s $ALN_PATH/"$gene"_NT.cds.aln ]]; then
@@ -71,7 +71,7 @@ align_3utr() {
 
 align_5utr() {
 
-	parallel -j ${#genes[@]} "$MAFFT_PATH  --inputorder --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.5utr > $ALN_PATH/{}_NT.5utr.aln" ::: ${genes[@]} #--treeout #--treein $ALN_PATH/{}.cds.mtree
+	parallel -j ${#genes[@]} "./jobhold.sh mafft_5utr $MAFFT_PATH  --inputorder --maxiterate 1000  --localpair --leavegappyregion --thread -1 $ALN_PATH/{}.5utr > $ALN_PATH/{}_NT.5utr.aln" ::: ${genes[@]} #--treeout #--treein $ALN_PATH/{}.cds.mtree
 
 	##GAP REMOVAL
 	#if [[ -s $ALN_PATH/"$gene"_NT.cds.aln ]]; then

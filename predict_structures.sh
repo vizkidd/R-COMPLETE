@@ -45,7 +45,8 @@ parallel -j ${#genes[@]} "mkdir files/rnadecoder_output/fold/{}" ::: ${genes[@]}
 proc_list=()
 
 #parallel -j ${#genes[@]} "$FT_PATH -nt -gtr -quote -gamma -bionj  -slow  $ALN_PATH/{}.aln > $ALN_PATH/{}.tree" ::: ${genes[@]}
-#parallel -j ${#genes[@]} "Rscript annotate_bases.R $ALN_PATH/{}.aln" ::: ${genes[@]}
+##CREATING ANNOTATION
+parallel -j ${#genes[@]} "Rscript annotate_bases.R $ALN_PATH/{}.aln" ::: ${genes[@]}
 ##CREATING ANNOTATION for RNADECODER (TRANSAT accepts 0 for noncoding regions but RNADECODER only accepts 3)
 parallel -j ${#genes[@]} "sed 's/0/3/g' $ALN_PATH/{}.ann > $ALN_PATH/{}.rd.ann " ::: ${genes[@]}
 parallel -j ${#genes[@]} "$PY3_PATH $RNADEC_PATH/fasta_to_col.py -f $ALN_PATH/{}.aln -a $ALN_PATH/{}.rd.ann -o $ALN_PATH/{}.col -cs $TOOLS/rnadecoder/bin/fasta_ann2rnadecoder_col.pl" ::: ${genes[@]}
