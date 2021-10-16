@@ -34,18 +34,20 @@ align_cds() {
 	
 	if [[ $(wc -l $reference_ORGS) > 2 ]]; then
 	##IF wc -l ref_orgs.txt > 1; create_profile alignment
-		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.ref_orgs.cds -out_NT $ALN_PATH/$gene.ref_orgs_NT.cds -out_AA $ALN_PATH/$gene.ref_orgs_AA.cds
-		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.orgs.cds -out_NT $ALN_PATH/$gene.orgs_NT.cds -out_AA $ALN_PATH/$gene.orgs_AA.cds
-		#java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/$gene.ref_orgs_NT.cds -p2 $ALN_PATH/$gene.orgs_NT.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
-		parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -seq $ALN_PATH/{}.ref_orgs.cds -out_AA $ALN_PATH/{}_AA.ref_orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.ref_orgs.cds.mask -out_trace $ALN_PATH/{}_NT.ref_orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.ref_orgs.cds.trim_info" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.orgs.cds.trimmed -seq $ALN_PATH/{}.orgs.cds -out_AA $ALN_PATH/{}_AA.orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.orgs.cds.mask -out_trace $ALN_PATH/{}_NT.orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.orgs.cds.trim_info" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -out_NT $ALN_PATH/{}.ref_orgs_NT.cds -out_AA $ALN_PATH/{}.ref_orgs_AA.cds" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.orgs.cds.trimmed -out_NT $ALN_PATH/{}.orgs_NT.cds -out_AA $ALN_PATH/{}.orgs_AA.cds" ::: ${genes[@]}
+		##java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.ref_orgs.cds -out_NT $ALN_PATH/$gene.ref_orgs_NT.cds -out_AA $ALN_PATH/$gene.ref_orgs_AA.cds
+		##java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.orgs.cds -out_NT $ALN_PATH/$gene.orgs_NT.cds -out_AA $ALN_PATH/$gene.orgs_AA.cds
+		##java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/$gene.ref_orgs_NT.cds -p2 $ALN_PATH/$gene.orgs_NT.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
+		#NOT TRIMMING NON-HOMOLOGOUS FRAGMENTS because we need the full mRNA(important for structure prediction as this step would remove co-variation information)
+		#parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.ref_orgs.cds.trimmed -seq $ALN_PATH/{}.ref_orgs.cds -out_AA $ALN_PATH/{}_AA.ref_orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.ref_orgs.cds.mask -out_trace $ALN_PATH/{}_NT.ref_orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.ref_orgs.cds.trim_info" ::: ${genes[@]}
+		#parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.orgs.cds.trimmed -seq $ALN_PATH/{}.orgs.cds -out_AA $ALN_PATH/{}_AA.orgs.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.orgs.cds.mask -out_trace $ALN_PATH/{}_NT.orgs.cds.trace -out_trim_info $ALN_PATH/{}_NT.orgs.cds.trim_info" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.ref_orgs.cds -out_NT $ALN_PATH/{}.ref_orgs_NT.cds -out_AA $ALN_PATH/{}.ref_orgs_AA.cds" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.orgs.cds -out_NT $ALN_PATH/{}.orgs_NT.cds -out_AA $ALN_PATH/{}.orgs_AA.cds" ::: ${genes[@]}
 		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignTwoProfiles -p1 $ALN_PATH/{}.ref_orgs_NT.cds -p2 $ALN_PATH/{}.orgs_NT.cds -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
 	else 	
-		parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.cds.trimmed -seq $ALN_PATH/{}.cds -out_AA $ALN_PATH/{}_AA.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.cds.mask -out_trace $ALN_PATH/{}_NT.cds.trace -out_trim_info $ALN_PATH/{}_NT.cds.trim_info" ::: ${genes[@]}
-		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.cds.trimmed -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
-		#java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
+		#NOT TRIMMING NON-HOMOLOGOUS FRAGMENTS because we need the full mRNA(important for structure prediction as this step would remove co-variation information)
+		#parallel -j ${#genes[@]} "./jobhold.sh macse_trim java -jar $MACSE_PATH -prog trimNonHomologousFragments -out_NT $ALN_PATH/{}_NT.cds.trimmed -seq $ALN_PATH/{}.cds -out_AA $ALN_PATH/{}_AA.cds.trimmed -out_mask_detail $ALN_PATH/{}_NT.cds.mask -out_trace $ALN_PATH/{}_NT.cds.trace -out_trim_info $ALN_PATH/{}_NT.cds.trim_info" ::: ${genes[@]}
+		parallel -j ${#genes[@]} "./jobhold.sh macse_cds java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/{}_NT.cds -out_NT $ALN_PATH/{}_NT.cds.aln.fm -out_AA $ALN_PATH/{}_AA.cds.aln.fm" ::: ${genes[@]}
+		##java -jar $MACSE_PATH -prog alignSequences -seq $ALN_PATH/$gene.cds -out_NT $ALN_PATH/"$gene"_NT.cds.aln -out_AA $ALN_PATH/"$gene"_AA.cds.aln
 	fi
 
 	##GAP REMOVAL
@@ -111,8 +113,8 @@ stitch_alns() {
 		#awk '/^>/ {print (NR>1?"\n":"")$0;; next} {printf "%s",$0;} END{print "";}' $ALN_PATH/"$gn".tmp > $ALN_PATH/"$gn".aln
 		#rm $ALN_PATH/"$gn".tmp
 		#printf -- "$five_len,$cds_len,$three_len\n"
-		tar -czvf $ALN_PATH/$gn.tar $ALN_PATH/"$gn".3utr $ALN_PATH/"$gn"_AA*.trimmed $ALN_PATH/"$gn"_AA.cds.aln.fm $ALN_PATH/"$gn"_NT*.trimmed $ALN_PATH/"$gn"_NT.*.cds.trim_info $ALN_PATH/"$gn"_NT.*.cds.mask $ALN_PATH/"$gn"_NT.*.cds.trace $ALN_PATH/"$gn".cds $ALN_PATH/"$gn".5utr $ALN_PATH/"$gn"_NT.*.aln $ALN_PATH/"$gn"_NT.cds.* $ALN_PATH/"$gn".*.tree $ALN_PATH/"$gn".*.mtree $ALN_PATH/"$gn"_NT.cds.aln.fm $ALN_PATH/"$gn".orgs.* $ALN_PATH/"$gn".ref_orgs.* $ALN_PATH/"$gn".ref_orgs_NT.* $ALN_PATH/"$gn".orgs_NT.* $ALN_PATH/"$gn".ref_orgs_AA.* $ALN_PATH/"$gn".orgs_AA.* #$ALN_PATH/"$gn"_AA.*.aln
-		rm $ALN_PATH/"$gn".3utr $ALN_PATH/"$gn"_AA*.trimmed $ALN_PATH/"$gn"_NT*.trimmed $ALN_PATH/"$gn"_AA.cds.aln.fm $ALN_PATH/"$gn"_NT.*.cds.trim_info $ALN_PATH/"$gn"_NT.*.cds.mask $ALN_PATH/"$gn"_NT.*.cds.trace $ALN_PATH/"$gn"_NT.cds.* $ALN_PATH/"$gn".cds $ALN_PATH/"$gn".5utr $ALN_PATH/"$gn"_NT.*.aln $ALN_PATH/"$gn".*.tree $ALN_PATH/"$gn".*.mtree $ALN_PATH/"$gn"_NT.cds.aln.fm $ALN_PATH/"$gn".orgs.* $ALN_PATH/"$gn".ref_orgs.* $ALN_PATH/"$gn".ref_orgs_NT.* $ALN_PATH/"$gn".orgs_NT.* $ALN_PATH/"$gn".ref_orgs_AA.* $ALN_PATH/"$gn".orgs_AA.* #$ALN_PATH/"$gn"_AA.*.aln
+		tar -czvf $ALN_PATH/$gn.tar $ALN_PATH/"$gn".3utr $ALN_PATH/"$gn"_AA.cds.aln.fm $ALN_PATH/"$gn".cds $ALN_PATH/"$gn".5utr $ALN_PATH/"$gn"_NT.*.aln $ALN_PATH/"$gn"_NT.cds.* $ALN_PATH/"$gn".*.tree $ALN_PATH/"$gn".*.mtree $ALN_PATH/"$gn"_NT.cds.aln.fm $ALN_PATH/"$gn".orgs.* $ALN_PATH/"$gn".ref_orgs.* $ALN_PATH/"$gn".ref_orgs_NT.* $ALN_PATH/"$gn".orgs_NT.* $ALN_PATH/"$gn".ref_orgs_AA.* $ALN_PATH/"$gn".orgs_AA.* #$ALN_PATH/"$gn"_AA.*.aln $ALN_PATH/"$gn"_NT*.trimmed $ALN_PATH/"$gn"_NT.*.cds.trim_info $ALN_PATH/"$gn"_NT.*.cds.mask $ALN_PATH/"$gn"_NT.*.cds.trace $ALN_PATH/"$gn"_AA*.trimmed
+		rm $ALN_PATH/"$gn".3utr $ALN_PATH/"$gn"_AA.cds.aln.fm $ALN_PATH/"$gn"_NT.cds.* $ALN_PATH/"$gn".cds $ALN_PATH/"$gn".5utr $ALN_PATH/"$gn"_NT.*.aln $ALN_PATH/"$gn".*.tree $ALN_PATH/"$gn".*.mtree $ALN_PATH/"$gn"_NT.cds.aln.fm $ALN_PATH/"$gn".orgs.* $ALN_PATH/"$gn".ref_orgs.* $ALN_PATH/"$gn".ref_orgs_NT.* $ALN_PATH/"$gn".orgs_NT.* $ALN_PATH/"$gn".ref_orgs_AA.* $ALN_PATH/"$gn".orgs_AA.* #$ALN_PATH/"$gn"_AA.*.aln $ALN_PATH/"$gn"_AA*.trimmed $ALN_PATH/"$gn"_NT*.trimmed $ALN_PATH/"$gn"_NT.*.cds.trim_info $ALN_PATH/"$gn"_NT.*.cds.mask $ALN_PATH/"$gn"_NT.*.cds.trace
 	done
 
 	##DOING this because its not a lot of MSA programs support special chars like frameshift mutations(!) or stitched alignments(5utr|cds|3utr) (which was something I was trying to do)
