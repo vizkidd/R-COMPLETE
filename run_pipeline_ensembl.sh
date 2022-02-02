@@ -68,6 +68,12 @@ delete_empty_orgs() {
 
 ##ENTRYPOINT
 # $1 is genelist.txt
+if [ $# -eq 0 ]
+  then
+    echo "Give genelist as input(exiting)."
+    exit
+fi
+
 echo $1
 
 #source /home/vsuresh/.guix-profile/etc/profile
@@ -121,7 +127,7 @@ mkdir $TEMP_PATH
 #./extract_genomic_regions.sh "$GENOMES_PATH/XENLA_9.2_genome.fa" "$ANNOS_PATH/xenopus_laevis.gtf" "files/bed/XL_genes" $1 xenopus_laevis
 
 ##/gnu/store/71wrbjz4xx53mhd40qfzm5czfzsc89sx-profile/bin/Rscript get_genomes_ensembl.R files/genomes files/annos $1  $(echo "$(pwd)/files/fasta")
-Rscript get_genomes_ensembl.R $1 || false
+time -v Rscript get_genomes_ensembl.R $1 || false
 
 delete_empty_orgs $FASTA_PATH $1 files/UNAVAILABLE_ORGS
 
@@ -158,11 +164,11 @@ count_genes4orgs $FASTA_PATH $1 files/gene_counts_AS.txt
 ##select organisms to search orthologs for
 ls $FASTA_PATH > files/selected_ORGS.txt
 
-./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
+time -v ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
 
-./align_seqs.sh $1
+time -v ./align_seqs.sh $1
 
-./predict_structures.sh $1
+time -v ./predict_structures.sh $1
 
 exit
 

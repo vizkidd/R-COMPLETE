@@ -3,7 +3,7 @@
 #$2 = formatted gtf/gff3(UNTESTED) file
 #$3 = basename for bedfiles
 #$4 = input gene list
-#$5 = org name(xlaevis)
+#$5 = org name(eg x_laevis)
 
 # parallel_checkODB() {
 #     #echo $1 $2 $3
@@ -61,26 +61,27 @@ check_gene() {
   gene=$(echo $gene_full | sed 's/.$//')
   echo $gene $gene_full
   file_out=$(echo $gene_full | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
-
+  #Saving gene info list in a file
+  grep -q -w -i "$gene_full" $ANNO_FILE > files/genes/$5/$file_out.gtf_slice
   #grep -i "$gene" $2 | awk -F'\t' '{print $9}' | awk -F';' '{print $3}' | awk '{print $2}' | sed 's/"//g' | sort | uniq > files/genes/$5/$gene.rna_list
-  if grep -q -w -i "$gene_full" $ANNO_FILE ; then
+  if grep -q -w -i "$gene_full" files/genes/$5/$file_out.gtf_slice ; then
     echo "1 - Gene name has perfect match"
-    grep -i -w "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-  elif grep -q -i "$gene_full" $ANNO_FILE ; then
+    grep -i -w "$gene_full" files/genes/$5/$file_out.gtf_slice | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+  elif grep -q -i "$gene_full" files/genes/$5/$file_out.gtf_slice ; then
     #grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
     if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
       echo "2 - Gene name matches a supergroup or subgroup, checking OrthoDB"
-     check_OrthoDB $gene_full
+     time -v check_OrthoDB $gene_full
     fi
   else
     #grep -i "$gene" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
     if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
       echo "3 - Gene name has a partial/no match, checking OrthoDB"
-      check_OrthoDB $gene_full
+     time -v check_OrthoDB $gene_full
     fi
   fi
   if [ ! -s files/genes/$5/$file_out.rna_list ]; then
-    grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+    grep -i "$gene_full" files/genes/$5/$file_out.gtf_slice | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
   fi
   cat files/genes/$5/$file_out.rna_list
   if [ -s files/genes/$5/$file_out.rna_list ]
@@ -100,8 +101,11 @@ check_gene() {
     #if [ ! -s $FASTA_PATH/$5/$file_out.5utr ]; then
     #  get_fasta $gene_full 5utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
     #fi
-    parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE " ::: ${transcript_regions[@]}
+    time -v parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $3 $GENOME_FILE $5 $FASTA_PATH $file_out files/genes/$5/$file_out.gtf_slice " ::: ${transcript_regions[@]}
   fi
+
+  rm files/genes/$5/$file_out.gtf_slice
+
 fi
 }
 
@@ -178,8 +182,10 @@ PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
 ORG_IN_ODB="TRUE"
 transcript_regions=("cds" "exons" "noncodingexons" "3utr" "5utr")
+
 export -f get_fasta
 export -f check_gene
+export -f check_OrthoDB
 #export -f parallel_checkODB
 
 f_org_name=$5
@@ -187,6 +193,7 @@ f_org_name=$5
 org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2; } ;')
 echo $org_name
 
+mkdir files
 mkdir $FASTA_PATH
 mkdir files/bed
 mkdir $TEMP_PATH
@@ -293,7 +300,7 @@ mkdir $FASTA_PATH/$5
 
 readarray gene_list < "$4"
 
-parallel -j ${#gene_list[@]} "check_gene {} " ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
+time -v parallel -j ${#gene_list[@]} "check_gene {} " ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
 
 find files/genes/$5 -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
 grep -v -i -f $FASTA_PATH/$5/MISSING_GENES $4 | sort > $FASTA_PATH/$5/AVAILABLE_GENES
