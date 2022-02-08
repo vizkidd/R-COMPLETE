@@ -2,15 +2,6 @@
 
 ##ALIGNMENT script to align and stitch different transcript regions
 
-make_db() {
-echo "$1"
-if [ -s "$1" ]; then
-	makeblastdb -in "$1" -dbtype nucl  -hash_index || true # -parse_seqids -out $2
-else
-	echo "$1 empty..."
-fi
-}
-
 extract_sequences() {
 	#rm files/gene.tmp
 	gene=$1
@@ -136,6 +127,8 @@ FT_PATH=$(grep -i -w "fasttree_path" parameters.txt | awk -F'=' '{print $2}')
 FT_PATH="${FT_PATH/#\~/$HOME}"
 mrna_regions_delimiter=$(grep -i -w "mrna_regions_delimiter" parameters.txt | awk -F'=' '{print $2}')
 
+source fasta_functions.sh
+
 mkdir $ALN_PATH
 
 if [ $MAFFT_PATH == "" ]; then
@@ -159,6 +152,10 @@ do
 done < "$gene_list"
 
 readarray genes < $gene_list
+
+##CHANGING FASTA IDs to numeric IDs because some programs dont work well with long FASTA IDs
+index_fastaIDs $ALN_PATH files/aln_ids.txt
+parallel -j0 -a files/aln_ids.txt "fastaID_to_number" 
 
 ##ALIGN 
 align_cds

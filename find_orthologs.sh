@@ -20,30 +20,6 @@
 #	blast_formatter -archive $tmpout -outfmt $8 -out $tmpout.dup
 #}
 
-make_db() {
-echo "$1"
-if [ -s "$1" ]; then
-	makeblastdb -in "$1" -dbtype nucl  -hash_index || true # -parse_seqids -out $2
-else
-	echo "$1 empty..."
-fi
-}
-
-collate_fasta() {
-	path=$1
-	gene_name=$2
-	safe_gene_name=$(echo $gene_name | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
-	reg=$3
-	out_dir=$4
-	if find $path/*/ -name "$safe_gene_name*" -type f ! -size 0 | grep -w -i "$reg"; then
-		if [[ ! -s $(blastdb_path -db "$out_dir/$safe_gene_name.$reg") ]]; then
-			touch "$out_dir/$safe_gene_name.$reg"
-			cat $(find $path/*/ -name "$safe_gene_name*" -type f ! -size 0 | grep -w -i "$reg" ) > "$out_dir/$safe_gene_name.$reg"
-			make_db "$out_dir/$safe_gene_name.$reg"
-		fi
-	fi
-}
-
 all2allblast() {
 #all2allblast $reference_ORGS $fasta_path files/genelist.txt files/all2all $blastdb_path cds cds 0 tblastx
 #1 - list of species
@@ -180,18 +156,7 @@ do
 done
 echo "Submitted jobs complete(all-all(ref) $8)"
 }
-select_transcripts() { 
-# $1 - transcript list file
-# $2 - intermediate output (transcripts from CURRENT organism)
-# $3 - final output (transcripts from ALL organisms)
-# $4 - organism fasta path
-## $5 - QSUB process IDs --OBSELETE--
 
-OFS=$'\n' grep -I -i -r -f $1 $4 > $2 ##Get the sequence IDs and file paths of all the valid transcripts
-cat $2 >> $3
-#qsub -V -N $2 -hold_jid $5 ./select_transcripts.sh $2 $4
-./select_transcripts.sh $2 $4
-}
 oneway_RBH() {
 # $1 - FOLDER PATH
 # $2 - Query organism
@@ -217,6 +182,7 @@ if [[ "$query" != "$subject" ]]; then
 	fi
 fi
 }
+
 twoway_RBH() {
 # $1 - FOLDER PATH
 # $2 - Query organism
@@ -287,6 +253,8 @@ export -f twoway_RBH
 export -f all2allblast
 export -f onewayblast
 export -f all2all_refblast
+
+source fasta_functions.sh
 
 if [[ $clean_download == "TRUE" ]] || [[ $clean_extract == "TRUE" ]] ; then 
 	rm -rf files/oneway

@@ -6,8 +6,11 @@ ALN_PATH=$(grep -i -w "alignments_path" parameters.txt | awk -F'=' '{print $2}')
 FT_PATH=$(grep -i -w "fasttree_path" parameters.txt | awk -F'=' '{print $2}') 
 FASTA_PATH=$(grep -i -w "fasta_path" parameters.txt | awk -F'=' '{print $2}')
 RNADEC_PATH=$(grep -i -w "rnadecoder_path" parameters.txt | awk -F'=' '{print $2}')
-PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+#PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH="${PY3_PATH/#\~/$HOME}"
+
+source fasta_functions.sh
 
 readarray genes < $gene_list
 
