@@ -21,25 +21,6 @@ sessionInfo()
 #ANNOS_PATH <- "files/annos"
 #gene_list <- "genelist.txt"
 
-param_file <- "parameters.txt"
-param_table <- read.table(param_file,sep="=")
-
-GENOMES_PATH <- param_table[which(param_table=="genomes_path"),c(2)]
-ANNOS_PATH <- param_table[which(param_table=="annos_path"),c(2)]
-gene_list <- args[1]
-OUT_PATH <- param_table[which(param_table=="fasta_path"),c(2)]
-CLEAN_DOWNLOAD <- as.logical(param_table[which(param_table=="clean_download"),c(2)])
-CLEAN_EXTRACT <- as.logical(param_table[which(param_table=="clean_extract"),c(2)])
-SUBPROCESS_WAIT <- as.logical(param_table[which(param_table=="subprocess_wait"),c(2)])
-BLAST_REGION <- as.character(param_table[which(param_table=="blast_region"),c(2)])
-GENOMES_SOURCE <- as.character(param_table[which(param_table=="genomes_source"),c(2)])
-USER_GENOMES <- as.character(param_table[which(param_table=="user_genomes"),c(2)])
-
-numWorkers <- detectCores(all.tests = T, logical = T) 
-genes <- gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
-user_data <- read.csv(USER_GENOMES,header = F)
-names(user_data) <- c("org","genome","gtf")
-
 #FUNCTIONS
 check_files <-function(fasta_path){
   if(dir.exists(fasta_path)){
@@ -103,7 +84,7 @@ fetch_genome_ensembl <- function(org) {
       }
       
     }
-    if(!check_files(fasta_path) || CLEAN_EXTRACT){
+    if(CLEAN_EXTRACT || !check_files(fasta_path)){
     ##g_unzip.str <- paste("gunzip","-d", genome_path, sep = " ")
     #system2(command = "gunzip",args = c("-d","-f", genome_path),wait=T)
     ##unzip.str <- paste("gunzip","-d", gtf_path, sep = " ")
@@ -177,18 +158,59 @@ print(gtf_path)
 #  system2("gffread",args = c(gtf_path, "-T", "-O", "-E", "-o", paste(file_path_sans_ext(gtf_path),".gtf",sep = "")),wait = T)
 #  gtf_path <- paste(file_path_sans_ext(gtf_path),".gtf",sep = "")
 #}
-if(!check_files(fasta_path) || CLEAN_EXTRACT){
+if(CLEAN_EXTRACT || !check_files(fasta_path)){
 system2("./extract_genomic_regions.sh",args = c(genome_path, gtf_path, file.path("files","bed",paste(data$org,"_genes",sep = "")), gene_list, data$org), wait = SUBPROCESS_WAIT)
 }
 }
 #ENTRY POINT
+
+param_file <- "parameters.txt"
+param_table <- read.table(param_file,sep="=")
+
+GENOMES_PATH <- param_table[which(param_table=="genomes_path"),c(2)]
+ANNOS_PATH <- param_table[which(param_table=="annos_path"),c(2)]
+gene_list <- args[1]
+OUT_PATH <- param_table[which(param_table=="fasta_path"),c(2)]
+CLEAN_DOWNLOAD <- as.logical(param_table[which(param_table=="clean_download"),c(2)])
+CLEAN_EXTRACT <- as.logical(param_table[which(param_table=="clean_extract"),c(2)])
+SUBPROCESS_WAIT <- as.logical(param_table[which(param_table=="subprocess_wait"),c(2)])
+BLAST_REGION <- as.character(param_table[which(param_table=="blast_region"),c(2)])
+GENOMES_SOURCE <- as.character(param_table[which(param_table=="genomes_source"),c(2)])
+USER_GENOMES <- as.character(param_table[which(param_table=="user_genomes"),c(2)])
+
+print(paste("CLEAN_DOWNLOAD:",CLEAN_DOWNLOAD))
+print(paste("CLEAN_EXTRACT:",CLEAN_EXTRACT))
+print(paste("GENOMES_SOURCE:",GENOMES_SOURCE))
+print(paste("SUBPROCESS_WAIT:",SUBPROCESS_WAIT))
+
+numWorkers <- detectCores(all.tests = T, logical = T) 
+genes <- gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
 
 org.meta <- c()
 for(org in getENSEMBLGENOMESInfo()$name){
   org.meta <- rbind(org.meta, is.genome.available(db = "ensembl", org, details = T))
 }
 #getGenomeSet(db = "ensembl", org.meta$name, reference = F, clean_retrieval = T, gunzip = T, update = T, path = "files/genomes")
+check_list <- list()
+if(!CLEAN_DOWNLOAD && !CLEAN_EXTRACT){
+  #print("SKIPPING download and extraction of genomes. Check clean_extract and clean_download parameters in parameters.txt")
+  print("Checking files...")
+for (fasta_dir in list.dirs(OUT_PATH)) {
+  check_result <- check_files(fasta_dir)
+  if(!check_result){
+    check_list <- append(check_list,list(c(basename(fasta_dir))))
+  }
+  print(paste(fasta_dir," : ", check_result))
+}
+  print("Checked files..Organisms which failed")
+  print(unlist(check_list)) #
+  #check_ens <- na.omitmatch(unlist(check_list),org.meta$name)
+  org.meta <- org.meta[na.omit(match(unlist(check_list),org.meta$name)),]
+}
 if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
+  user_data <- read.csv(USER_GENOMES,header = F)
+  names(user_data) <- c("org","genome","gtf")
+  user_data <- user_data[na.omit(match(unlist(check_list),user_data$org)),]
   for (row in 1:nrow(user_data)) {
     #print(user_data[row,])
     fetch_genome_user(user_data[row,])

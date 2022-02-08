@@ -283,6 +283,9 @@ PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
 
 export -f oneway_RBH
 export -f twoway_RBH
+export -f all2allblast
+export -f onewayblast
+export -f all2all_refblast
 
 if [[ $clean_download == "TRUE" ]] || [[ $clean_extract == "TRUE" ]] ; then 
 	rm -rf files/oneway
@@ -298,7 +301,7 @@ readarray ref_orgs < $reference_ORGS
 
 if [[ $(wc -l $reference_ORGS) > 2 ]]; then
 
-all2allblast $reference_ORGS $fasta_path $2 files/all2all $blastdb_path $region $region tblastx
+time all2allblast $reference_ORGS $fasta_path $2 files/all2all $blastdb_path $region $region tblastx
 
 #while IFS= read -r subject
 #do
@@ -314,7 +317,7 @@ all2allblast $reference_ORGS $fasta_path $2 files/all2all $blastdb_path $region 
 #done < "$reference_ORGS"
 #done < "$reference_ORGS"
 
-parallel -j $((${#ref_orgs[@]}*${#ref_orgs[@]})) "oneway_RBH files/all2all {1} {2}" ::: ${ref_orgs[@]} ::: ${ref_orgs[@]}
+time parallel -j $((${#ref_orgs[@]}*${#ref_orgs[@]})) "oneway_RBH files/all2all {1} {2}" ::: ${ref_orgs[@]} ::: ${ref_orgs[@]}
 
 Rscript merge_orths.R $reference_ORGS files/all2all/ files/all2all/final_df.txt $e_value
 
@@ -329,7 +332,7 @@ else
 	cat $2 > files/all2all/all2all.genelist
 fi
 
-onewayblast $reference_ORGS $fasta_path $2 files/oneway $blastdb_path $region $region tblastx
+time onewayblast $reference_ORGS $fasta_path $2 files/oneway $blastdb_path $region $region tblastx
 
 while IFS= read -r gene
 do
@@ -371,7 +374,7 @@ Rscript create_sets.R $2 "files/all2all/all2all.genelist"
 
 cat $reference_ORGS files/oneway/SET > files/oneway/set.tmp
 
-all2all_refblast $reference_ORGS $fasta_path files/all2all/all2all.genelist files/all2all_final $blastdb_path $region $region tblastx files/oneway/set.tmp
+time all2all_refblast $reference_ORGS $fasta_path files/all2all/all2all.genelist files/all2all_final $blastdb_path $region $region tblastx files/oneway/set.tmp
 
 #while IFS= read -r subject
 #do
@@ -397,10 +400,10 @@ all2all_refblast $reference_ORGS $fasta_path files/all2all/all2all.genelist file
 
 readarray set_orgs < files/oneway/set.tmp
 
-parallel -j $((${#ref_orgs[@]}*${#set_orgs[@]})) "twoway_RBH files/all2all_final {1} {2}" ::: ${ref_orgs[@]} ::: ${set_orgs[@]}
+time parallel -j $((${#ref_orgs[@]}*${#set_orgs[@]})) "twoway_RBH files/all2all_final {1} {2}" ::: ${ref_orgs[@]} ::: ${set_orgs[@]}
 
 #Rscript merge_orths.R files/oneway/set.tmp files/all2all_final/ files/all2all_final/final_df.txt 1e-05
 
-Rscript wisard.R files/oneway/set.tmp files/all2all_final
+time Rscript wisard.R files/oneway/set.tmp files/all2all_final
 
 exit

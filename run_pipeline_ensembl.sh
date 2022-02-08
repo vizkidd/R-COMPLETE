@@ -127,7 +127,7 @@ mkdir $TEMP_PATH
 #./extract_genomic_regions.sh "$GENOMES_PATH/XENLA_9.2_genome.fa" "$ANNOS_PATH/xenopus_laevis.gtf" "files/bed/XL_genes" $1 xenopus_laevis
 
 ##/gnu/store/71wrbjz4xx53mhd40qfzm5czfzsc89sx-profile/bin/Rscript get_genomes_ensembl.R files/genomes files/annos $1  $(echo "$(pwd)/files/fasta")
-time -v Rscript get_genomes_ensembl.R $1 || false
+time Rscript get_genomes_ensembl.R $1 || false
 
 delete_empty_orgs $FASTA_PATH $1 files/UNAVAILABLE_ORGS
 
@@ -164,11 +164,22 @@ count_genes4orgs $FASTA_PATH $1 files/gene_counts_AS.txt
 ##select organisms to search orthologs for
 ls $FASTA_PATH > files/selected_ORGS.txt
 
-time -v ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
+##ID Alignments - GENERATE numeric ids for FASTA IDS (because they are long and downstream analysis have difficulty taking long names) 
+x=0; grep ">" -H -r $FASTA_PATH | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > files/rna_ids.txt ##(full_filename  fasta_id  numeric_id)
+while IFS= read -r rna_id
+do
+	rna_file=$(echo $rna_id | awk '{print $1}')
+	rna_name=$(echo $rna_id | awk '{print $2}')
+	rna_num=$(echo $rna_id | awk '{print $3}')
+	echo $rna_file $rna_name $rna_num
+	sed --in-place=.bak "s/$rna_name/$rna_num/g" $rna_file 
+done < "files/rna_ids.txt"
 
-time -v ./align_seqs.sh $1
+time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
 
-time -v ./predict_structures.sh $1
+time ./align_seqs.sh $1
+
+time ./predict_structures.sh $1
 
 exit
 

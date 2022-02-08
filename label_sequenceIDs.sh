@@ -3,6 +3,8 @@
 transcript_delimiter=$(grep -i  -w "transcript_delimiter" parameters.txt | awk -F'=' '{print $2}')
 PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
+PY2_PATH="${PY2_PATH/#\~/$HOME}"
+PY3_PATH="${PY3_PATH/#\~/$HOME}"
 
 transcript_id=""
 anno_name=""
@@ -31,7 +33,7 @@ fi
 #echo $transcript_id $2 $anno_name
 if [[ "$seq" != "" && "$transcript_id" != "" ]] ; then
 	echo $1 $2 $anno_name $transcript_id >> files/transcripts.metadata
-	printf ">%s\n%s" $transcript_id $seq | $PY2_PATH filter_sequenceIDs.py $1 $5 $2 $(echo $anno_name | awk '{ gsub(/[[:punct:]]/, "_", $0); print;} ;') $transcript_id ##$org $file #$filename
+	printf ">%s\n%s" $transcript_id $seq | $PY3_PATH filter_sequenceIDs.py $1 $5 $2 $(echo $anno_name | awk '{ gsub(/[[:punct:]]/, "_", $0); print;} ;') $transcript_id ##$org $file #$filename
 fi
 
 #echo "----------------"

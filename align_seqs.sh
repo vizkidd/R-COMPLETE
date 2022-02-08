@@ -133,6 +133,7 @@ MAFFT_PATH=$(grep -i -w "mafft_path" parameters.txt | awk -F'=' '{print $2}')
 BLASTDB_PATH=$(grep -i -w "blastdb_path" parameters.txt | awk -F'=' '{print $2}')
 FASTA_PATH=$(grep -i -w "fasta_path" parameters.txt | awk -F'=' '{print $2}')
 FT_PATH=$(grep -i -w "fasttree_path" parameters.txt | awk -F'=' '{print $2}') 
+FT_PATH="${FT_PATH/#\~/$HOME}"
 mrna_regions_delimiter=$(grep -i -w "mrna_regions_delimiter" parameters.txt | awk -F'=' '{print $2}')
 
 mkdir $ALN_PATH
