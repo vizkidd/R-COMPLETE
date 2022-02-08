@@ -5,6 +5,7 @@ import sys, re
 import pickle
 import csv
 from Graph import Graph
+from Graph import Vertex
 #import multiprocessing
 
 # ===========================================================================================================
@@ -19,7 +20,7 @@ def argsCheck(argsCount):
 		print("Usage: " + sys.argv[0] + " BLASTOUTPUT1 BLASTOUTPUT2 outfile \n")
 		print("Examples:" + " python RBH-v1.py files/all2all/danio_rerio-xenopus_tropicalis.out files/all2all/xenopus_tropicalis-danio_rerio.out files/all2all/dr-xt.out")
 		print("Note: BLAST output format is 6")
-		print('-outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"')
+		print('-outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames (qcovhsp) sstrand qlen slen qseq sseq nident positive"')
 		print("This script is an improvement and modification of two scripts: (Thanks and citations)")
 		print("*https://github.com/hongqin/Simple-reciprocal-best-blast-hit-pairs  :: This script only supports one hit queries (but amazing work), I modified it to support the graph based BackBLAST algorithm")
 		print("*https://github.com/LeeBergstrand/BackBLAST_Reciprocal_BLAST  :: This script only supports proteomes (but amazing work), I use the HSP based graph propogation from this script")
@@ -58,7 +59,7 @@ for Line in FL1:
 	if ( Line[0] != '#' ):
 		Line.strip()
 		Elements = re.split('\t', Line)
-		if(Elements[2] >= minIdent): # and Elements[14] == frames):
+		if(float(Elements[2]) >= minIdent): # and Elements[14] == frames):
 			queryId = Elements[0]
 			subjectId = Elements[1]
 			query_gene = str(queryId).split(seqID_delimiter)[1]
@@ -66,6 +67,8 @@ for Line in FL1:
 			if ( query_gene == subject_gene ):
 				forward_list.append(Elements)
 				#print(queryId, subjectId)
+				BLASTGraph.addVertex(queryId)
+				BLASTGraph.addVertex(subjectId)
 				BLASTGraph.addEdge(queryId, subjectId, float(Elements[15]))
 				if ( not ( queryId in D1.keys() ) ):
 					D1[queryId] = list()
@@ -73,6 +76,22 @@ for Line in FL1:
 					D1[queryId].append(subjectId)
 					#BLASTGraph.addEdge(queryId, subjectId, Elements[15]) #HSPs
 
+
+##IMPROVE GRAPH
+##
+## >>> dir(Graph)
+#['__contains__', '__doc__', '__init__', '__iter__', '__module__', 'addEdge', 'addVertex', 'getVertex', 'getVertices']
+#>>> dir(Vertex)
+#['__doc__', '__init__', '__module__', '__str__', 'addNeighbor', 'getConnections', 'getId', 'getWeight']
+##
+
+#print(BLASTGraph.getVertices())
+
+#for vert in BLASTGraph.getVertices():
+#	if ( BLASTGraph.getVertex(vert).getConnections() ):
+#		print(BLASTGraph.getVertex(vert).getConnections()[0])
+
+#exit()
 
 if (debug): D1.keys() 
 
@@ -84,7 +103,7 @@ for Line in FL2:
 	if ( Line[0] != '#' ):
 		Line.strip()
 		Elements = re.split('\t', Line)
-		if(Elements[2] >= minIdent): # and Elements[14] == frames):
+		if(float(Elements[2]) >= minIdent): # and Elements[14] == frames):
 			queryId = Elements[0]
 			subjectId = Elements[1]
 			query_gene = str(queryId).split(seqID_delimiter)[1]

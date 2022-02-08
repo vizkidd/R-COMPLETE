@@ -212,7 +212,7 @@ if [[ "$query" != "$subject" ]]; then
 			wait $proc_id || true
 		done
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		nohup $PY2_PATH RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
+		nohup $PY3_PATH RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/oneway_RBH.o&
 		wait "$!"
 	fi
 fi
@@ -238,9 +238,9 @@ if [[ "$query" != "$subject" ]]; then
 		done
 		proc_list=()
 		#/data/meyer/viz/tools/miniconda3/envs/local_root/bin/python transcriptologs.py -i1 $query-$subject.out -i2 $subject-$query.out -o $query-$subject.orths
-		nohup $PY2_PATH RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
+		nohup $PY3_PATH RBH-v1.py $path/$query-$subject.out $path/$subject-$query.out $path/$query-$subject.orths &>> logs/twoway_RBH.o&
 		proc_list+=("$!")
-		nohup $PY2_PATH RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
+		nohup $PY3_PATH RBH-v1.py $path/$subject-$query.out $path/$query-$subject.out $path/$subject-$query.orths &>> logs/twoway_RBH.o&
 		proc_list+=("$!")
 		for proc_id in "${proc_list[@]}"
 		do
@@ -278,8 +278,9 @@ clean_download=$(grep -i -w "clean_download" parameters.txt | awk -F'=' '{print 
 clean_extract=$(grep -i -w "clean_extract" parameters.txt | awk -F'=' '{print $2}') 
 seqID_delimiter=$(grep -i -w "seqID_delimiter" parameters.txt | awk -F'=' '{print $2}') 
 e_value=$(grep -i -w "e_value" parameters.txt | awk -F'=' '{print $2}')
-PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+#PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH="${PY3_PATH/#\~/$HOME}"
 
 export -f oneway_RBH
 export -f twoway_RBH

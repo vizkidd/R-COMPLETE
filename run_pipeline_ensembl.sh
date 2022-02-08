@@ -11,6 +11,49 @@
 #- STARTS the pipeline
 #- the script takes only one parameter - file containing the gene list 
 
+index_fastaIDs() {
+	x=0;
+	grep ">" -H -r $1 | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > $2
+}
+
+fastaID_to_number() {
+	#SLOWER implementation
+	#while IFS= read -r rna_id
+	#do
+	#	rna_file=$(echo $rna_id | awk '{print $1}')
+	#	rna_name=$(echo $rna_id | awk '{print $2}')
+	#	rna_num=$(echo $rna_id | awk '{print $3}')
+	#	echo $rna_file $rna_name $rna_num
+	#	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
+	#done < "files/rna_ids.txt"
+	#PARALLEL implementation
+	#Called using : parallel -a files/rna_ids.txt -j $(wc -l files/rna_ids.txt) "fastaID_to_number" 
+	rna_file=$(echo $1 | awk '{print $1}')
+	rna_name=$(echo $1 | awk '{print $2}')
+	rna_num=$(echo $1 | awk '{print $3}')
+	echo $rna_file $rna_name "->" $rna_num
+	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
+}
+
+number_to_fastaID() {
+	#SLOWER implementation
+	#while IFS= read -r rna_id
+	#do
+	#	rna_file=$(echo $rna_id | awk '{print $1}')
+	#	rna_name=$(echo $rna_id | awk '{print $2}')
+	#	rna_num=$(echo $rna_id | awk '{print $3}')
+	#	echo $rna_file $rna_name $rna_num
+	#	sed --in-place "s/$rna_num/$rna_name/g" $rna_file 
+	#done < "files/rna_ids.txt"
+	#PARALLEL implementation
+	#Called using : parallel -a files/rna_ids.txt -j $(wc -l files/rna_ids.txt) "number_to_fastaID" 
+	rna_file=$(echo $1 | awk '{print $1}')
+	rna_name=$(echo $1 | awk '{print $2}')
+	rna_num=$(echo $1 | awk '{print $3}')
+	echo $rna_file $rna_num "->" $rna_name
+	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
+}
+
 select_transcripts() {
 #1 - transcript list file
 #2 - intermediate output (transcripts from CURRENT organism)
@@ -84,8 +127,13 @@ FASTA_PATH=$(grep -i -w "fasta_path" parameters.txt | awk -F'=' '{print $2}')
 TEMP_PATH=$(grep -i -w "temp_path" parameters.txt | awk -F'=' '{print $2}')
 BLASTDB_PATH=$(grep -i -w "blastdb_path" parameters.txt | awk -F'=' '{print $2}')
 REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}')
-PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+#PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH="${PY3_PATH/#\~/$HOME}"
+
+export -f number_to_fastaID
+export -f fastaID_to_number
+export -f index_fastaIDs
 
 mkdir files
 #mkdir files/genes
@@ -165,17 +213,14 @@ count_genes4orgs $FASTA_PATH $1 files/gene_counts_AS.txt
 ls $FASTA_PATH > files/selected_ORGS.txt
 
 ##ID Alignments - GENERATE numeric ids for FASTA IDS (because they are long and downstream analysis have difficulty taking long names) 
-x=0; grep ">" -H -r $FASTA_PATH | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > files/rna_ids.txt ##(full_filename  fasta_id  numeric_id)
-while IFS= read -r rna_id
-do
-	rna_file=$(echo $rna_id | awk '{print $1}')
-	rna_name=$(echo $rna_id | awk '{print $2}')
-	rna_num=$(echo $rna_id | awk '{print $3}')
-	echo $rna_file $rna_name $rna_num
-	sed --in-place=.bak "s/$rna_name/$rna_num/g" $rna_file 
-done < "files/rna_ids.txt"
+#x=0; grep ">" -H -r $FASTA_PATH | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > files/rna_ids.txt ##(full_filename  fasta_id  numeric_id)
+index_fastaIDs $FASTA_PATH files/rna_ids.txt
 
 time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
+
+##CHANGING FASTA IDs to numeric IDs because some programs dont work well with long FASTA IDs
+#parallel -j0 -N 252 --pipe parallel -a files/rna_ids.txt -j 0 "fastaID_to_number" 
+parallel -j0 -a files/rna_ids.txt "fastaID_to_number" 
 
 time ./align_seqs.sh $1
 

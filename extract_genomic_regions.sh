@@ -109,7 +109,8 @@ check_gene() {
     #if [ ! -s $FASTA_PATH/$5/$file_out.5utr ]; then
     #  get_fasta $gene_full 5utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
     #fi
-    time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out 'files/genes/$f_org_name/$file_out.gtf_slice' $TEMP_PATH $8" ::: ${transcript_regions[@]}
+
+    time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out 'files/genes/$f_org_name/$file_out.gtf_slice' $TEMP_PATH " ::: ${transcript_regions[@]} #$8
   fi
 
 fi
@@ -123,21 +124,34 @@ get_fasta() {
 #5 - org name
 #6 - FASTA OUPUT FOLDER
 #7 - Formatted file name for gene
-#8 - TEMP PATH
-#9 - GTF file path (for extracting the 'real' gene annotation)
+#8 - GTF file path (for extracting the 'real' gene annotation)
+#9 - TEMP PATH
 #10 - Default flank_len
 #echo $1 $2 $3 $4 $5 $6 $7 $8 $9 
 #echo $(grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed)
 #echo $1 $2 $3 $4 $5 $6 $7 $8 $9 
-flank_len=${10}
+#flank_len=${10}
 #echo $flank_len
 if [ ! -s $6/$5/$7.$2 ]; then #$FASTA_PATH/$5/$file_out.cds
 grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed > $9/$5_$1_$2.bed
 
+##TO get flanks 
+#grep -i -f files/genes/some_org/cat1.rna_list files/genes/some_org/cat1.gtf_slice | grep -i "utr" | grep -i "three\|3"
+
+##TO find MEDIAN values
+#grep -i -f files/genes/some_org/cat1.rna_list files/genes/some_org/cat1.gtf_slice | grep -i "utr" | grep -i "three\|3" | awk '{print $5-$4}' | sort -n | awk '{arr[NR]=$1} END {if (NR%2==1) print arr[(NR+1)/2]; else print (arr[NR/2]+arr[NR/2+1])/2}'
+
+##TO find MEAN
+#grep -i -f files/genes/some_org/cat1.rna_list files/genes/some_org/cat1.gtf_slice | grep -i "utr" | grep -i "three\|3" | awk '{print $5-$4}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }'
+
+
 ##EXTEND regions using bedtools slop
 if [[ "$2" == "3utr" ]]; then
   ##SHIFT by 3bp to omit stop codons in 3UTRs
-  #bedtools shift -s 3 -i $TEMP_PATH/$5_"$1"_$2.bed -g $TEMP_PATH/$5_genomeFile.txt ##WONT WORK
+  #bedtools shift -s 3 -i $TEMP_PATH/$5_"$1"_$2.bed -g $TEMP_PATH/$5_genomeFile.txt ##WONT WORK, and dont need to because stop codons are part of CDS
+  ##GET AVERAGE UTR LENGTH for getting FLANK LEN
+  flank_len=$(grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "three\|3" | awk '{print $5-$4}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
+  
   if [ -s $9/$5_$1_$2.bed ]; then ## if bed file is empty then we will have to take flanks from CDS
   	grep -i "$2_FLANK" $9/$5_$1_$2.bed > $9/$5_$1_$2_FLANK.tmp
   	##REMOVE the line because we stored flanking regions in a seperate bed file
@@ -149,6 +163,8 @@ if [[ "$2" == "3utr" ]]; then
   fi
   bedtools getfasta -s -split -fi $4 -bed $9/$5_"$1"_$2_FLANK.bed -nameOnly -fullHeader >> $6/$5/$7.$2.tmp #NOTUSING name+ because BLAST doesn't like long IDs
 elif [[ "$2" == "5utr" ]]; then
+  ##GET AVERAGE UTR LENGTH for getting FLANK LEN
+  flank_len=$(grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "five\|5" | awk '{print $5-$4}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
   if [ -s $9/$5_"$1"_$2.bed ]; then ## if bed file is empty then we will have to take flanks from CDS
   	grep -i "$2_FLANK" $9/$5_"$1"_$2.bed > $9/$5_"$1"_$2_FLANK.tmp
   	##REMOVE the line because we stored flanking regions in a seperate bed file
@@ -173,7 +189,7 @@ parallel -j1 --compress --pipepart -a "$6/$5/$7.$2.tmp" --recstart '>' --block -
 #printf "%s\n%s" $line $seq | parallel -j1 "sh label_sequenceIDs.sh $5 $1 $8 $FASTA_PATH/$5/$7.$2.tmp $FASTA_PATH/$5/$7.$2" #-word_size 5 -evalue 1e-25
 #done< "$FASTA_PATH/$5/$7.$2.tmp"
 ##sh label_sequenceIDs.sh $5 $1 $8 $FASTA_PATH/$5/$7.$2.tmp $FASTA_PATH/$5/$7.$2 #-word_size 5 -evalue 1e-25
-
+#echo $flank_len
 rm $6/$5/$7.$2.tmp
 fi
 }
@@ -189,8 +205,9 @@ ORTHODB_PATH=$(grep -i -w "orthodb_files_path" parameters.txt | awk -F'=' '{prin
 ORTHODB_PREFIX=$(grep -i -w "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
 flank_len=$(grep -i -w "flank_len" parameters.txt | awk -F'=' '{print $2}')   #2000
 REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
-PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
+#PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
+PY3_PATH="${PY3_PATH/#\~/$HOME}"
 ORG_IN_ODB="TRUE"
 transcript_regions=("cds" "exons" "noncodingexons" "3utr" "5utr")
 
@@ -252,7 +269,7 @@ samtools faidx $GENOME_FILE
 awk -v OFS='\t' {'print $1,$2'} $GENOME_FILE.fai > $TEMP_PATH/$5_genomeFile.txt
 #rm $3*
 rm $bed_prefix*
-$PY2_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3
+$PY3_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3
 
 #if [[ "$7" == "TRUE" ]]; then
 if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
