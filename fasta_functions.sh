@@ -1,6 +1,12 @@
 #!/bin/bash
 
 index_fastaIDs() {
+	#Called using : index_fastaIDs files/fasta/ files/rna_ids.txt
+	if [ $# -eq 0 ]
+  	then
+    	echo "Give (FASTA folder/Alignment files), output filename as input(exiting)."
+    	exit
+	fi
 	x=0;
 	grep ">" -H -r $1 | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > $2
 }
@@ -15,13 +21,34 @@ fastaID_to_number() {
 	#	echo $rna_file $rna_name $rna_num
 	#	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
 	#done < "files/rna_ids.txt"
+	if [ $# -eq 0 ]
+  	then
+    	echo "Executed with fastaID_to_number transcript_metadata"
+    	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
+    	exit
+	fi
+	
+	file_ids=$(parallel "basename {}" ::: $(awk '{print $1}' $1 | sort | uniq))
+	parallel -j ${#file_ids} "fID_to_num_parallel $1 {}" ::: ${file_ids[@]}
+}
+
+fID_to_num_parallel() {
 	#PARALLEL implementation
-	#Called using : parallel -a files/rna_ids.txt -j $(wc -l files/rna_ids.txt) "fastaID_to_number" 
-	rna_file=$(echo $1 | awk '{print $1}')
-	rna_name=$(echo $1 | awk '{print $2}')
-	rna_num=$(echo $1 | awk '{print $3}')
-	echo $rna_file $rna_name "->" $rna_num
-	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
+	#id_sub_list=($(grep $2 $1))
+	#echo ${id_sub_list[*]}
+	if [ $# -eq 0 ]
+  	then
+    	echo "Please use fastaID_to_number, this is a parallel implementation"
+    	exit
+	fi
+
+	grep -w $2 $1 | while read -r line; do 
+		rna_file=$(echo $line | awk '{print $1}')
+		rna_name=$(echo $line | awk '{print $2}')
+		rna_num=$(echo $line | awk '{print $3}')
+		printf "%s %s -> %s\n" $rna_file $rna_name $rna_num
+		sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
+	done
 }
 
 number_to_fastaID() {
@@ -34,15 +61,35 @@ number_to_fastaID() {
 	#	echo $rna_file $rna_name $rna_num
 	#	sed --in-place "s/$rna_num/$rna_name/g" $rna_file 
 	#done < "files/rna_ids.txt"
-	#PARALLEL implementation
-	#Called using : parallel -a files/rna_ids.txt -j $(wc -l files/rna_ids.txt) "number_to_fastaID" 
-	rna_file=$(echo $1 | awk '{print $1}')
-	rna_name=$(echo $1 | awk '{print $2}')
-	rna_num=$(echo $1 | awk '{print $3}')
-	echo $rna_file $rna_num "->" $rna_name
-	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
+	if [ $# -eq 0 ]
+  	then
+    	echo "Executed with number_to_fastaID transcript_metadata"
+    	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
+    	exit
+	fi
+	
+	file_ids=$(parallel "basename {}" ::: $(awk '{print $1}' $1 | sort | uniq))
+	parallel -j ${#file_ids} "num_to_fID_parallel $1 {}" ::: ${file_ids[@]}
 }
 
+num_to_fID_parallel() {
+	#PARALLEL implementation
+	#id_sub_list=($(grep $2 $1))
+	#echo ${id_sub_list[*]}
+	if [ $# -eq 0 ]
+  	then
+    	echo "Please use number_to_fastaID, this is a parallel implementation"
+    	exit
+	fi
+
+	grep -w $2 $1 | while read -r line; do 
+		rna_file=$(echo $line | awk '{print $1}')
+		rna_name=$(echo $line | awk '{print $2}')
+		rna_num=$(echo $line | awk '{print $3}')
+		printf "%s %s -> %s\n" $rna_file $rna_name $rna_num
+		sed --in-place "s/$rna_num/$rna_name/g" $rna_file 
+	done
+}
 
 make_db() {
 echo "$1"
@@ -136,3 +183,6 @@ export -f select_transcripts
 export -f delete_empty_orgs
 export -f count_genes4orgs
 export -f count_seqs4genes
+
+export -f fID_to_num_parallel
+export -f num_to_fID_parallel
