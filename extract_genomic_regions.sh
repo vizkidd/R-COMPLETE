@@ -150,7 +150,8 @@ if [[ "$2" == "3utr" ]]; then
   ##SHIFT by 3bp to omit stop codons in 3UTRs
   #bedtools shift -s 3 -i $TEMP_PATH/$5_"$1"_$2.bed -g $TEMP_PATH/$5_genomeFile.txt ##WONT WORK, and dont need to because stop codons are part of CDS
   ##GET AVERAGE UTR LENGTH for getting FLANK LEN
-  flank_len=$(grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "three\|3" | awk '{print $5-$4}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
+  grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "three" | awk '{print $5-$4}' > files/genes/$5/$7.3_flank_lens
+  flank_len=$(cat files/genes/$5/$7.3_flank_lens | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
   
   if [ -s $9/$5_$1_$2.bed ]; then ## if bed file is empty then we will have to take flanks from CDS
   	grep -i "$2_FLANK" $9/$5_$1_$2.bed > $9/$5_$1_$2_FLANK.tmp
@@ -164,7 +165,8 @@ if [[ "$2" == "3utr" ]]; then
   bedtools getfasta -s -split -fi $4 -bed $9/$5_"$1"_$2_FLANK.bed -nameOnly -fullHeader >> $6/$5/$7.$2.tmp #NOTUSING name+ because BLAST doesn't like long IDs
 elif [[ "$2" == "5utr" ]]; then
   ##GET AVERAGE UTR LENGTH for getting FLANK LEN
-  flank_len=$(grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "five\|5" | awk '{print $5-$4}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
+  grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "five" | awk '{print $5-$4}' > files/genes/$5/$7.5_flank_lens
+  flank_len=$(cat files/genes/$5/$7.5_flank_lens | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
   if [ -s $9/$5_"$1"_$2.bed ]; then ## if bed file is empty then we will have to take flanks from CDS
   	grep -i "$2_FLANK" $9/$5_"$1"_$2.bed > $9/$5_"$1"_$2_FLANK.tmp
   	##REMOVE the line because we stored flanking regions in a seperate bed file
@@ -234,7 +236,7 @@ ANNO_FILE=$2
 
 if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]] ; then
   echo "$GENOME_FILE (or) $ANNO_FILE doesn't exist"
-  exit 1
+  exit -1
 fi
 
 if [[ ${GENOME_FILE##*.} ==  "gz" ]] ; then
@@ -332,18 +334,18 @@ readarray gene_list < "$4"
 
 time parallel -j ${#gene_list[@]} "check_gene {} $f_org_name $bed_prefix $ANNO_FILE $GENOME_FILE $TEMP_PATH $FASTA_PATH $flank_len" ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
 
-find files/genes/$5 -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
+find files/genes/$5 -iname "*.rna_list" -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
 grep -v -i -f $FASTA_PATH/$5/MISSING_GENES $4 | sort > $FASTA_PATH/$5/AVAILABLE_GENES
 find files/genes/$5 -empty -delete
 find $FASTA_PATH/$5 -empty -delete
 #rm $TEMP_PATH/$5*
-exit 0
+
 mv $GENOME_FILE $GENOMES_PATH/$5.fa
 mv $ANNO_FILE $ANNOS_PATH/$5.gtf
 #bgzip -i $GENOMES_PATH/$5.fa
 #bgzip -i $ANNOS_PATH/$5.gtf
-gzip -f $GENOMES_PATH/$5.fa
-gzip -f $ANNOS_PATH/$5.gtf
+gzip -f --rsyncable $GENOMES_PATH/$5.fa
+gzip -f --rsyncable $ANNOS_PATH/$5.gtf
 #rm $GENOMES_PATH/$5.fa
 #rm $ANNOS_PATH/$5.gtf
 rm $TEMP_PATH/$f_org_name.*.*
@@ -356,4 +358,4 @@ rm $3*
 ##rm $ANNOS_PATH/*.tsv
 ##rm $ANNOS_PATH/*.txt
 
-exit 0
+exit 1

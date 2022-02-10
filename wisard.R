@@ -452,10 +452,6 @@ set.seed(123)
 #source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/wisard/wisard/R/greedy.R")
 #source("/run/user/25654/gvfs/sftp:host=max-login/data/meyer/rob/wisard/wisard/R/read_blast.R")
 
-source("/data/meyer/rob/wisard/wisard/R/WIS_functions.R")
-source("/data/meyer/rob/wisard/wisard/R/greedy.R")
-source("/data/meyer/rob/wisard/wisard/R/read_blast.R")
-
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
@@ -474,8 +470,16 @@ seqID_delimiter <- as.character(param_table[which(param_table=="seqID_delimiter"
 orgs_ref_path <- as.character(param_table[which(param_table=="ref_orgs"),c(2)])
 e_cutoff <- as.numeric(param_table[which(param_table=="e_value"),c(2)])
 gtf_path <- as.character(param_table[which(param_table=="annos_path"),c(2)])
+wisard_path <- as.character(param_table[which(param_table=="wisard_path"),c(2)])
 plot_out_path <- as.character(param_table[which(param_table=="plot_path"),c(2)])
 mincov_threshold <- as.numeric(param_table[which(param_table=="mincov_threshold"),c(2)])
+
+tryCatch(library(wisard), finally = function(){
+  source(paste(wisard_path,"/WIS_functions.R",sep = ""))
+  source(paste(wisard_path,"/greedy.R",sep = ""))
+  source(paste(wisard_path,"/read_blast.R",sep = ""))
+  
+})
 
 #delimiter<- "_"
 #setwd("/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/mrna_loc")
@@ -828,6 +832,7 @@ for(ref_org in orgs.ref){
 #save(HSP_bk,file="HSP_bk.RData")
 save(HSP,file="files/HSP.RData")
 HSP <- HSP[HSP$min_cov>=mincov_threshold,]
+HSP <- HSP[HSP$same_CDS_count==TRUE,]
 HSP <- HSP[order(HSP$min_cov,decreasing = T),]
 write.csv(HSP,file="files/HSP.csv",quote = F, sep = "\t", row.names = F)
 
