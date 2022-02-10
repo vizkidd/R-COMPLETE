@@ -30,6 +30,7 @@ fastaID_to_number() {
 	if [ $# -eq 0 ]
   	then
     	echo "Executed with fastaID_to_number transcript_metadata (and optional list of files to replace fasta IDs)"
+    	echo "If optional files are given then the IDs in files from transcript_metadata are not replaced "
     	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
     	return 1
 	fi
@@ -53,7 +54,7 @@ fID_to_num_multi() {
 	f_name=$(basename $2)
 
 	##GETS FASTA IDs which are same between metadata and user provided file
-	grep -w -z -o "$(echo $(grep "${f_name%%.*}" $1 | awk '{print $2}'))" $2 | while read -r line; do 
+	grep -w -z -o "$(grep "${f_name%%.*}" $1 | awk '{print $2}')" $2 | while read -r line; do 
 		rna_num=$(grep -w "$line" $1 | awk '{print $3}')
 		printf "%s %s -> %s\n" $2 $line $rna_num
 		sed --in-place "s/\<$line\>/$rna_num/g" $2
@@ -94,6 +95,7 @@ number_to_fastaID() {
 	if [ $# -eq 0 ]
   	then
     	echo "Executed with number_to_fastaID transcript_metadata (and optional list of files to replace fasta IDs)"
+    	echo "If optional files are given then the IDs in files from transcript_metadata are not replaced "
     	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
     	return 1
 	fi
@@ -115,9 +117,10 @@ num_to_fID_multi() {
 	fi
 	##GETS numeric IDs which are same between metadata and user provided file
 	f_name=$(basename $2)
-	
+	echo $@
+	echo $f_name
 	#grep -w -z -o "$(seq $(awk 'BEGIN{a=   0}{if ($3>0+a) a=$3} END{print a}' $1) )" $2 | while read -r line; do 
-	grep -w -z -o "$(echo $(grep "${f_name%%.*}" $1 | awk '{print $3}'))" $2 | while read -r line; do 
+	grep -w -z -o "$(grep "${f_name%%.*}" $1 | awk '{print $3}')" $2 | while read -r line; do 
 		rna_name=$(grep -w "$line" $1 | awk '{print $2}')
 		printf "%s %s -> %s\n" $2 $line $rna_name
 		sed --in-place "s/\<$line\>/$rna_name/g" $2
