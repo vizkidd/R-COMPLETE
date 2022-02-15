@@ -28,10 +28,20 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
   #print(p_cmd)
   #print(p_args)
   #print(p_wait)
-  print("Adding process...")
+  print(paste("Adding process to list...(",length(process_list),")",sep=""))
   #process_list <<- append(process_list,list(tryCatch(system2(p_cmd,args = p_args, wait = p_wait, stderr = F, stdout = F),finally = function(){process_count <<- process_count+1}))) #stderr = T, stdout =  T
   #process_list <<- append(process_list,tryCatch(system2(p_cmd,args = p_args, wait = p_wait),finally = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
-  process_list <<- append(process_list,process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = "files/extraction_logs.o",stderr = "files/extraction_logs.e",post_process = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
+  if(length(process_list)==numWorkers){
+    for (p_id in process_list) {
+      if(p_id$is_alive()){
+        print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
+        p_id$wait(timeout=-1)
+        break;
+      }
+    }
+  }
+  
+  process_list <<- append(process_list,process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = "",stderr = "2>&1",post_process = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
   if(p_wait){
     process_list[[length(process_list)]]$wait(timeout=-1)
   }
@@ -201,8 +211,8 @@ fetch_genome_user <- function(data){
 process_list <<- c()
 process_count <<- 0
 
-try(file.remove("files/extraction_logs.e"))
-try(file.remove("files/extraction_logs.o"))
+#try(file.remove("files/extraction_logs.e"))
+#try(file.remove("files/extraction_logs.o"))
 
 param_file <- "parameters.txt"
 param_table <- read.table(param_file,sep="=")
@@ -216,14 +226,17 @@ CLEAN_EXTRACT <- as.logical(param_table[which(param_table=="clean_extract"),c(2)
 SUBPROCESS_WAIT <- as.logical(param_table[which(param_table=="subprocess_wait"),c(2)])
 BLAST_REGION <- as.character(param_table[which(param_table=="blast_region"),c(2)])
 GENOMES_SOURCE <- as.character(param_table[which(param_table=="genomes_source"),c(2)])
+SAVE_SOURCES <- as.character(param_table[which(param_table=="save_sources"),c(2)])
 USER_GENOMES <- as.character(param_table[which(param_table=="user_genomes"),c(2)])
 
 print(paste("CLEAN_DOWNLOAD:",CLEAN_DOWNLOAD))
 print(paste("CLEAN_EXTRACT:",CLEAN_EXTRACT))
+print(paste("SAVE_SOURCES:",SAVE_SOURCES))
 print(paste("GENOMES_SOURCE:",GENOMES_SOURCE))
 print(paste("SUBPROCESS_WAIT:",SUBPROCESS_WAIT))
 
-numWorkers <- detectCores(all.tests = T, logical = T) 
+tryCatch(numWorkers <- detectCores(all.tests = T, logical = T), error=function(){numWorkers=2})
+
 genes <- gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
 
 org.meta <- c()

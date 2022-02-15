@@ -71,48 +71,38 @@ check_gene() {
   echo $gene $gene_full #$f_org_name $file_out $bed_prefix
   #Saving gene info list in a file
   grep -i "$gene" $ANNO_FILE > files/genes/$f_org_name/$file_out.gtf_slice
-  #grep -i "$gene" $2 | awk -F'\t' '{print $9}' | awk -F';' '{print $3}' | awk '{print $2}' | sed 's/"//g' | sort | uniq > files/genes/$5/$gene.rna_list
-  if grep -q -w -i "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice ; then
-    echo "1 - Gene name has perfect match"
-    grep -i -w "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$f_org_name/$file_out.rna_list
-  elif grep -q -i "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice ; then
-    #grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
-      echo "2 - Gene name matches a supergroup or subgroup, checking OrthoDB"
-     time check_OrthoDB $gene_full
-    fi
-  else
-    #grep -i "$gene" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
-    if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
-      echo "3 - Gene name has a partial/no match, checking OrthoDB"
-     time check_OrthoDB $gene_full
-    fi
-  fi
-  if [ ! -s files/genes/$f_org_name/$file_out.rna_list ]; then
-    grep -i "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$f_org_name/$file_out.rna_list
-  fi
-  cat files/genes/$f_org_name/$file_out.rna_list
-  if [ -s files/genes/$f_org_name/$file_out.rna_list ]
+  if [ -s files/genes/$f_org_name/$file_out.gtf_slice ]; 
   then
-    #if [ ! -s $FASTA_PATH/$5/$file_out.cds ]; then #$6/$5/$7.$2
-    #  get_fasta $gene_full cds $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE ##CDS should come first because the 3utr flanks depend on cds coordinates
-    #fi
-    #if [ ! -s $FASTA_PATH/$5/$file_out.exons ]; then
-    # get_fasta $gene_full exons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    #fi
-    #if [ ! -s $FASTA_PATH/$5/$file_out.noncodingexons ]; then
-    #  get_fasta $gene_full noncodingexons $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    #fi
-    #if [ ! -s $FASTA_PATH/$5/$file_out.3utr ]; then
-    #  get_fasta $gene_full 3utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    #fi
-    #if [ ! -s $FASTA_PATH/$5/$file_out.5utr ]; then
-    #  get_fasta $gene_full 5utr $3 $GENOME_FILE $5 $FASTA_PATH $file_out $ANNO_FILE
-    #fi
-
-    time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out 'files/genes/$f_org_name/$file_out.gtf_slice' $TEMP_PATH " ::: ${transcript_regions[@]} #$8
+    #grep -i "$gene" $2 | awk -F'\t' '{print $9}' | awk -F';' '{print $3}' | awk '{print $2}' | sed 's/"//g' | sort | uniq > files/genes/$5/$gene.rna_list
+    if grep -q -w -i "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice ; then
+      echo "1 - Gene name has perfect match"
+      grep -i -w "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$f_org_name/$file_out.rna_list
+    elif grep -q -i "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice ; then
+      #grep -i "$gene_full" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+      if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
+        echo "2 - Gene name matches a supergroup or subgroup, checking OrthoDB"
+      time check_OrthoDB $gene_full
+      fi
+    else
+      #grep -i "$gene" $ANNO_FILE | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$5/$file_out.rna_list
+      if [[ $ORG_IN_ODB ==  "TRUE" ]] ; then
+        echo "3 - Gene name has a partial/no match, checking OrthoDB"
+        time check_OrthoDB $gene_full
+      fi
+    fi
+    if [ ! -s files/genes/$f_org_name/$file_out.rna_list ]; then
+      grep -i "$gene_full" files/genes/$f_org_name/$file_out.gtf_slice | perl -lne 'print "@m" if @m=(/((?:transcript_id)\s+\S+)/g);' | awk '{print $2}' | sed 's/[";]//g' | sort | uniq > files/genes/$f_org_name/$file_out.rna_list
+    fi
+    
+    cat files/genes/$f_org_name/$file_out.rna_list
+    
+    if [ -s files/genes/$f_org_name/$file_out.rna_list ]
+    then
+      ## GET GTF stats - UTR lengths, CDS_count, exon_count (both fully and partially annotated info (eg, UTR info is hidden in exon and CDS info and is extracted using exon boundaries vs CDS boundaries))
+      Rscript extract_gtf_info.R files/genes/$f_org_name/$file_out.gtf_slice $f_org_name $file_out
+      time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out 'files/genes/$f_org_name/$file_out.gtf_slice' $TEMP_PATH " ::: ${transcript_regions[@]} #$8
+    fi
   fi
-
 fi
 }
 
@@ -144,15 +134,25 @@ grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed > $9/$5_$1_$2.bed
 ##TO find MEAN
 #grep -i -f files/genes/some_org/cat1.rna_list files/genes/some_org/cat1.gtf_slice | grep -i "utr" | grep -i "three\|3" | awk '{print $5-$4}' | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }'
 
-
 ##EXTEND regions using bedtools slop
 if [[ "$2" == "3utr" ]]; then
   ##SHIFT by 3bp to omit stop codons in 3UTRs
   #bedtools shift -s 3 -i $TEMP_PATH/$5_"$1"_$2.bed -g $TEMP_PATH/$5_genomeFile.txt ##WONT WORK, and dont need to because stop codons are part of CDS
   ##GET AVERAGE UTR LENGTH for getting FLANK LEN
-  grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "three" | awk '{print $5-$4}' > files/genes/$5/$7.3_flank_lens
-  flank_len=$(cat files/genes/$5/$7.3_flank_lens | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
-  
+  #grep -w -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "three" | awk '{print $5-$4}' > files/genes/$5/$7.3_flank_lens
+  ##CHECK if *.*_flank_lens files are empty otherwise we have to extraction the UTR info manually as it wasnt provided in the annotation
+  #if [[ ! -s files/genes/$5/$7.3_flank_lens ]];
+  #then  
+  #  ##IF empty then get flank length from calculated UTR lengths
+  #  flank_len=$(grep -w -i "$7" files/genes/$5/predicted_utr_lens.csv | awk -F',' '{ sum += $9; n++ } END { if (n > 0) print sum / n; }')
+  #else
+  #  flank_len=$(cat files/genes/$5/$7.3_flank_lens | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }') ##USING MEAN for now
+  #fi
+  flank_len=$(grep -w -i "$7" files/genes/$5/gtf_stats.csv | awk -F',' '{ if ($9 > 3) sum += $9; n++ } END { if (n > 0) print sum / n; }') ##3' UTR length must be > 3
+  if [[ $flank_len == "" ]]; then
+    return 2
+  fi
+
   if [ -s $9/$5_$1_$2.bed ]; then ## if bed file is empty then we will have to take flanks from CDS
   	grep -i "$2_FLANK" $9/$5_$1_$2.bed > $9/$5_$1_$2_FLANK.tmp
   	##REMOVE the line because we stored flanking regions in a seperate bed file
@@ -165,8 +165,19 @@ if [[ "$2" == "3utr" ]]; then
   bedtools getfasta -s -split -fi $4 -bed $9/$5_"$1"_$2_FLANK.bed -nameOnly -fullHeader >> $6/$5/$7.$2.tmp #NOTUSING name+ because BLAST doesn't like long IDs
 elif [[ "$2" == "5utr" ]]; then
   ##GET AVERAGE UTR LENGTH for getting FLANK LEN
-  grep -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "five" | awk '{print $5-$4}' > files/genes/$5/$7.5_flank_lens
-  flank_len=$(cat files/genes/$5/$7.5_flank_lens | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }')
+  #grep -w -i -f files/genes/$5/$7.rna_list files/genes/$5/$7.gtf_slice | grep -i "utr" | grep -i "five" | awk '{print $5-$4}' > files/genes/$5/$7.5_flank_lens
+  ##CHECK if *.*_flank_lens files are empty otherwise we have to extraction the UTR info manually as it wasnt provided in the annotation
+  #  if [[ ! -s files/genes/$5/$7.3_flank_lens ]];
+  #then  
+  #  ##IF empty then get flank length from calculated UTR lengths
+  #  flank_len=$(grep -w -i "$7" files/genes/$5/predicted_utr_lens.csv | awk -F',' '{ sum += $8; n++ } END { if (n > 0) print sum / n; }')
+  #else
+  #  flank_len=$(cat files/genes/$5/$7.5_flank_lens | awk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }') ##USING MEAN for now
+  #fi
+  flank_len=$(grep -w -i "$7" files/genes/$5/gtf_stats.csv | awk -F',' '{ if ($8 > 0) sum += $8; n++ } END { if (n > 0) print sum / n; }') ##5' UTR length must be > 0
+  if [[ $flank_len == "" ]]; then
+    return 2
+  fi
   if [ -s $9/$5_"$1"_$2.bed ]; then ## if bed file is empty then we will have to take flanks from CDS
   	grep -i "$2_FLANK" $9/$5_"$1"_$2.bed > $9/$5_"$1"_$2_FLANK.tmp
   	##REMOVE the line because we stored flanking regions in a seperate bed file
@@ -205,7 +216,8 @@ TEMP_PATH=$(grep -i -w "temp_path" parameters.txt | awk -F'=' '{print $2}')
 CLEAN_EXTRACT=$(grep -i -w "clean_extract" parameters.txt | awk -F'=' '{print $2}') 
 ORTHODB_PATH=$(grep -i -w "orthodb_files_path" parameters.txt | awk -F'=' '{print $2}') 
 ORTHODB_PREFIX=$(grep -i -w "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
-flank_len=$(grep -i -w "flank_len" parameters.txt | awk -F'=' '{print $2}')   #2000
+#flank_len=2000 #$(grep -i -w "flank_len" parameters.txt | awk -F'=' '{print $2}')   #2000
+save_sources=$(grep -i -w "save_sources" parameters.txt | awk -F'=' '{print $2}') 
 REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
 #PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
@@ -222,7 +234,9 @@ f_org_name=$5
 bed_prefix=$3
 #org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;')
 org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2; } ;')
+
 echo $org_name
+echo "Command : $0 $@"
 
 mkdir files
 mkdir $FASTA_PATH
@@ -230,13 +244,19 @@ mkdir files/bed
 mkdir $TEMP_PATH
 mkdir files/genes
 mkdir files/genes/$5/
+rm files/genes/$5/gtf_stats.csv
 
 GENOME_FILE=$1
 ANNO_FILE=$2
 
 if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]] ; then
-  echo "$GENOME_FILE (or) $ANNO_FILE doesn't exist"
-  exit -1
+  if [[ ! -s $GENOME_FILE.gz || ! -s $ANNO_FILE.gz ]]; then
+    echo "$GENOME_FILE (or) $ANNO_FILE doesn't exist"
+    exit -1
+  else
+    GENOME_FILE=$(echo $GENOME_FILE.gz)
+    ANNO_FILE=$(echo $ANNO_FILE.gz)
+  fi
 fi
 
 if [[ ${GENOME_FILE##*.} ==  "gz" ]] ; then
@@ -332,7 +352,7 @@ mkdir $FASTA_PATH/$5
 
 readarray gene_list < "$4"
 
-time parallel -j ${#gene_list[@]} "check_gene {} $f_org_name $bed_prefix $ANNO_FILE $GENOME_FILE $TEMP_PATH $FASTA_PATH $flank_len" ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
+time parallel -j ${#gene_list[@]} "check_gene {} $f_org_name $bed_prefix $ANNO_FILE $GENOME_FILE $TEMP_PATH $FASTA_PATH" ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
 
 find files/genes/$5 -iname "*.rna_list" -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
 grep -v -i -f $FASTA_PATH/$5/MISSING_GENES $4 | sort > $FASTA_PATH/$5/AVAILABLE_GENES
@@ -340,22 +360,22 @@ find files/genes/$5 -empty -delete
 find $FASTA_PATH/$5 -empty -delete
 #rm $TEMP_PATH/$5*
 
-mv $GENOME_FILE $GENOMES_PATH/$5.fa
-mv $ANNO_FILE $ANNOS_PATH/$5.gtf
-#bgzip -i $GENOMES_PATH/$5.fa
-#bgzip -i $ANNOS_PATH/$5.gtf
-gzip -f --rsyncable $GENOMES_PATH/$5.fa
-gzip -f --rsyncable $ANNOS_PATH/$5.gtf
-#rm $GENOMES_PATH/$5.fa
-#rm $ANNOS_PATH/$5.gtf
+if [[ $save_sources ==  "TRUE" ]] ; then
+  mv $GENOME_FILE $GENOMES_PATH/$5.fa
+  mv $ANNO_FILE $ANNOS_PATH/$5.gtf
+  #bgzip -i $GENOMES_PATH/$5.fa
+  #bgzip -i $ANNOS_PATH/$5.gtf
+  gzip -f --rsyncable $GENOMES_PATH/$5.fa
+  gzip -f --rsyncable $ANNOS_PATH/$5.gtf
+else
+  rm $GENOME_FILE
+  rm $ANNO_FILE
+fi
+
 rm $TEMP_PATH/$f_org_name.*.*
-rm files/genes/$5/*.gtf_slice
-#rm $2
+#rm files/genes/$5/*.gtf_slice
+
 rm $3*
 #rm files/bed/$5*
-##rm $GENOMES_PATH/doc_*
-##rm $GENOMES_PATH/$1.fai
-##rm $ANNOS_PATH/*.tsv
-##rm $ANNOS_PATH/*.txt
 
 exit 1
