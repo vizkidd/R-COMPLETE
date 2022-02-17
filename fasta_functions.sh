@@ -12,7 +12,7 @@ index_fastaIDs() {
 	arg_arr=($@)
 	x=10000
 	
-	grep ">" -H -r "${arg_arr[@]:1}" | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > $1
+	grep ">" -H -r "${arg_arr[@]:1}" | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" "i"x; }' > $1
 }
 
 fastaID_to_number() {
@@ -218,6 +218,64 @@ count_genes4orgs() {
 	done
 }
 
+get_length_dist() {
+ 	if [ $# -eq 0 ]
+  	then
+    	echo "Give path to sequence files to get the length distribution, use -v to print file names"
+    	return 1
+	fi
+  	f_arr=($@); 
+  	#print_fn=$(echo $@ | grep -w -q "\-v");
+  	seq_files=( “${f_arr[@]/\-v}” ); 
+  	#echo ${seq_files[@]};
+  	for seq_f in ${seq_files[@]};
+  	do
+	  	if [[ -s $seq_f ]];
+  		then
+	  		if $(echo $@ | grep -q -w "\-v") ;
+	  		then
+	  			echo $seq_f;
+  			fi;
+  			awk '/^>/ {if (seqlen){print seqlen}; print ;seqlen=0;next; } { seqlen += length($0)}END{print seqlen}' $seq_f | grep '>' -v | sort | uniq ;
+  		fi
+  	done; 
+}
+
+get_count_dist() {
+ 	if [ $# -eq 0 ]
+  	then
+    	echo "Give path to sequence files to get the count distribution(number of sequences in each file), use -v to print file names"
+    	return 1
+	fi
+  	f_arr=($@); 
+  	#print_fn=$(echo $@ | grep -w -q "\-v");
+  	seq_files=( “${f_arr[@]/\-v}” ); 
+  	#echo ${seq_files[@]};
+  	for seq_f in ${seq_files[@]};
+  	do
+	  	if [[ -s $seq_f ]];
+  		then
+	  		if $(echo $@ | grep -q -w "\-v") ;
+	  		then
+	  			echo $seq_f;
+  			fi;
+  			grep '>' $seq_f | wc -l;
+  		fi
+  	done; 
+}
+
+get_pairwise_pid() {
+	#INPUT: fasta/aln files
+	#For each sequence in the alignment get its pid's from BLAST hits and in the end average them
+	arg_arr=($@);
+	echo ${arg_arr[0]}
+	return 0
+	for seq_file in "${arg_arr[@]}-1";
+	do
+		echo $seq_file
+	done;
+}
+
 # mask_stops_3utr() {
 # 	#python mask_motifs.py -f $1 -s 3 --pos 1 --mask "N"  -r TRUE --add TRUE -cm "TGA,TAA,TAG" -cmm - -o $1 ##Compare mask is negative, so this will add NNN if stop codon doesnt exist
 # 	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 1 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
@@ -238,6 +296,8 @@ export -f select_transcripts
 export -f delete_empty_orgs
 export -f count_genes4orgs
 export -f count_seqs4genes
+export -f get_length_dist
+export -f get_count_dist
 
 export -f fID_to_num_parallel
 export -f fID_to_num_multi

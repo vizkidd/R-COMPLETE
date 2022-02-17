@@ -123,6 +123,11 @@ get_fasta() {
 #flank_len=${10}
 #echo $flank_len
 if [ ! -s $6/$5/$7.$2 ]; then #$FASTA_PATH/$5/$file_out.cds
+
+if ! grep -q -w -i "$7" files/genes/$5/gtf_stats.csv ; then
+  return 2
+fi
+
 grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed > $9/$5_$1_$2.bed
 
 ##TO get flanks 
@@ -230,6 +235,8 @@ export -f check_gene
 export -f check_OrthoDB
 #export -f parallel_checkODB
 
+GENOME_FILE=$1
+ANNO_FILE=$2
 f_org_name=$5
 bed_prefix=$3
 #org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;')
@@ -237,17 +244,6 @@ org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2
 
 echo $org_name
 echo "Command : $0 $@"
-
-mkdir files
-mkdir $FASTA_PATH
-mkdir files/bed
-mkdir $TEMP_PATH
-mkdir files/genes
-mkdir files/genes/$5/
-rm files/genes/$5/gtf_stats.csv
-
-GENOME_FILE=$1
-ANNO_FILE=$2
 
 if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]] ; then
   if [[ ! -s $GENOME_FILE.gz || ! -s $ANNO_FILE.gz ]]; then
@@ -258,6 +254,16 @@ if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]] ; then
     ANNO_FILE=$(echo $ANNO_FILE.gz)
   fi
 fi
+
+mkdir files
+mkdir $FASTA_PATH
+mkdir $FASTA_PATH/$5
+mkdir files/bed
+mkdir $TEMP_PATH
+mkdir files/genes
+mkdir files/genes/$5/
+rm files/genes/$5/gtf_stats.csv
+#rm $bed_prefix*
 
 if [[ ${GENOME_FILE##*.} ==  "gz" ]] ; then
 file_name=${GENOME_FILE%.*}
@@ -284,20 +290,37 @@ fi
 echo $GENOME_FILE
 echo $ANNO_FILE
 
-#if [ ! -f "$GENOME_FILE".fai ]; then
+if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
+  rm $GENOME_FILE.fai
+  rm -rf $FASTA_PATH/$5
+fi
+
+if [[ ! -s $GENOME_FILE.fai ]]; then
 samtools faidx $GENOME_FILE
-#fi
+fi
 
 awk -v OFS='\t' {'print $1,$2'} $GENOME_FILE.fai > $TEMP_PATH/$5_genomeFile.txt
 #rm $3*
-rm $bed_prefix*
-$PY3_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3
+#rm $bed_prefix*
+#lsof -R -p $$ -u $USER | wc -l
+p_status=1
+while [[ $p_status!=0 ]];
+do
+  #printf %s"\t"%s "File handles count.." $(lsof -R -p $$ -u $USER | wc -l)
+  #printf %s"\t"%s "File handles count(proc).." $(ls -la /proc/$$/fd | wc -l)
+  while [[ $(lsof -R -p $$ -u $USER | wc -l) > $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200
+  do
+    printf %s"\t"%s"\n" "Waiting for file handles to close.." $(lsof -R -p $$ -u $USER | wc -l)
+    sleep 10
+  done
+  if [[ -s $ANNO_FILE ]] ; then
+    p_status=$($PY3_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3)
+  else
+    exit 2
+  fi
+done
 
 #if [[ "$7" == "TRUE" ]]; then
-if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
-  rm -rf $FASTA_PATH/$5
-fi
-mkdir $FASTA_PATH/$5
 
 #FOR each gene
 #while IFS= read -r gene_full
@@ -354,8 +377,11 @@ readarray gene_list < "$4"
 
 time parallel -j ${#gene_list[@]} "check_gene {} $f_org_name $bed_prefix $ANNO_FILE $GENOME_FILE $TEMP_PATH $FASTA_PATH" ::: ${gene_list[@]} #get_fasta is called from check_gene function after preliminary checks
 
-find files/genes/$5 -iname "*.rna_list" -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
-grep -v -i -f $FASTA_PATH/$5/MISSING_GENES $4 | sort > $FASTA_PATH/$5/AVAILABLE_GENES
+#find files/genes/$5 -iname "*.rna_list" -empty | awk -F'/' '{print $NF}' | sed 's/.rna_list//g' > $FASTA_PATH/$5/MISSING_GENES
+#grep -v -i -f $FASTA_PATH/$5/MISSING_GENES $4 | sort > $FASTA_PATH/$5/AVAILABLE_GENES
+sed 1d files/genes/$5/gtf_stats.csv | awk -F',' '{print $2}' | sort | uniq >  $FASTA_PATH/$5/AVAILABLE_GENES
+grep -v -i -f $FASTA_PATH/$5/AVAILABLE_GENES $4 | sort | uniq > $FASTA_PATH/$5/MISSING_GENES
+
 find files/genes/$5 -empty -delete
 find $FASTA_PATH/$5 -empty -delete
 #rm $TEMP_PATH/$5*

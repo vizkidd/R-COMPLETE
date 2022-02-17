@@ -111,10 +111,11 @@ count_genes4orgs $FASTA_PATH $1 files/gene_counts_AS.txt
 
 ##select organisms to search orthologs for
 ls $FASTA_PATH > files/selected_ORGS.txt
+find files/genes -iname "gtf_stats.csv" -exec sed 1d {} \; > files/gtf_stats.csv
 
 ##ID Alignments - GENERATE numeric ids for FASTA IDS (because they are long and downstream analysis have difficulty taking long names) 
 #x=0; grep ">" -H -r $FASTA_PATH | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" x; }' > files/rna_ids.txt ##(full_filename  fasta_id  numeric_id)
-index_fastaIDs $FASTA_PATH files/rna_ids.txt
+index_fastaIDs files/rna_ids.txt $FASTA_PATH
 
 time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
 

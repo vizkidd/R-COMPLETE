@@ -154,8 +154,8 @@ done < "$gene_list"
 readarray genes < $gene_list
 
 ##CHANGING FASTA IDs to numeric IDs because some programs dont work well with long FASTA IDs
-index_fastaIDs $ALN_PATH files/aln_ids.txt
-fastaID_to_number flank_test/aln_ids.txt
+#index_fastaIDs files/aln_ids.txt $ALN_PATH
+fastaID_to_number files/rna_ids.txt
 
 ##ALIGN 
 align_cds
@@ -166,3 +166,6 @@ align_5utr
 
 stitch_alns
 
+#index_fastaIDs files/aln_ids.txt $ALN_PATH/*.aln
+
+exit 0

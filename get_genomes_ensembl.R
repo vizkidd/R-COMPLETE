@@ -90,24 +90,38 @@ fetch_genome_ensembl <- function(org) {
     file.remove(paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""))
     #unlink(paste(OUT_PATH,"/",org,sep=""), recursive=TRUE)
   }
-  
+  g_name <- c()
+  a_name <- c()
+  g_name <- paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
+  a_name <- paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")
   #if(!dir.exists(paths = fasta_path) || length(dir(path = fasta_path)) <= 1 || length(rownames(details[details$size == 0, ])) != 0  )
   #{
-  if(!file.exists(paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")) || !file.info(paste(GENOMES_PATH, "/",org,".fa.gz",sep = ""))$size > 0){
+  if(!file.exists(g_name) || !file.info(g_name)$size > 0){
     genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH)) # tryCatch(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH),error = function(e){print("Sleeping...");Sys.sleep(360);},finally=getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
+    if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL)!=0){ #IF file didnt download properly
+      file.remove(genome_path, showWarnings=F)
+      genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
+    }
   }else{
-    if(system2("gzip",args = c("-t", paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")), wait = T) == 0){
-      genome_path<-paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
+    if(system2("gzip",args = c("-t", g_name), wait = T,stdout = NULL, stderr = NULL) == 0){
+      genome_path<-g_name
     }else{
+      file.remove(g_name, showWarnings=F)
       genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH)) # tryCatch(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH),error = function(e){print("Sleeping...");Sys.sleep(360);},finally=getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
     }
   }
-  if(!file.exists(paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")) || !file.info(paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""))$size > 0){
+  
+  if(!file.exists(a_name) || !file.info(a_name)$size > 0){
     gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH))) # tryCatch(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)),error = function(e){print("Sleeping...");Sys.sleep(360)},finally=getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
+    if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL)!=0){ #IF file didnt download properly
+      file.remove(gtf_path,showWarnings=F)
+      gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
+      }
   }else{
-    if(system2("gzip",args = c("-t", paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")), wait = T) == 0){
-      gtf_path<-paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")  
+    if(system2("gzip",args = c("-t", a_name), wait = T,stdout = NULL, stderr = NULL) == 0){
+      gtf_path<-a_name
     }else{
+      file.remove(a_name, showWarnings=F)
       gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH))) # tryCatch(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)),error = function(e){print("Sleeping...");Sys.sleep(360)},finally=getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
     }
     
@@ -149,32 +163,35 @@ fetch_genome_user <- function(data){
   gtf_path<-paste(ANNOS_PATH, "/",data$org,".gtf.gz",sep = "")  
   fasta_path <- file.path(OUT_PATH ,data$org)
   #print(gtf_path)
+
   if(grepl("http",data$genome)){
     if(!file.exists(genome_path) || !file.info(genome_path)$size > 0){
-      
-      curl_fetch_disk(data$genome, basename(URLdecode(data$genome)))
-      genome_path <- basename(URLdecode(data$genome))
+      curl_fetch_disk(data$genome, paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep=""))
+      genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep="")
     }else{
-      if(system2("gzip",args = c("-t", genome_path), wait = T) == 0){
-        genome_path<-paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")        
+      if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL) == 0){
+        genome_path<-genome_path #paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")        
       }else{
+        file.remove(genome_path,showWarnings=F)
         curl_fetch_disk(data$genome, basename(URLdecode(data$genome)))
-        genome_path <- basename(URLdecode(data$genome))
+        genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep="") #basename(URLdecode(data$genome))
       }
     }
     
   }else{
     genome_path <- data$genome
   }
+  
   if(grepl("http",data$gtf)){
     #print(paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
     if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 0){
       curl_fetch_disk(data$gtf, paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
       gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep="")
     }else{
-      if(system2("gzip",args = c("-t", gtf_path), wait = T) == 0){
-        gtf_path<-paste(ANNOS_PATH, "/",data$org,".gtf.gz",sep = "")        
+      if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL) == 0){
+        gtf_path<-gtf_path        
       }else{
+        file.remove(gtf_path,showWarnings=F)
         curl_fetch_disk(data$gtf, paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
         gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep="")
       }

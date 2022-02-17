@@ -336,7 +336,7 @@ dissolve_GR_Overlaps <- function(GR_object){
 }
 
 #HSP_Coverage(query_mRNA = query_mRNA, org_fw = q_fw,org_bk=s_fw, s_gtf=ref_gtf, q_gtf=org_gtf)
-HSP_Coverage <- function(query, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"){
+HSP_Coverage <- function(query, org_fw, org_bk, gtf_stats, feature="CDS"){
   # org_fw <- q_fw
   # org_bk <- s_fw
   tmp_df <- c()
@@ -380,7 +380,7 @@ HSP_Coverage <- function(query, org_fw, org_bk, q_gtf, s_gtf, feature="CDS"){
             #print(subject)
             #print(cov_q)
             #print(cov_s)
-            feature_comp <- (feature_count(id_query,q_gtf)==feature_count(id_subject,s_gtf))
+            feature_comp <- gtf_stats[gtf_stats$rna_id==id_subject,]$cds_count == gtf_stats[gtf_stats$rna_id==id_query,]$cds_count #(feature_count(id_query,q_gtf)==feature_count(id_subject,s_gtf))
             
             tmp_df <- rbind(tmp_df, data.frame(query=query, subject=subject,min_cov=min(cov_q, cov_s),max_cov=max(cov_q, cov_s), same_CDS_count=feature_comp,cov_q=cov_q, cov_s=cov_s,hit_from=subject_result$Hsp_hit.from,hit_to=subject_result$Hsp_hit.to,query_len=q_CDS_length,subject_len=s_CDS_length,q_align_len=q_align_length,s_align_len=s_align_length,query_from=subject_result$Hsp_query.from,query_to=subject_result$Hsp_query.to, pident=subject_result$Hsp_pidentity))
           }
@@ -455,7 +455,7 @@ set.seed(123)
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
-  stop("Give the (1) Org list path (2) Ref org list path (3) Path to *.orths files and (4) E-value cutoff(1e-05)", call.=FALSE)
+  stop("Give the (1) Org list path (2) Ref org list path (3) Path to *.orths files and (3) (Combined) gtf_stats.csv", call.=FALSE)
 }
 
 #orgs_list_path <- "files/oneway/set.tmp"
@@ -469,7 +469,7 @@ delimiter <- as.character(param_table[which(param_table=="transcript_delimiter")
 seqID_delimiter <- as.character(param_table[which(param_table=="seqID_delimiter"),c(2)])
 orgs_ref_path <- as.character(param_table[which(param_table=="ref_orgs"),c(2)])
 e_cutoff <- as.numeric(param_table[which(param_table=="e_value"),c(2)])
-gtf_path <- as.character(param_table[which(param_table=="annos_path"),c(2)])
+#gtf_path <- as.character(param_table[which(param_table=="annos_path"),c(2)])
 wisard_path <- as.character(param_table[which(param_table=="wisard_path"),c(2)])
 plot_out_path <- as.character(param_table[which(param_table=="plot_path"),c(2)])
 mincov_threshold <- as.numeric(param_table[which(param_table=="mincov_threshold"),c(2)])
@@ -487,6 +487,7 @@ tryCatch(library(wisard), finally = function(){
 orgs_list_path <- args[1]
 #orgs_ref_path <- args[2]
 orths_path <- args[2]
+gtf_stats_file <- args[3]
 #e_cutoff <- as.numeric(args[4])
 #gtf_path <- args[5]
 #param_file <- args[6]
@@ -560,7 +561,13 @@ if(is.null(all_fw_results) || is.null(all_bk_results)){
 
 ##transcript_grah code.txt goes here###
 
-gtf_dir <- dir(as.character(gtf_path),pattern = "*.gtf.gz", full.names = T)
+#gtf_dir <- dir(as.character(gtf_path),pattern = "*.gtf.gz", full.names = T)
+if(file.exists(gtf_stats_file) && file.info(gtf_stats_file)$size > 0){
+  full_gtf_stats <- read.csv(gtf_stats_file, header=F)
+  names(full_gtf_stats) <- c("org","search_group","gene_name","gene_id","rna_id","total_exon_len","total_cds_len","five_len","three_len","exon_count","cds_count")
+}else{
+  stop("(Combined) GTF stats file (gtf_stats.csv) doesn't exist!")
+}
 gene_list <- unique(union(unique(unlist(map(all_fw_results,function(x){map(x,names)}))),unique(unlist(map(all_bk_results,function(x){map(x,names)})))))
 print(gene_list)
 #delta_cov_fw <- c()
@@ -575,27 +582,28 @@ HSP <- c()
 
 for(ref_org in orgs.ref){
   ##Read ref-org GTF with "CDS" features
-  ref_gtf_name <- gtf_dir[grep(pattern = paste("\\b",ref_org,"\\b",sep=""),x = gtf_dir, ignore.case = T)]
-  if(length(ref_gtf_name)>1){ref_gtf_name <- ref_gtf_name[length(ref_gtf_name)]}
-  if(!identical(ref_gtf_name,character(0)) && file.exists(ref_gtf_name)){
-    ref_gtf_con <- gzfile(ref_gtf_name,"r")
-    ref_gtf <- read.gtf(file = ref_gtf_con,attr = c("intact"))#,features = c("CDS"))
+#  ref_gtf_name <- gtf_dir[grep(pattern = paste("\\b",ref_org,"\\b",sep=""),x = gtf_dir, ignore.case = T)]
+#  if(length(ref_gtf_name)>1){ref_gtf_name <- ref_gtf_name[length(ref_gtf_name)]}
+#  if(!identical(ref_gtf_name,character(0)) && file.exists(ref_gtf_name)){
+#    ref_gtf_con <- gzfile(ref_gtf_name,"r")
+#    ref_gtf <- read.gtf(file = ref_gtf_con,attr = c("intact"))#,features = c("CDS"))
+  # ref_gtf_file <- paste("files/genes/",ref_org,"/gtf_stats.csv")  
+  
     HSP_fw <- c()
     HSP_bk <- c()
     tmp_cov <- c()
     for(org in full_orgs){
       if(org!=ref_org){
         ##Read org GTF with "CDS" features
-        org_gtf_name <- gtf_dir[grep(pattern = paste("\\b",org,"\\b",sep=""),x = gtf_dir, ignore.case = T)]
-        if(length(org_gtf_name)>1){org_gtf_name <- org_gtf_name[length(org_gtf_name)]}
-        print(paste(ref_gtf_name,org_gtf_name,sep="-"))
-        if(!identical(org_gtf_name,character(0)) && file.exists(org_gtf_name)){
-          org_gtf_con <- gzfile(org_gtf_name,"r")
-          org_gtf <- read.gtf(file = org_gtf_name ,attr = c("intact"))#,features = c("CDS"))
+#        org_gtf_name <- gtf_dir[grep(pattern = paste("\\b",org,"\\b",sep=""),x = gtf_dir, ignore.case = T)]
+#        if(length(org_gtf_name)>1){org_gtf_name <- org_gtf_name[length(org_gtf_name)]}
+#        print(paste(ref_gtf_name,org_gtf_name,sep="-"))
+#        if(!identical(org_gtf_name,character(0)) && file.exists(org_gtf_name)){
+#          org_gtf_con <- gzfile(org_gtf_name,"r")
+#          org_gtf <- read.gtf(file = org_gtf_name ,attr = c("intact"))#,features = c("CDS"))
           
           #orths0 <- read.table("danio_rerio-xenopus_tropicalis.orths")
           #orths1 <- read.table("xenopus_tropicalis-danio_rerio.orths")
-          
           for(gene in gene_list){
             print(gene)
             
@@ -617,6 +625,8 @@ for(ref_org in orgs.ref){
               #bk_org_fw_indices point to s_fw
               #bk_org_bk_indices point to s_bk
               
+              gtf_stats <- full_gtf_stats[ ( full_gtf_stats$org==ref_org | full_gtf_stats$org==org ) & full_gtf_stats$search_group==gene,]
+            
               q_fw <- all_fw_results[[ref_org]][[org]][[gene]]$alignments #gene_fw_result[which(gene_fw_result$subject_org == ref_org & gene_fw_result$query_org == org),]
               q_bk <- all_bk_results[[ref_org]][[org]][[gene]]$alignments #gene_bk_result[which(gene_bk_result$query_org == ref_org & gene_bk_result$subject_org == org),]
               s_fw <- all_fw_results[[org]][[ref_org]][[gene]]$alignments #s_gene_fw[which(s_gene_fw$subject_org == org & s_gene_fw$query_org == ref_org),]
@@ -668,13 +678,13 @@ for(ref_org in orgs.ref){
               
               #sum of length of HSPs / length of CDS
               if(!is.null(queries)){
-                HSP_fw_results <- mcmapply(FUN=HSP_Coverage, queries, MoreArgs=list(org_bk=q_bk,org_fw=q_fw,q_gtf=org_gtf,s_gtf=ref_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
+                HSP_fw_results <- mcmapply(FUN=HSP_Coverage, queries, MoreArgs=list(org_bk=q_bk,org_fw=q_fw,gtf_stats=gtf_stats) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
                 for(fw in HSP_fw_results){
                   HSP_fw[[gene]] <- rbind(HSP_fw[[gene]],fw)
                 }
               }
               if(!is.null(subjects)){
-                HSP_bk_results <- mcmapply(FUN=HSP_Coverage, subjects, MoreArgs=list(org_bk=s_bk,org_fw=s_fw,q_gtf=ref_gtf,s_gtf=org_gtf) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
+                HSP_bk_results <- mcmapply(FUN=HSP_Coverage, subjects, MoreArgs=list(org_bk=s_bk,org_fw=s_fw,gtf_stats=gtf_stats) ,mc.cores = n_cores-1, SIMPLIFY = FALSE, USE.NAMES=FALSE)
                 for(bk in HSP_bk_results){
                   HSP_bk[[gene]] <- rbind(HSP_bk[[gene]],bk)
                 }
