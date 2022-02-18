@@ -127,6 +127,9 @@ time ./align_seqs.sh $1
 
 time ./predict_structures.sh $1
 
+rm $TEMP_PATH/*
+rm files/bed/*
+
 exit
 
 

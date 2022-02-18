@@ -1,9 +1,13 @@
 #!/bin/bash
+#1 - org name
+#2 - gene name
+#3 - GTF file path (for extracting the 'real' gene annotation)
+#4 - Temporary FASTA file
+#5 - Output FASTA file
+
 
 transcript_delimiter=$(grep -i  -w "transcript_delimiter" parameters.txt | awk -F'=' '{print $2}')
-PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
-PY2_PATH="${PY2_PATH/#\~/$HOME}"
 PY3_PATH="${PY3_PATH/#\~/$HOME}"
 
 transcript_id=""

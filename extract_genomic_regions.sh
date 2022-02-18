@@ -100,7 +100,8 @@ check_gene() {
     then
       ## GET GTF stats - UTR lengths, CDS_count, exon_count (both fully and partially annotated info (eg, UTR info is hidden in exon and CDS info and is extracted using exon boundaries vs CDS boundaries))
       Rscript extract_gtf_info.R files/genes/$f_org_name/$file_out.gtf_slice $f_org_name $file_out
-      time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out 'files/genes/$f_org_name/$file_out.gtf_slice' $TEMP_PATH " ::: ${transcript_regions[@]} #$8
+      #time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out 'files/genes/$f_org_name/$file_out.gtf_slice' $TEMP_PATH " ::: ${transcript_regions[@]} #$8
+      time parallel -j ${#transcript_regions[@]} "get_fasta $gene_full {} $bed_prefix $GENOME_FILE $f_org_name $FASTA_PATH $file_out $ANNO_FILE $TEMP_PATH " ::: ${transcript_regions[@]} 
     fi
   fi
 fi
@@ -116,7 +117,7 @@ get_fasta() {
 #7 - Formatted file name for gene
 #8 - GTF file path (for extracting the 'real' gene annotation)
 #9 - TEMP PATH
-#10 - Default flank_len
+
 #echo $1 $2 $3 $4 $5 $6 $7 $8 $9 
 #echo $(grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed)
 #echo $1 $2 $3 $4 $5 $6 $7 $8 $9 
@@ -222,7 +223,7 @@ CLEAN_EXTRACT=$(grep -i -w "clean_extract" parameters.txt | awk -F'=' '{print $2
 ORTHODB_PATH=$(grep -i -w "orthodb_files_path" parameters.txt | awk -F'=' '{print $2}') 
 ORTHODB_PREFIX=$(grep -i -w "orthodb_prefix" parameters.txt | awk -F'=' '{print $2}') 
 #flank_len=2000 #$(grep -i -w "flank_len" parameters.txt | awk -F'=' '{print $2}')   #2000
-save_sources=$(grep -i -w "save_sources" parameters.txt | awk -F'=' '{print $2}') 
+REMOVE_DOWNLOADS=$(grep -i -w "remove_downloads" parameters.txt | awk -F'=' '{print $2}') 
 REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}') 
 #PY2_PATH=$(grep -i -w "python2_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
@@ -253,6 +254,11 @@ if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]] ; then
     GENOME_FILE=$(echo $GENOME_FILE.gz)
     ANNO_FILE=$(echo $ANNO_FILE.gz)
   fi
+fi
+
+if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
+  rm $GENOME_FILE.fai
+  rm -rf $FASTA_PATH/$5
 fi
 
 mkdir files
@@ -290,11 +296,6 @@ fi
 echo $GENOME_FILE
 echo $ANNO_FILE
 
-if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
-  rm $GENOME_FILE.fai
-  rm -rf $FASTA_PATH/$5
-fi
-
 if [[ ! -s $GENOME_FILE.fai ]]; then
 samtools faidx $GENOME_FILE
 fi
@@ -303,22 +304,20 @@ awk -v OFS='\t' {'print $1,$2'} $GENOME_FILE.fai > $TEMP_PATH/$5_genomeFile.txt
 #rm $3*
 #rm $bed_prefix*
 #lsof -R -p $$ -u $USER | wc -l
-p_status=1
-while [[ $p_status!=0 ]];
+#printf %s"\t"%s "File handles count.." $(lsof -R -p $$ -u $USER | wc -l)
+#printf %s"\t"%s "File handles count(proc).." $(ls -la /proc/$$/fd | wc -l)
+
+while [[ $(lsof -R -p $$ | wc -l) -gt $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200 #$(lsof -R -p $$ -u $USER | wc -l) > $(($(ulimit -Sn)-200))
 do
-  #printf %s"\t"%s "File handles count.." $(lsof -R -p $$ -u $USER | wc -l)
-  #printf %s"\t"%s "File handles count(proc).." $(ls -la /proc/$$/fd | wc -l)
-  while [[ $(lsof -R -p $$ -u $USER | wc -l) > $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200
-  do
-    printf %s"\t"%s"\n" "Waiting for file handles to close.." $(lsof -R -p $$ -u $USER | wc -l)
-    sleep 10
-  done
-  if [[ -s $ANNO_FILE ]] ; then
-    p_status=$($PY3_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3)
-  else
-    exit 2
-  fi
+  printf %s"\t"%s"\n" "Waiting for file handles to close.." $(lsof -R -p $$ | wc -l)
+  sleep 5
 done
+if [[ -s $ANNO_FILE ]] ; then
+  $PY3_PATH extract_transcript_regions.py -i $ANNO_FILE --gtf  -o $3
+else
+  exit 2
+fi
+
 
 #if [[ "$7" == "TRUE" ]]; then
 
@@ -386,7 +385,7 @@ find files/genes/$5 -empty -delete
 find $FASTA_PATH/$5 -empty -delete
 #rm $TEMP_PATH/$5*
 
-if [[ $save_sources ==  "TRUE" ]] ; then
+if [[ $REMOVE_DOWNLOADS ==  "FALSE" ]] ; then
   mv $GENOME_FILE $GENOMES_PATH/$5.fa
   mv $ANNO_FILE $ANNOS_PATH/$5.gtf
   #bgzip -i $GENOMES_PATH/$5.fa

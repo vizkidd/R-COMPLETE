@@ -474,7 +474,7 @@ wisard_path <- as.character(param_table[which(param_table=="wisard_path"),c(2)])
 plot_out_path <- as.character(param_table[which(param_table=="plot_path"),c(2)])
 mincov_threshold <- as.numeric(param_table[which(param_table=="mincov_threshold"),c(2)])
 
-tryCatch(library(wisard), finally = function(){
+tryCatch(require(wisard), finally = function(){
   source(paste(wisard_path,"/WIS_functions.R",sep = ""))
   source(paste(wisard_path,"/greedy.R",sep = ""))
   source(paste(wisard_path,"/read_blast.R",sep = ""))
@@ -827,15 +827,15 @@ for(ref_org in orgs.ref){
           HSP_fw <- c()
           HSP_bk <- c()
           
-          close(org_gtf_con)
+         # close(org_gtf_con)
         }
         
       } 
       
     }
-    close(ref_gtf_con)  
-  }
-}
+    #close(ref_gtf_con)  
+  #}
+#}
 
 #save(delta_cov_fw,file="delta_cov_fw.RData")
 #save(HSP_fw,file="HSP_fw.RData")

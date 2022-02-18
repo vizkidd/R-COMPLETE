@@ -6,6 +6,7 @@ require(curl)
 require(purrr)
 require(fs)
 require(processx)
+require(stringr)
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -32,12 +33,17 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
   #process_list <<- append(process_list,list(tryCatch(system2(p_cmd,args = p_args, wait = p_wait, stderr = F, stdout = F),finally = function(){process_count <<- process_count+1}))) #stderr = T, stdout =  T
   #process_list <<- append(process_list,tryCatch(system2(p_cmd,args = p_args, wait = p_wait),finally = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
   if(length(process_list)==numWorkers){
+    p_idx <- 0
     for (p_id in process_list) {
+      p_idx <- p_idx + 1
       if(p_id$is_alive()){
         print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
         p_id$wait(timeout=-1)
         break;
       }
+    }
+    if(p_idx > 0){
+      process_list[[p_idx]] <- NULL
     }
   }
   
@@ -86,8 +92,8 @@ fetch_genome_ensembl <- function(org) {
   #print(details)
   #print(rownames(details[details$size == 0, ]))
   if(CLEAN_DOWNLOAD==TRUE){
-    file.remove(paste(GENOMES_PATH, "/",org,".fa.gz",sep = ""))
-    file.remove(paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""))
+    try(file.remove(paste(GENOMES_PATH, "/",org,".fa.gz",sep = ""),showWarnings=F))
+    try(file.remove(paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""),showWarnings=F))
     #unlink(paste(OUT_PATH,"/",org,sep=""), recursive=TRUE)
   }
   g_name <- c()
@@ -99,14 +105,22 @@ fetch_genome_ensembl <- function(org) {
   if(!file.exists(g_name) || !file.info(g_name)$size > 0){
     genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH)) # tryCatch(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH),error = function(e){print("Sleeping...");Sys.sleep(360);},finally=getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
     if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL)!=0){ #IF file didnt download properly
-      file.remove(genome_path, showWarnings=F)
+      lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+        if(grepl(x,pattern = "fa|gz")){
+          try(file.remove(x, showWarnings=F))
+        }
+      })
       genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
     }
   }else{
     if(system2("gzip",args = c("-t", g_name), wait = T,stdout = NULL, stderr = NULL) == 0){
       genome_path<-g_name
     }else{
-      file.remove(g_name, showWarnings=F)
+      lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+        if(grepl(x,pattern = "fa|gz")){
+          try(file.remove(x, showWarnings=F))
+        }
+      })
       genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH)) # tryCatch(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH),error = function(e){print("Sleeping...");Sys.sleep(360);},finally=getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
     }
   }
@@ -114,14 +128,22 @@ fetch_genome_ensembl <- function(org) {
   if(!file.exists(a_name) || !file.info(a_name)$size > 0){
     gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH))) # tryCatch(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)),error = function(e){print("Sleeping...");Sys.sleep(360)},finally=getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
     if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL)!=0){ #IF file didnt download properly
-      file.remove(gtf_path,showWarnings=F)
+      lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+        if(grepl(x,pattern = "gtf|gz")){
+          try(file.remove(x, showWarnings=F))
+        }
+      })
       gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
       }
   }else{
     if(system2("gzip",args = c("-t", a_name), wait = T,stdout = NULL, stderr = NULL) == 0){
       gtf_path<-a_name
     }else{
-      file.remove(a_name, showWarnings=F)
+      lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+        if(grepl(x,pattern = "gtf|gz")){
+          try(file.remove(x, showWarnings=F))
+        }
+      })
       gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH))) # tryCatch(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)),error = function(e){print("Sleeping...");Sys.sleep(360)},finally=getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
     }
     
@@ -150,6 +172,7 @@ fetch_genome_ensembl <- function(org) {
       file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""))
     }}
   #}
+  Sys.sleep(5) 
 }
 fetch_genome_user <- function(data){
   genome_path <- c()
@@ -172,7 +195,11 @@ fetch_genome_user <- function(data){
       if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL) == 0){
         genome_path<-genome_path #paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")        
       }else{
-        file.remove(genome_path,showWarnings=F)
+        lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(data$org,"_",2)[1]),function(x){
+          if(grepl(x,pattern = "fa|gz")){
+            try(file.remove(x, showWarnings=F))
+          }
+        })
         curl_fetch_disk(data$genome, basename(URLdecode(data$genome)))
         genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep="") #basename(URLdecode(data$genome))
       }
@@ -191,7 +218,11 @@ fetch_genome_user <- function(data){
       if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL) == 0){
         gtf_path<-gtf_path        
       }else{
-        file.remove(gtf_path,showWarnings=F)
+        lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(data$org,"_",2)[1]),function(x){
+          if(grepl(x,pattern = "gtf|gz")){
+            try(file.remove(x, showWarnings=F))
+          }
+        })
         curl_fetch_disk(data$gtf, paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
         gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep="")
       }
@@ -243,12 +274,12 @@ CLEAN_EXTRACT <- as.logical(param_table[which(param_table=="clean_extract"),c(2)
 SUBPROCESS_WAIT <- as.logical(param_table[which(param_table=="subprocess_wait"),c(2)])
 BLAST_REGION <- as.character(param_table[which(param_table=="blast_region"),c(2)])
 GENOMES_SOURCE <- as.character(param_table[which(param_table=="genomes_source"),c(2)])
-SAVE_SOURCES <- as.character(param_table[which(param_table=="save_sources"),c(2)])
+REMOVE_DOWNLOADS <- as.character(param_table[which(param_table=="remove_downloads"),c(2)])
 USER_GENOMES <- as.character(param_table[which(param_table=="user_genomes"),c(2)])
 
 print(paste("CLEAN_DOWNLOAD:",CLEAN_DOWNLOAD))
 print(paste("CLEAN_EXTRACT:",CLEAN_EXTRACT))
-print(paste("SAVE_SOURCES:",SAVE_SOURCES))
+print(paste("REMOVE DOWNLOADS:",REMOVE_DOWNLOADS))
 print(paste("GENOMES_SOURCE:",GENOMES_SOURCE))
 print(paste("SUBPROCESS_WAIT:",SUBPROCESS_WAIT))
 
