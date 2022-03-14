@@ -63,7 +63,8 @@ check_gene() {
   GENOME_FILE=$5
   TEMP_PATH=$6
   FASTA_PATH=$7
-  transcript_regions=("cds" "exons" "noncodingexons" "3utr" "5utr")
+  transcript_regions=("cds" "exons" "3utr" "5utr" "introns") # "codingexons" "codingintrons" "noncodingexons" "noncodingintrons" "introns") #("cds" "exons" "3utr" "5utr" "codingexons" "codingintrons" "noncodingexons" "noncodingintrons" "introns")
+
 
   if [[ $gene_full !=  "" ]] ; then
   gene=$(echo $gene_full | sed 's/.$//')
@@ -105,6 +106,7 @@ check_gene() {
     fi
   fi
 fi
+
 }
 
 get_fasta() {
@@ -131,6 +133,7 @@ fi
 
 grep -i -w -f files/genes/$5/$7.rna_list $3_$2.bed > $9/$5_$1_$2.bed
 
+if [ -s $9/$5_$1_$2.bed ]; then
 ##TO get flanks 
 #grep -i -f files/genes/some_org/cat1.rna_list files/genes/some_org/cat1.gtf_slice | grep -i "utr" | grep -i "three\|3"
 
@@ -210,6 +213,9 @@ parallel -j1 --compress --pipepart -a "$6/$5/$7.$2.tmp" --recstart '>' --block -
 ##sh label_sequenceIDs.sh $5 $1 $8 $FASTA_PATH/$5/$7.$2.tmp $FASTA_PATH/$5/$7.$2 #-word_size 5 -evalue 1e-25
 #echo $flank_len
 rm $6/$5/$7.$2.tmp
+else
+  echo "$9/$5_$1_$2.bed is empty..."
+fi
 fi
 }
 ####
@@ -229,7 +235,7 @@ REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH=$(grep -i -w "python3_path" parameters.txt | awk -F'=' '{print $2}')
 PY3_PATH="${PY3_PATH/#\~/$HOME}"
 ORG_IN_ODB="TRUE"
-transcript_regions=("cds" "exons" "noncodingexons" "3utr" "5utr")
+#transcript_regions=("cds" "exons" "noncodingexons" "3utr" "5utr")
 
 export -f get_fasta
 export -f check_gene
@@ -385,22 +391,24 @@ find files/genes/$5 -empty -delete
 find $FASTA_PATH/$5 -empty -delete
 #rm $TEMP_PATH/$5*
 
+echo "here..."
+
 if [[ $REMOVE_DOWNLOADS ==  "FALSE" ]] ; then
   mv $GENOME_FILE $GENOMES_PATH/$5.fa
   mv $ANNO_FILE $ANNOS_PATH/$5.gtf
   #bgzip -i $GENOMES_PATH/$5.fa
   #bgzip -i $ANNOS_PATH/$5.gtf
-  gzip -f --rsyncable $GENOMES_PATH/$5.fa
-  gzip -f --rsyncable $ANNOS_PATH/$5.gtf
+  gzip -f --fast $GENOMES_PATH/$5.fa # --rsyncable
+  gzip -f --fast $ANNOS_PATH/$5.gtf # --rsyncable
 else
   rm $GENOME_FILE
   rm $ANNO_FILE
 fi
 
-rm $TEMP_PATH/$f_org_name.*.*
-#rm files/genes/$5/*.gtf_slice
+#rm $TEMP_PATH/$f_org_name.*.*
+rm files/genes/$5/*.gtf_slice
 
 rm $3*
 #rm files/bed/$5*
 
-exit 1
+#exit 1

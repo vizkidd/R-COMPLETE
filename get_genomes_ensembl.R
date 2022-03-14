@@ -6,6 +6,7 @@ require(curl)
 require(purrr)
 require(fs)
 require(processx)
+require(ps)
 require(stringr)
 
 args = commandArgs(trailingOnly=TRUE)
@@ -38,7 +39,7 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
       p_idx <- p_idx + 1
       if(p_id$is_alive()){
         print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
-        p_id$wait(timeout=-1)
+        p_id$wait(timeout=-1) #p_id$wait(timeout=-1) #600000
         break;
       }
     }
@@ -54,7 +55,7 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
 }
 
 check_files <-function(fasta_path){
-  if(dir.exists(fasta_path)){
+  if(dir.exists(fasta_path) && length(dir(fasta_path)) > 0){
     missing_genes <- c()
     available_genes <- c()
     if(file.exists(paste(fasta_path,"/","MISSING_GENES",sep=""))){
@@ -69,8 +70,8 @@ check_files <-function(fasta_path){
     #print(paste(y,x))
     #grepl(y,pattern = x,ignore.case = T)
     #}))) == length(genes)
-    
-    if(length(missing_genes)==length(genes) || length(available_genes)==length(files_in_dir) || length(missing_genes)==0){
+    print(paste("Files in Dir:",length(files_in_dir),", Missing:",length(missing_genes),", Available:",length(available_genes),", No. of Genes:",length(genes)))
+    if((length(available_genes) > 0 && length(missing_genes)==length(genes)-length(available_genes)) || length(missing_genes)==length(genes) || (length(available_genes)==length(files_in_dir) && length(missing_genes)==0)){
       print(paste(fasta_path,": Check PASSED!"))
       return(TRUE)
       #}
@@ -187,7 +188,7 @@ fetch_genome_user <- function(data){
   fasta_path <- file.path(OUT_PATH ,data$org)
   #print(gtf_path)
 
-  if(grepl("http",data$genome)){
+    if(grepl("http",data$genome)){
     if(!file.exists(genome_path) || !file.info(genome_path)$size > 0){
       curl_fetch_disk(data$genome, paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep=""))
       genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep="")
@@ -206,10 +207,10 @@ fetch_genome_user <- function(data){
     }
     
   }else{
-    genome_path <- data$genome
-  }
+      genome_path <- data$genome
+    }
   
-  if(grepl("http",data$gtf)){
+    if(grepl("http",data$gtf)){
     #print(paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
     if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 0){
       curl_fetch_disk(data$gtf, paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
@@ -229,8 +230,9 @@ fetch_genome_user <- function(data){
     }
     
   }else{
-    gtf_path <- data$gtf
-  }
+      gtf_path <- data$gtf
+    }
+  
   ##CONVERT GFFS to GTFS
   #gffread files/annos/XENTR_9.1_Xenbase.v10-lift.gff3 -T -O -E -o files/annos/XENTR_9.1_Xenbase.v10-lift.gtf
   print(genome_path)
@@ -307,13 +309,22 @@ if(!CLEAN_DOWNLOAD && !CLEAN_EXTRACT){
     print(paste(fasta_dir," : ", check_result))
   }
   print("Checked files..Organisms which failed")
-  print(unlist(check_list)) #
+  #print(unlist(check_list)) #
   #check_ens <- na.omitmatch(unlist(check_list),org.meta$name)
-  #if(!is.null(unlist(check_list))){
-  org.meta <- org.meta[na.omit(match(unlist(check_list),org.meta$name)),]
-  user_data <- user_data[na.omit(match(unlist(check_list),user_data$org)),]
-  #}
+  if(!is.null(unlist(check_list))){
+    org.meta <- org.meta[na.omit(match(unlist(check_list),org.meta$name)),]
+    user_data <- user_data[na.omit(match(unlist(check_list),user_data$org)),]
+  print(org.meta$name)
+  print(user_data)
+  }else{
+    #IF check_list is empty then all the existing fastas are complete, check for the non downloaded ones
+    print("All organisms passed!")
+    org.meta <- org.meta[which(is.na(match(org.meta$name,list.files(OUT_PATH)))),]
+    user_data <-  user_data[which(is.na(match(user_data$org,list.files(OUT_PATH)))),]
+  }
 }
+
+print("Checking and downloading undownloaded organisms...")
 
 if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
   if(nrow(user_data)!=0){
@@ -328,11 +339,31 @@ if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="ensembl"){
   mclapply(org.meta$name, fetch_genome_ensembl, mc.cores = 1)
 }
 
+print(paste("Length of running processes:",length(process_list)))
+print(process_list)
+
+p_pid <- c()
 for(proc in process_list){
   if(proc$is_alive()){
-    proc$wait(timeout = -1)
+    #print(proc$print())
+    ##print(proc$supervise(TRUE))
+    #p_pid <- proc$get_pid()
+    #p_proc <- process$new(command = c("ps"),stdout="",stderr="", args=c("H",p_pid))
+    print(proc$get_status())
+    if(ps_is_running(proc$as_ps_handle())){
+      ## if SIGCHLD is overwritten the process is lost, so we try to get pid and check if the process is running
+      proc$wait(timeout = 600000) #-1 #5minute timeout #proc$wait(timeout = -1) #300000
+    }else{
+      print(proc$print())
+      print(proc$get_status())
+      proc$interrupt()
+    }
+    #if(proc$is_alive()){
+    # 
+      
+    #}
   }
-  print(proc$get_exit_status())
+  #print(proc$get_exit_status())
 }
 
 
@@ -341,4 +372,8 @@ for(proc in process_list){
 #if(SUBPROCESS_WAIT==F){
 #  Sys.sleep(300)
 #}
+
+write.table(x = org.meta,file = "files/org_meta.txt", quote = F,sep=",", row.names = F)
+write.table(x = user_data,file = "files/org_meta.txt", quote = F,sep=",", row.names = F, append = T)
+
 sessionInfo()
