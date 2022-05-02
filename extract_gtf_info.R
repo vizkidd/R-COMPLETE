@@ -56,17 +56,25 @@ set.seed(123)
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
-  stop("Give the (1) GTF (*.gtf_slice) (2) Org_name (3) Search group of gene(gene name used to grep)", call.=FALSE)
+  stop("Give the (1) GTF (*.gtf_slice) (2) Org_name (3) Search group of gene(gene name used to grep) (4) Output File", call.=FALSE)
 }
 
 slice_file <- args[1] #"files/genes/xenopus_tropicalis/gdf.gtf_slice"
 org_name <- args[2]
 search_group <- args[3]
+output_file <- args[4]
+
 if(file.info(slice_file)$size==0){
-  stop("GTF Slice is empty, most likely gene not found")
+  stop(paste("GTF Slice is empty, most likely gene not found",slice_file))
+}
+
+if(file.exists(output_file) && file.info(output_file)$size>0){
+  stop(paste("Output file exists(",output_file,")"))
 }
 
 gtf <- read.gtf(file = slice_file ,attr = c("intact")) #import.gff(slice_file,format="gtf") #import.gff("../mrna_loc/files/annos/xenopus_tropicalis.gtf",format="gtf")
+#gtf <- na.omit(gtf)
+print(paste(search_group, slice_file))
 gtf$ranges <- IRanges(gtf$start, gtf$end)
 gtf$gene_id <- get_gtf_attributes(gtf,"gene_id")
 gtf$transcript_id <- get_gtf_attributes(gtf,"transcript_id")
@@ -84,13 +92,13 @@ gtf_gr <- GRanges(
   attribute=gtf$attributes
 )
 
-#tx <- subset(gtf, type == "mRNA")
+##tx <- subset(gtf, type == "mRNA")
 exon <- gtf_gr[gtf_gr$feature=="exon",] #subset(gtf, type == "exon")
-exon <- exon[strand(exon)=="+",] #subset(exon, strand == "+")
+#exon <- exon[strand(exon)=="+",] #subset(exon, strand == "+")
 
 cds <- gtf_gr[gtf_gr$feature=="CDS",] #subset(gtf, type == "CDS")
-cds <- cds[strand(cds)=="+",] #subset(cds, strand == "+")
-#cds <- range(split(cds,cds$transcript_id))  #range(multisplit(cds, cds$Parent))
+#cds <- cds[strand(cds)=="+",] #subset(cds, strand == "+")
+##cds <- range(split(cds,cds$transcript_id))  #range(multisplit(cds, cds$Parent))
 
 if(length(cds)==0 || length(exon)==0 || is.na(cds) || is.na(exon)){ ##Probably the mrna is not in the + strand so we can safely discard it
   stop(paste("No + strand info (or) region of gtf missing in the gene : ", search_group))
@@ -182,7 +190,8 @@ utr_len<-utr_len[which(is.na(match(utr_len$five_len,boxplot(utr_len$five_len,out
 utr_len<-utr_len[which(is.na(match(utr_len$three_len,boxplot(utr_len$three_len,outline=F,plot=F)$out))),]
 dev.off()
 
-write.table(utr_len, paste("files/genes/",org_name,"/gtf_stats.csv",sep = ""), sep = ",", quote = F,row.names = F, col.names = !file.exists(paste("files/genes/",org_name,"/gtf_stats.csv",sep = "")), append = T)
+write.table(utr_len, output_file, sep = ",", quote = F,row.names = F, col.names = T)
+#write.table(utr_len, paste("files/genes/",org_name,"/",output_file,sep = ""), sep = ",", quote = F,row.names = F, col.names = !file.exists(paste("files/genes/",org_name,"/gtf_stats.csv",sep = "")), append = T)
 #write.csv(utr_len,file = paste("files/genes/",org_name,"/predicted_utr_lens.csv",sep = ""),quote = F,row.names = F,append = T)
 
 #seqlevels(gene_list) <- sort(seqlevels(gene_list))

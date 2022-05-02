@@ -15,7 +15,7 @@ if (length(args)==0) {
   #stop("Give the (1) folder path for storing genomes (2) folder path for storing annotations (3) the filename with gene symbols(without header)", call.=FALSE)
   stop("Give the (1) folder path for storing genomes (2) folder path for storing annotations (3) the filename with gene symbols(without header) (4) FASTA OUTPUT PATH(absolute path)", call.=FALSE)
 }
-set.seed(123)
+#set.seed(123)
 
 options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0)) #qsub -l data -V ./run_pipeline_ensembl.sh files/trimlist.txt 
 
@@ -30,10 +30,21 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
   #print(p_cmd)
   #print(p_args)
   #print(p_wait)
+  process_list[sapply(process_list, function(x){
+    return(!x$is_alive())
+  })] <<- NULL
+  tryCatch(expr = function(){
+    process_list[sapply(process_list, is.null)] <<- NULL
+  }, error = function(){
+    if(is.null(process_list)){
+      process_list <<- c()
+    }
+    })
   print(paste("Adding process to list...(",length(process_list),")",sep=""))
+  #process_list <- na.omit(process_list)
   #process_list <<- append(process_list,list(tryCatch(system2(p_cmd,args = p_args, wait = p_wait, stderr = F, stdout = F),finally = function(){process_count <<- process_count+1}))) #stderr = T, stdout =  T
   #process_list <<- append(process_list,tryCatch(system2(p_cmd,args = p_args, wait = p_wait),finally = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
-  if(length(process_list)==numWorkers){
+  if(length(process_list)==numWorkers-1){
     p_idx <- 0
     for (p_id in process_list) {
       p_idx <- p_idx + 1
@@ -44,34 +55,34 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
       }
     }
     if(p_idx > 0){
-      process_list[[p_idx]] <- NULL
+      process_list[[p_idx]] <<- NULL
     }
   }
   
-  process_list <<- append(process_list,process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = "",stderr = "2>&1",post_process = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
+  process_list <<- append(process_list,process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = "",stderr = "2>&1")) #stderr = T, stdout =  T
   if(p_wait){
-    process_list[[length(process_list)]]$wait(timeout=-1)
+    process_list[[1]]$wait(timeout=-1)
   }
 }
 
-check_files <-function(fasta_path){
+check_files <-function(fasta_path,org){
   if(dir.exists(fasta_path) && length(dir(fasta_path)) > 0){
     missing_genes <- c()
     available_genes <- c()
-    if(file.exists(paste(fasta_path,"/","MISSING_GENES",sep=""))){
-      missing_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste(fasta_path,"/","MISSING_GENES",sep=""), character())))
+    if(file.exists(paste("files/genes/",org,"/","MISSING_GENES",sep=""))){
+      missing_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste("files/genes/",org,"/","MISSING_GENES",sep=""), character())))
     }
-    if(file.exists(paste(fasta_path,"/","AVAILABLE_GENES",sep=""))){
-      available_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste(fasta_path,"/","AVAILABLE_GENES",sep=""), character())))
+    if(file.exists(paste("files/genes/",org,"/","AVAILABLE_GENES",sep=""))){
+      available_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste("files/genes/",org,"/","AVAILABLE_GENES",sep=""), character())))
     }
-    files_in_dir <- list.files(fasta_path,pattern=paste(".",BLAST_REGION,sep = ""))
+    files_in_dir <- unique(sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){str_split_fixed(string = x, pattern = fixed('.'),n=2)[1]})) #list.files(fasta_path,pattern=paste(".",BLAST_REGION,sep = ""))
     #print(files_in_dir)
     #sum(unlist(map2(genes, files_in_dir,function(x,y){
     #print(paste(y,x))
     #grepl(y,pattern = x,ignore.case = T)
     #}))) == length(genes)
-    print(paste("Files in Dir:",length(files_in_dir),", Missing:",length(missing_genes),", Available:",length(available_genes),", No. of Genes:",length(genes)))
-    if((length(available_genes) > 0 && length(missing_genes)==length(genes)-length(available_genes)) || length(missing_genes)==length(genes) || (length(available_genes)==length(files_in_dir) && length(missing_genes)==0)){
+    print(paste("Genes in Dir:",length(files_in_dir),", Missing:",length(missing_genes),", Available:",length(available_genes),", User Genes:",length(genes)))
+    if(!is.na(all(match(files_in_dir,available_genes) && all(match(available_genes,files_in_dir)))) ){
       print(paste(fasta_path,": Check PASSED!"))
       return(TRUE)
       #}
@@ -149,7 +160,7 @@ fetch_genome_ensembl <- function(org) {
     }
     
   }
-  if(CLEAN_EXTRACT || !check_files(fasta_path)){
+  if(CLEAN_EXTRACT || !check_files(fasta_path,org)){
     ##g_unzip.str <- paste("gunzip","-d", genome_path, sep = " ")
     #system2(command = "gunzip",args = c("-d","-f", genome_path),wait=T)
     ##unzip.str <- paste("gunzip","-d", gtf_path, sep = " ")
@@ -163,7 +174,8 @@ fetch_genome_ensembl <- function(org) {
     #system2("./extract_genomic_regions.sh",args = c(tools::file_path_sans_ext(genome_path), new_gtf_path, file.path("files","bed",paste(org,"_genes",sep = "")), gene_list, org), wait = SUBPROCESS_WAIT)
     #process_list <- append(process_list,
     #system2("./extract_genomic_regions.sh",args = c(genome_path, gtf_path, file.path("files","bed",paste(org,"_genes",sep = "")), gene_list, org), stderr = T, stdout =  T,wait = SUBPROCESS_WAIT)
-    do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, file.path("files","bed",paste(org,"_genes",sep = "")), gene_list, org), p_wait = SUBPROCESS_WAIT))
+    #do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, file.path("files","bed",paste(org,"_genes",sep = "")), gene_list, org), p_wait = SUBPROCESS_WAIT))
+    do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",org,sep="_"), "./extract_genomic_regions.sh", genome_path, gtf_path, file.path(BED_PATH,paste(org,"_genes",sep = "")), gene_list, org), p_wait = SUBPROCESS_WAIT))
     #process_count = process_count + 1
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
@@ -244,10 +256,11 @@ fetch_genome_user <- function(data){
   #  system2("gffread",args = c(gtf_path, "-T", "-O", "-E", "-o", paste(file_path_sans_ext(gtf_path),".gtf",sep = "")),wait = T)
   #  gtf_path <- paste(file_path_sans_ext(gtf_path),".gtf",sep = "")
   #}
-  if(CLEAN_EXTRACT || !check_files(fasta_path)){
+  if(CLEAN_EXTRACT || !check_files(fasta_path,data$org)){
     #process_list <- append(process_list,
     #system2("./extract_genomic_regions.sh",args = c(genome_path, gtf_path, file.path("files","bed",paste(data$org,"_genes",sep = "")), gene_list, data$org),stderr = T, stdout =  T,wait = SUBPROCESS_WAIT)
-    do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, file.path("files","bed",paste(data$org,"_genes",sep = "")), gene_list, data$org), p_wait = SUBPROCESS_WAIT))
+    #do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, file.path("files","bed",paste(data$org,"_genes",sep = "")), gene_list, data$org), p_wait = SUBPROCESS_WAIT))
+    do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",data$org,sep="_"), "./extract_genomic_regions.sh",genome_path, gtf_path, file.path(BED_PATH,paste(data$org,"_genes",sep = "")), gene_list, data$org), p_wait = SUBPROCESS_WAIT))
     #process_count = process_count + 1
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
@@ -259,7 +272,6 @@ fetch_genome_user <- function(data){
 }
 #ENTRY POINT
 process_list <<- c()
-process_count <<- 0
 
 #try(file.remove("files/extraction_logs.e"))
 #try(file.remove("files/extraction_logs.o"))
@@ -269,15 +281,20 @@ param_table <- read.table(param_file,sep="=")
 
 GENOMES_PATH <- param_table[which(param_table=="genomes_path"),c(2)]
 ANNOS_PATH <- param_table[which(param_table=="annos_path"),c(2)]
-gene_list <- args[1]
+TEMP_PATH <- param_table[which(param_table=="temp_path"),c(2)]
+GROUPS_PATH <- param_table[which(param_table=="groups_path"),c(2)]
+GENES_META <- param_table[which(param_table=="genes_meta"),c(2)]
 OUT_PATH <- param_table[which(param_table=="fasta_path"),c(2)]
+BED_PATH <- as.character(param_table[which(param_table=="bed_path"),c(2)])
 CLEAN_DOWNLOAD <- as.logical(param_table[which(param_table=="clean_download"),c(2)])
 CLEAN_EXTRACT <- as.logical(param_table[which(param_table=="clean_extract"),c(2)])
 SUBPROCESS_WAIT <- as.logical(param_table[which(param_table=="subprocess_wait"),c(2)])
-BLAST_REGION <- as.character(param_table[which(param_table=="blast_region"),c(2)])
+BLAST_REGION <- tolower(as.character(param_table[which(param_table=="blast_region"),c(2)]))
 GENOMES_SOURCE <- as.character(param_table[which(param_table=="genomes_source"),c(2)])
 REMOVE_DOWNLOADS <- as.character(param_table[which(param_table=="remove_downloads"),c(2)])
 USER_GENOMES <- as.character(param_table[which(param_table=="user_genomes"),c(2)])
+
+gene_list <- args[1]
 
 print(paste("CLEAN_DOWNLOAD:",CLEAN_DOWNLOAD))
 print(paste("CLEAN_EXTRACT:",CLEAN_EXTRACT))
@@ -287,6 +304,14 @@ print(paste("SUBPROCESS_WAIT:",SUBPROCESS_WAIT))
 
 tryCatch(numWorkers <- detectCores(all.tests = T, logical = T), error=function(){numWorkers=2})
 
+dir.create("files")
+dir.create(BED_PATH)
+dir.create(TEMP_PATH)
+unlink(GROUPS_PATH, recursive = T,force = T)
+dir.create(GROUPS_PATH)
+dir.create(GENES_META)
+dir.create(OUT_PATH)
+
 genes <- gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
 
 org.meta <- c()
@@ -294,37 +319,41 @@ for(org in getENSEMBLGENOMESInfo()$name){
   org.meta <- rbind(org.meta, is.genome.available(db = "ensembl", org, details = T))
 }
 #getGenomeSet(db = "ensembl", org.meta$name, reference = F, clean_retrieval = T, gunzip = T, update = T, path = "files/genomes")
-check_list <- list()
-user_data <- read.csv(USER_GENOMES,header = F)
-names(user_data) <- c("org","genome","gtf")
 
-if(!CLEAN_DOWNLOAD && !CLEAN_EXTRACT){
-  #print("SKIPPING download and extraction of genomes. Check clean_extract and clean_download parameters in parameters.txt")
-  print("Checking files...")
-  for (fasta_dir in list.dirs(OUT_PATH)) {
-    check_result <- check_files(fasta_dir)
-    if(!check_result){
-      check_list <- append(check_list,list(c(basename(fasta_dir))))
-    }
-    print(paste(fasta_dir," : ", check_result))
-  }
-  print("Checked files..Organisms which failed")
-  #print(unlist(check_list)) #
-  #check_ens <- na.omitmatch(unlist(check_list),org.meta$name)
-  if(!is.null(unlist(check_list))){
-    org.meta <- org.meta[na.omit(match(unlist(check_list),org.meta$name)),]
-    user_data <- user_data[na.omit(match(unlist(check_list),user_data$org)),]
-  print(org.meta$name)
-  print(user_data)
-  }else{
-    #IF check_list is empty then all the existing fastas are complete, check for the non downloaded ones
-    print("All organisms passed!")
-    org.meta <- org.meta[which(is.na(match(org.meta$name,list.files(OUT_PATH)))),]
-    user_data <-  user_data[which(is.na(match(user_data$org,list.files(OUT_PATH)))),]
-  }
+check_list <- list()
+#Read user data
+if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
+  user_data <- read.csv(USER_GENOMES,header = F)
+  names(user_data) <- c("org","genome","gtf")
 }
 
-print("Checking and downloading undownloaded organisms...")
+# if(length(list.files(OUT_PATH,include.dirs = F,no.. = T))!=0){ #!CLEAN_DOWNLOAD && !CLEAN_EXTRACT && l
+#   #print("SKIPPING download and extraction of genomes. Check clean_extract and clean_download parameters in parameters.txt")
+#   print("Checking files...")
+#   for (fasta_dir in list.dirs(OUT_PATH)) {
+#     check_result <- check_files(fasta_dir)
+#     if(!check_result){
+#       check_list <- append(check_list,list(c(basename(fasta_dir))))
+#     }
+#     print(paste(fasta_dir," : ", check_result))
+#   }
+#   print("Checked files..Organisms which failed")
+#   #print(unlist(check_list)) #
+#   #check_ens <- na.omitmatch(unlist(check_list),org.meta$name)
+#   if(!is.null(unlist(check_list))){
+#     org.meta <- org.meta[na.omit(match(unlist(check_list),org.meta$name)),]
+#     try(user_data <- user_data[na.omit(match(unlist(check_list),user_data$org)),])
+#   print(org.meta$name)
+#   try(print(user_data))
+#   }else{
+#     #IF check_list is empty then all the existing fastas are complete, check for the non downloaded ones
+#     print("All organisms passed!")
+#     org.meta <- org.meta[which(is.na(match(org.meta$name,list.files(OUT_PATH)))),]
+#     try(user_data <-  user_data[which(is.na(match(user_data$org,list.files(OUT_PATH)))),])
+#   }
+# }
+
+print("Checking and downloading organisms...")
 
 if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
   if(nrow(user_data)!=0){
@@ -352,7 +381,7 @@ for(proc in process_list){
     print(proc$get_status())
     if(ps_is_running(proc$as_ps_handle())){
       ## if SIGCHLD is overwritten the process is lost, so we try to get pid and check if the process is running
-      proc$wait(timeout = 600000) #-1 #5minute timeout #proc$wait(timeout = -1) #300000
+      proc$wait(timeout = -1) #-1 #5minute timeout #proc$wait(timeout = -1) #300000
     }else{
       print(proc$print())
       print(proc$get_status())
@@ -374,6 +403,6 @@ for(proc in process_list){
 #}
 
 write.table(x = org.meta,file = "files/org_meta.txt", quote = F,sep=",", row.names = F)
-write.table(x = user_data,file = "files/org_meta.txt", quote = F,sep=",", row.names = F, append = T)
+try(write.table(x = user_data,file = "files/org_meta.txt", quote = F,sep=",", row.names = F, append = T))
 
 sessionInfo()
