@@ -78,4 +78,8 @@ do
 done
 echo "----Job $id($1)(sh:$tmp_file)(logs:$TMP_DIR/$jobname.[o/e]) complete---- "
 
+cat $tmp_file >> $TMP_DIR/$jobname.o
+
+rm $tmp_file
+
 exit 0

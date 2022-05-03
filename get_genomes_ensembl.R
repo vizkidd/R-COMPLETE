@@ -44,7 +44,7 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
   #process_list <- na.omit(process_list)
   #process_list <<- append(process_list,list(tryCatch(system2(p_cmd,args = p_args, wait = p_wait, stderr = F, stdout = F),finally = function(){process_count <<- process_count+1}))) #stderr = T, stdout =  T
   #process_list <<- append(process_list,tryCatch(system2(p_cmd,args = p_args, wait = p_wait),finally = function(){process_count <<- process_count+1})) #stderr = T, stdout =  T
-  if(length(process_list)==numWorkers-1){
+  if(length(process_list)>=numWorkers/2){
     p_idx <- 0
     for (p_id in process_list) {
       p_idx <- p_idx + 1
@@ -76,13 +76,14 @@ check_files <-function(fasta_path,org){
       available_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste("files/genes/",org,"/","AVAILABLE_GENES",sep=""), character())))
     }
     files_in_dir <- unique(sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){str_split_fixed(string = x, pattern = fixed('.'),n=2)[1]})) #list.files(fasta_path,pattern=paste(".",BLAST_REGION,sep = ""))
+    missing_genes <- missing_genes[is.na(match(missing_genes, available_genes))] #FILTER already existing genes from missing genes
     #print(files_in_dir)
     #sum(unlist(map2(genes, files_in_dir,function(x,y){
     #print(paste(y,x))
     #grepl(y,pattern = x,ignore.case = T)
     #}))) == length(genes)
     print(paste("Genes in Dir:",length(files_in_dir),", Missing:",length(missing_genes),", Available:",length(available_genes),", User Genes:",length(genes)))
-    if(!is.na(all(match(files_in_dir,available_genes) && all(match(available_genes,files_in_dir)))) ){
+    if(!is.na(all(match(files_in_dir,available_genes) && all(match(available_genes,files_in_dir)))) && is.na(all(match(missing_genes, files_in_dir)))){
       print(paste(fasta_path,": Check PASSED!"))
       return(TRUE)
       #}
@@ -368,7 +369,7 @@ if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="ensembl"){
   mclapply(org.meta$name, fetch_genome_ensembl, mc.cores = 1)
 }
 
-print(paste("Length of running processes:",length(process_list)))
+# print(paste("Length of running processes:",length(process_list)))
 print(process_list)
 
 p_pid <- c()
