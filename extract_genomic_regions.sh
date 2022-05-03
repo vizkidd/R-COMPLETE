@@ -510,8 +510,9 @@ rm files/genes/$f_org_name/gtf_stats.csv
 time parallel --max-procs 2 "if [[ -s $GENES_META/$f_org_name/{}.rna_list && ! -z {} && -s $GENES_META/$f_org_name/{}.gtf_slice && ! -s $GENES_META/$f_org_name/{}.gtf_info ]] ; then
     ./jobhold.sh get_GTF_info Rscript extract_gtf_info.R $GENES_META/$f_org_name/{}.gtf_slice $f_org_name {} $GENES_META/$f_org_name/{}.gtf_info ;
 fi" ::: ${gene_list[@]} 1>> $TEMP_PATH/get_GTF_info.o 2>> $TEMP_PATH/get_GTF_info.e #$ANNO_FILE
-# find files/genes/xenopus_tropicalis/*.gtf_info -exec sed 1d {} \;
-find $GENES_META/$f_org_name/*.gtf_info -exec sed 1d {} \; > files/genes/$f_org_name/gtf_stats.csv
+
+#find $GENES_META/$f_org_name/*.gtf_info -exec sed 1d {} \; > files/genes/$f_org_name/gtf_stats.csv
+time parallel --keep-order --max-procs $n_threads "sed 1d $GENES_META/$f_org_name/{}.gtf_info" ::: ${gene_list[@]} > files/genes/$f_org_name/gtf_stats.csv
 
 gene_list=($(awk -F',' '{print $2"\n"}' files/genes/$f_org_name/gtf_stats.csv | sort | uniq
 ))
@@ -531,9 +532,6 @@ fi
 sed 1d files/genes/$5/gtf_stats.csv | awk -F',' '{print $2}' | sort | uniq >  files/genes/$5/AVAILABLE_GENES
 grep -v -i -f files/genes/$5/AVAILABLE_GENES $4 | sort | uniq > files/genes/$5/MISSING_GENES
 
-find $FASTA_PATH/$f_org_name/ -empty -delete
-find $GENES_META/$f_org_name/ -empty -delete
-find files/genes/$f_org_name/ -empty -delete
 find $FASTA_PATH/$f_org_name/ -type f -name "*.fai" -exec rm -f {} +
 
 ##Populate clusters(files/genes/<org>/ALL_CLUSTERS) and group FASTA sequences according to clusters and store it in files/groups/
