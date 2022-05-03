@@ -180,10 +180,10 @@ fetch_genome_ensembl <- function(org) {
     #process_count = process_count + 1
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
-      file_move(genome_path, paste(GENOMES_PATH, "/",org,".fa.gz",sep = ""))
+      try(file_move(genome_path, paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")))
     }
     if(file.exists(gtf_path) && file_ext(gtf_path) == "gz"){
-      file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""))
+      try(file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")))
     }}
   #}
   Sys.sleep(5) 
@@ -265,10 +265,10 @@ fetch_genome_user <- function(data){
     #process_count = process_count + 1
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
-      file_move(genome_path, paste(GENOMES_PATH, "/",org,".fa.gz",sep = ""))
+      try(file_move(genome_path, paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")))
     }
     if(file.exists(gtf_path) && file_ext(gtf_path) == "gz"){
-      file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = ""))
+      try(file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")))
     }}
 }
 #ENTRY POINT
