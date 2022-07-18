@@ -278,7 +278,13 @@ process_list <<- c()
 #try(file.remove("files/extraction_logs.o"))
 
 param_file <- "parameters.txt"
-param_table <- read.table(param_file,sep="=")
+
+if(!file.exists(param_file) || file.info(param_file)$size < 0){
+  stop("ERROR: parameters.txt is missing and is required")
+}
+
+#param_table <- read.table(param_file,sep="==")
+param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^") #Convert multibyte seperator to one byte sep
 
 GENOMES_PATH <- param_table[which(param_table=="genomes_path"),c(2)]
 ANNOS_PATH <- param_table[which(param_table=="annos_path"),c(2)]
@@ -294,6 +300,7 @@ BLAST_REGION <- tolower(as.character(param_table[which(param_table=="blast_regio
 GENOMES_SOURCE <- as.character(param_table[which(param_table=="genomes_source"),c(2)])
 REMOVE_DOWNLOADS <- as.character(param_table[which(param_table=="remove_downloads"),c(2)])
 USER_GENOMES <- as.character(param_table[which(param_table=="user_genomes"),c(2)])
+max_concurrent_jobs <- as.numeric(param_table[which(param_table=="max_concurrent_jobs"),c(2)])
 
 gene_list <- args[1]
 
@@ -304,6 +311,9 @@ print(paste("GENOMES_SOURCE:",GENOMES_SOURCE))
 print(paste("SUBPROCESS_WAIT:",SUBPROCESS_WAIT))
 
 tryCatch(numWorkers <- detectCores(all.tests = T, logical = T), error=function(){numWorkers=2})
+if(is.na(numWorkers) || numWorkers > max_concurrent_jobs){
+  numWorkers=max_concurrent_jobs
+}
 
 dir.create("files")
 dir.create(BED_PATH)

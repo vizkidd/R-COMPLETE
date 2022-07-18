@@ -5,7 +5,7 @@ require(hrbrthemes)
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 param_file <- "parameters.txt"
-param_table <- read.table(param_file,sep="=")
+param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^") #Convert multibyte seperator to one byte sep #read.table(param_file,sep="==")
 plots_out_path <- as.character(param_table[which(param_table=="plot_path"),c(2)])
 gene_drop_thresh <- as.numeric(param_table[which(param_table=="gene_drop_thresh"),c(2)])
 

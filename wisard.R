@@ -245,7 +245,7 @@ exec_WISARD <- function(gr, score_col){
 exec_WISARD_gene <- function(gr,score_col){
   all_results <- list()
   
-  n_cores <- detectCores(all.tests = TRUE, logical = TRUE)
+  n_cores <- try(detectCores(all.tests = TRUE, logical = TRUE))
   if(is.na(n_cores)){
     n_cores=2
   }
@@ -381,7 +381,7 @@ HSP_Coverage <- function(query, org_fw, org_bk, gtf_stats, feature="CDS"){
             #print(cov_q)
             #print(cov_s)
             feature_comp <- gtf_stats[gtf_stats$rna_id==id_subject,]$cds_count == gtf_stats[gtf_stats$rna_id==id_query,]$cds_count #(feature_count(id_query,q_gtf)==feature_count(id_subject,s_gtf))
-            
+            print(feature_comp)
             tmp_df <- rbind(tmp_df, data.frame(query=query, subject=subject,min_cov=min(cov_q, cov_s),max_cov=max(cov_q, cov_s), same_CDS_count=feature_comp,cov_q=cov_q, cov_s=cov_s,hit_from=subject_result$Hsp_hit.from,hit_to=subject_result$Hsp_hit.to,query_len=q_CDS_length,subject_len=s_CDS_length,q_align_len=q_align_length,s_align_len=s_align_length,query_from=subject_result$Hsp_query.from,query_to=subject_result$Hsp_query.to, pident=subject_result$Hsp_pidentity))
           }
         }
@@ -464,17 +464,18 @@ if (length(args)==0) {
 #e_cutoff <- as.numeric("1e-05")
 #gtf_path <- "files/annos"
 param_file <- "parameters.txt"
-param_table <- read.table(param_file,sep="=")
+param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^") #Convert multibyte seperator to one byte sep #read.table(param_file,sep="==")
 delimiter <- as.character(param_table[which(param_table=="transcript_delimiter"),c(2)])
 seqID_delimiter <- as.character(param_table[which(param_table=="seqID_delimiter"),c(2)])
 orgs_ref_path <- as.character(param_table[which(param_table=="ref_orgs"),c(2)])
 e_cutoff <- as.numeric(param_table[which(param_table=="e_value"),c(2)])
+clean_extract <- as.logical(param_table[which(param_table=="clean_extract"),c(2)])
 #gtf_path <- as.character(param_table[which(param_table=="annos_path"),c(2)])
 wisard_path <- as.character(param_table[which(param_table=="wisard_path"),c(2)])
 plot_out_path <- as.character(param_table[which(param_table=="plot_path"),c(2)])
 mincov_threshold <- as.numeric(param_table[which(param_table=="mincov_threshold"),c(2)])
 
-tryCatch(require(wisard), finally = function(){
+tryCatch(require(wisard), error = function(){
   source(paste(wisard_path,"/WIS_functions.R",sep = ""))
   source(paste(wisard_path,"/greedy.R",sep = ""))
   source(paste(wisard_path,"/read_blast.R",sep = ""))
@@ -499,9 +500,14 @@ orgs.ref <-  factor(scan(orgs_ref_path, character()))
 all_fw_results <- c()
 all_bk_results <- c()
 
+if (clean_extract==T) {
+  try(file.remove("files/all_bk_results.RData"))
+  try(file.remove("files/all_fw_results.RData"))
+}
+
 if(file.exists("files/all_bk_results.RData") & file.exists("files/all_fw_results.RData")  & file.info("files/all_bk_results.RData")$size > 0 & file.info("files/all_fw_results.RData")$size > 0){
-  load("files/all_bk_results.RData")
-  load("files/all_fw_results.RData")
+  try(load("files/all_bk_results.RData"))
+  try(load("files/all_fw_results.RData"))
   #print(str(all_bk_results))
   #print(str(all_fw_results))
 }
@@ -866,3 +872,4 @@ dev.off()
 
 sessionInfo()
 #delta_cov %>% ggplot(aes(delta_cov$delta_cov, fill = delta_cov$same_CDS_count)) + theme_bw(base_size = 20) + geom_histogram( aes(y = ..density..), position = 'identity') + scale_fill_manual(values=c("black", "orange"))
+

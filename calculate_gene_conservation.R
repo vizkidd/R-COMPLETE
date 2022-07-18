@@ -24,7 +24,7 @@ font_add_google("Gochi Hand", "gochi")
 showtext_auto()
 
 param_file <- "parameters.txt"
-param_table <- read.table(param_file,sep="=")
+param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^") #Convert multibyte seperator to one byte sep #read.table(param_file,sep="==")
 delimiter <- as.character(param_table[which(param_table=="seqID_delimiter"),c(2)])
 
 blast_results_path <- args[1]
@@ -177,7 +177,7 @@ print("These organisms are semi-orthologous (ie, they are not orthologous to all
 print(semi_ortho_orgs)
 print(semi_orths)
 
-write.table(semi_orths, file = file.path(identities_out_path,paste(gene,".semiorgs",sep = "")))
+write.table(semi_orths, file = file.path(identities_out_path,paste(gene,".semiorgs",sep = "")),quote = F, row.names = T, col.names = T)
 
 ##Correct isoform representation, for all reference species
 ##As in, we do not care about the similarity of the reference sequence and it's isoforms. So we make it 0
