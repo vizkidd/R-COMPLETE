@@ -19,13 +19,13 @@ White=97
 # BG Colors
 
 BG_Default=49
-BG_Black=40
-BG_Red=41
-BG_Green=42
-BG_Yellow=43
-BG_Blue=44
-BG_Purple=45
-BG_Cyan=46
+BG_Black=100
+BG_Red=101
+BG_Green=102
+BG_Yellow=103
+BG_Blue=104
+BG_Purple=105
+BG_Cyan=106
 BG_White=107
 
 Bold_Style=1

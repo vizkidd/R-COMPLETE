@@ -160,7 +160,7 @@ if [[ $(echo $ANNO_FILE | grep -q -i "gtf") ]] ; then
   ANNO_FILE=$ANNOS_PATH/"$5".gtf.gz
 fi
 
->&1 color_FG_BG_Bold $Black $BG_Yellow "0.1 Building Reference Genome Index (Samtools faidx)...${Color_Off}"
+>&1 color_FG_BG_Bold $Black $BG_Yellow "0.1 Building Reference Genome Index (Samtools faidx)..."
 
 if [[ ! -s $GENOME_FILE.fai ]] ; then
   time samtools faidx --fai-idx $GENOME_FILE.fai $genome_pipe & 
@@ -177,7 +177,7 @@ done
 
 gene_list=($(cat $3 | sort | uniq | grep -v -w -i "gene"))
 
->&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing...${Color_Off}"
+>&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing..."
 
 
 if [[ ! -z $anno_proc_id ]]; then
@@ -194,7 +194,7 @@ if [[ ! -s files/genes/$f_org_name/1.list || ! -s files/genes/$f_org_name/2.list
   echo ${gene_list[@]/($(cat files/genes/$f_org_name/1.list)))} | awk 'NF' > files/genes/$f_org_name/2.list
 fi
 
->&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list ${Color_Off}")$(color_FG $Green ", Genes not found : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
+>&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
 
 #######################################################################################################
 
