@@ -1,6 +1,48 @@
 #!/bin/bash
 
-index_fastaIDs() {
+##TERMINAL COLORS
+# Reset
+Color_Off='\033[0m'       # Text Reset
+
+# High intensity FG Colors
+
+Default=39
+Black=90
+Red=91
+Green=92
+Yellow=93
+Blue=94
+Purple=95
+Cyan=96
+White=97
+
+# BG Colors
+
+BG_Default=49
+BG_Black=40
+BG_Red=41
+BG_Green=42
+BG_Yellow=43
+BG_Blue=44
+BG_Purple=45
+BG_Cyan=46
+BG_White=107
+
+Bold_Style=1
+Reset_Style=0
+
+function check_param() {
+  local STDIN=$(cat)
+  local tmp_name=$(echo $STDIN | awk -F'==' '{print $1}')
+  local tmp_var=$(echo $STDIN | awk -F'==' '{print $2}')
+  if [[ -z $tmp_var ]]; then
+    echo "Parameter Error : $tmp_name is empty"
+    exit 1
+  fi
+  echo $tmp_var
+}
+
+function index_fastaIDs() {
 	#Called using : index_fastaIDs files/rna_ids.txt files/fasta/*.aln
 	if [ $# -eq 0 ]
   	then
@@ -15,7 +57,7 @@ index_fastaIDs() {
 	grep ">" -H -r "${arg_arr[@]:1}" | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" "i"x; }' > $1
 }
 
-fastaID_to_number() {
+function fastaID_to_number() {
 	#SLOWER implementation
 	#while IFS= read -r rna_id
 	#do
@@ -43,7 +85,7 @@ fastaID_to_number() {
 	fi
 }
 
-fID_to_num_multi() {
+function fID_to_num_multi() {
 	#echo $@
 	if [ $# -lt 2 ]
   	then
@@ -61,7 +103,7 @@ fID_to_num_multi() {
 	done
 }
 
-fID_to_num_parallel() {
+function fID_to_num_parallel() {
 	#PARALLEL implementation
 	if [ $# -lt 2 ]
   	then
@@ -78,7 +120,7 @@ fID_to_num_parallel() {
 	done
 }
 
-number_to_fastaID() {
+function number_to_fastaID() {
 	#SLOWER implementation
 	#while IFS= read -r rna_id
 	#do
@@ -108,7 +150,7 @@ number_to_fastaID() {
 	fi
 }
 
-num_to_fID_multi() {
+function num_to_fID_multi() {
 	#echo $@
 	if [ $# -lt 2 ]
   	then
@@ -127,7 +169,7 @@ num_to_fID_multi() {
 	done
 }
 
-num_to_fID_parallel() {
+function num_to_fID_parallel() {
 	#PARALLEL implementation
 	#id_sub_list=($(grep $2 $1))
 	#echo ${id_sub_list[*]}
@@ -146,7 +188,7 @@ num_to_fID_parallel() {
 	done
 }
 
-make_db() {
+function make_db() {
 echo "$1"
 if [ -s "$1" ]; then
 	makeblastdb -in "$1" -dbtype nucl  -hash_index || true # -parse_seqids -out $2
@@ -155,7 +197,7 @@ else
 fi
 }
 
-collate_fasta() {
+function collate_fasta() {
 	path=$1
 	gene_name=$2
 	safe_gene_name=$(echo $gene_name | awk '{ gsub(/[[:punct:]]/, "_", $0) } 1;')
@@ -170,7 +212,7 @@ collate_fasta() {
 	fi
 }
 
-select_transcripts() { 
+function select_transcripts() { 
 # $1 - transcript list file
 # $2 - intermediate output (transcripts from CURRENT organism)
 # $3 - final output (transcripts from ALL organisms)
@@ -184,31 +226,53 @@ cat $2 >> $3
 }
 
 
-delete_empty_orgs() {
+function delete_empty_orgs() {
 	#For each org
 	#files/fasta - $1
 	#files/genelist.txt - $2
 	#files/UNAVAILABLE_ORGS -$3
 	rm $3
-	for org in $1/*
+	#for org in $1/*
+	#do
+	#	if [[ $(grep -c -v -i -f $org/MISSING_GENES $2) == 0 ]]; 
+	#	then
+	#	 	echo $org "is empty!...Removing"
+	#		echo $org >> $3
+	#	 	rm -rf $org
+	#	fi 
+	#done
+	for org in $(cat $2 | grep -c -v -i -z $(find $1 -name MISSING_GENES))
 	do
-		if [[ $(grep -c -v -i -f $org/MISSING_GENES $2) == 0 ]]; 
+		if [[ $(echo $org | awk -F':' '{print $2}') == 0 ]];
 		then
-		 	echo $org "is empty!...Removing"
+			echo $org "is empty!...Removing"
 			echo $org >> $3
-		 	rm -rf $org
-		fi 
+			rm -rf $org
+		fi
 	done
 }
 
-count_seqs4genes() {
+function count_seqs4genes() {
+	if [ $# -eq 0 ]
+  	then
+    	echo "Give path to sequence files/alignment files, region/' ', out_file to get the distribution of sequences across genes"
+    	echo "eg, count_seqs4genes files/fasta/ 3utr files/3utr_seqs_meta.txt"
+    	echo "eg, count_seqs4genes files/alns/*.aln ' ' files/aln_seqs_meta.txt"
+    	return 1
+	fi
 	grep -r -c ">" $1 | awk -F'/' '{print $NF}' | awk -F':' '{ seen[$1] += $2 } END { for (i in seen) print i, seen[i] }'  | sort | grep "$2" > $3
 }
 
-count_genes4orgs() {
+function count_genes4orgs() {
 	#For each org
 	#files/fasta - $1
 	#files/genelist.txt - $2
+	if [ $# -eq 0 ]
+  	then
+    	echo "Give path to organism folders, genelist, out_file to get the distribution of genes across organisms"
+    	echo "eg, count_genes4orgs files/fasta files/genelist.txt files/gene_counts.txt"
+    	return 1
+	fi
 	rm $3
 	for org in $1/*
 	do
@@ -218,7 +282,7 @@ count_genes4orgs() {
 	done
 }
 
-get_length_dist() {
+function get_length_dist() {
  	if [ $# -eq 0 ]
   	then
     	echo "Give path to sequence files to get the length distribution, use -v to print file names"
@@ -241,7 +305,7 @@ get_length_dist() {
   	done; 
 }
 
-get_count_dist() {
+function get_count_dist() {
  	if [ $# -eq 0 ]
   	then
     	echo "Give path to sequence files to get the count distribution(number of sequences in each file), use -v to print file names"
@@ -264,7 +328,7 @@ get_count_dist() {
   	done; 
 }
 
-get_pairwise_pid() {
+function get_pairwise_pid() {
 	#INPUT: fasta/aln files
 	#For each sequence in the alignment get its pid's from BLAST hits and in the end average them
 	arg_arr=($@);
@@ -287,6 +351,38 @@ get_pairwise_pid() {
 # 	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 3 -o $1
 # }
 
+function color_FG(){
+	# 1 - FG color
+	# 2 - Message
+	echo -e '\033[0;'$1';49m '$2 ${Color_Off}
+}
+
+function color_FG_Bold(){
+	# 1 - FG color
+	# 2 - Message
+	echo -e '\033[1;'$1';49m '$2 ${Color_Off}
+}
+
+function color_BG(){
+	# 1 - BG color
+	# 2 - Message
+	echo -e '\033[0;39;'$1'm '$2 ${Color_Off}
+}
+
+function color_FG_BG(){
+	# 1 - FG color
+	# 2 - BG color
+	# 3 - Message
+	echo -e '\033[0;'$1';'$2'm '$3 ${Color_Off}
+}
+
+function color_FG_BG_Bold(){
+	# 1 - FG color
+	# 2 - BG color
+	# 3 - Message
+	echo -e '\033[1;'$1';'$2'm '$3 ${Color_Off}
+}
+
 export -f number_to_fastaID
 export -f fastaID_to_number
 export -f index_fastaIDs
@@ -298,8 +394,16 @@ export -f count_genes4orgs
 export -f count_seqs4genes
 export -f get_length_dist
 export -f get_count_dist
+export -f check_param
+#export -f checkForVariable
 
 export -f fID_to_num_parallel
 export -f fID_to_num_multi
 export -f num_to_fID_parallel
 export -f num_to_fID_multi
+
+export -f color_FG
+export -f color_FG_Bold
+export -f color_BG
+export -f color_FG_BG
+export -f color_FG_BG_Bold
