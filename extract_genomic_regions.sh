@@ -6,9 +6,8 @@
 
 # $1 = genome fasta file
 # $2 = formatted gtf/gff3(UNTESTED) file
-# $3 = basename for bedfiles
-# $4 = input gene list
-# $5 = org name(eg x_laevis)
+# $3 = input gene list
+# $4 = org name(eg x_laevis)
 
 ##FUNCTIONS
 
@@ -89,16 +88,15 @@ return 0
 ##ENTRYPOINT
 
 #Check if scripts exist
-if [[ ! -s extract_transcript_regions.py || ! -s extract_gtf_info.R || ! -s check_OrthoDB.sh || ! -s label_sequenceIDs.sh || ! -s parameters.txt ]] ; then
-  echo "Missing scripts &/or parameters.txt!"
-  echo "Need : extract_transcript_regions.py, extract_gtf_info.R, check_OrthoDB.sh, label_sequenceIDs.sh, parameters.txt"
+if [[ ! -s extract_gtf_info.R || ! -s check_OrthoDB.sh || ! -s label_sequenceIDs.sh || ! -s parameters.txt ]] ; then
+  >&2 color_FG_Bold $Red "Missing scripts &/or parameters.txt!"
+  >&2 color_FG_Bold $Red  "Need : extract_gtf_info.R, check_OrthoDB.sh, label_sequenceIDs.sh, parameters.txt"
   exit -1
 fi
 
 GENOME_FILE=$1
 ANNO_FILE=$2
-f_org_name=$5
-bed_prefix=$3
+f_org_name=$4
 org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2; } ;')
 
 export -f get_fasta
@@ -121,6 +119,7 @@ LABEL_SEQS=$(grep -i -w "label_sequence_IDs" parameters.txt | check_param)
 #n_threads=$(nproc --all)
 n_threads=$(grep -i -w "max_concurrent_jobs" parameters.txt | check_param)
 
+bed_prefix="$BED_PATH/$f_org_name"
 MODE=""
 if [[ $GENE_SEARCH_MODE=="HARD" ]]; then
   MODE="-w"
@@ -133,18 +132,14 @@ if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
   rm -rf files/genes/$f_org_name
   rm -rf $TEMP_PATH/$f_org_name
   rm -f $GENOME_FILE.fai
-  rm -f files/genes/$f_org_name/gtf_stats.csv
-  rm -f files/genes/$f_org_name/1.list
-  rm -f files/genes/$f_org_name/2.list
-  rm -f files/genes/$f_org_name/full.list
-  rm -f files/genes/$f_org_name/odb.list
-  rm -f files/genes/$f_org_name/final.list
+  rm -f files/genes/$f_org_name/*
+  rm -f $bed_prefix/*
 fi
 
 mkdir -p $FASTA_PATH/$f_org_name
 mkdir -p files/genes/$f_org_name/odb/
 mkdir -p $TEMP_PATH/$f_org_name
-mkdir -p $BED_PATH/$f_org_name
+mkdir -p $bed_prefix
 
 genome_pipe="$TEMP_PATH/$f_org_name/genome_pipe"
 rm -f $genome_pipe
@@ -180,7 +175,7 @@ done
 
 ###################################################################################################
 
-gene_list=($(cat $4 | sort | uniq | grep -v -w -i "gene"))
+gene_list=($(cat $3 | sort | uniq | grep -v -w -i "gene"))
 
 >&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing...${Color_Off}"
 
@@ -259,7 +254,7 @@ fi
 >&1 color_FG_BG_Bold $Black $BG_Yellow "4. Fetching sequences from Genome..."
 >&1 color_FG $Yellow "Transcript Regions : $(IFS=","; echo ${TRANSCRIPT_REGIONS[*]}) "
 
-time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $LABEL_SEQS ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $LABEL_SEQS ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
 
 >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
 
@@ -285,6 +280,7 @@ if [[ ! -z $gfile_name ]]; then
 fi
 
 rm -rf $TEMP_PATH/$f_org_name/
+rm -f $bed_prefix/$f_org_name_*
 if [[ $REMOVE_DOWNLOADS ==  "TRUE" ]] ; then
    rm $GENOME_FILE
    rm $ANNO_FILE

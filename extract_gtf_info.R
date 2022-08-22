@@ -260,7 +260,9 @@ if(!file.exists(output_file) || file.info(output_file)$size<4 || !file.exists(pa
   bed_genes <- sapply(stri_split(bed_df[bed_df$feature=="gene",c("name")], fixed = TRANSCRIPT_ID_DELIM), function(x){return(x[[1]])})
   if(!all(!is.na(match(unique(bed_genes),unique(utr_len_df$gene_name)))) || !all(!is.na(match(unique(utr_len_df$gene_name),unique(bed_genes))))){
     get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
-  } 
+  }else{
+    get_bed(bed_df=bed_df, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
+  }
   
   print("Files Checked!")
 }
