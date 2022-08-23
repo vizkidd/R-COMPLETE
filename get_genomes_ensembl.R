@@ -32,18 +32,25 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
     })
   print(paste("Adding process to list...(",length(process_list),")",sep=""))
   if(length(process_list)>=numWorkers){
-    p_idx <- 0
-    for (p_id in process_list) {
-      p_idx <- p_idx + 1
-      if(p_id$is_alive()){
-        print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
-        p_id$wait(timeout=-1)
-        break;
+    #for (p_id in seq_along(process_list)) {
+    #  if(process_list[[p_id]]$is_alive()){
+    #    print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
+    #    save(process_list, files="proces_list.RData")
+    #    process_list[[p_id]]$wait(timeout=-1)
+    #    process_list[[p_idx]] <<- NULL
+    #    break;
+    #  }
+    print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
+    save(process_list, files="proces_list.RData")
+    dead_procs <- c()
+    lapply(seq_along(process_list), function(x){
+      if(process_list[[x]]$is_alive()){
+        process_list[[x]]$wait(timeout=-1)
       }
-    }
-    if(p_idx > 0){
-      process_list[[p_idx]] <<- NULL
-    }
+      dead_procs <- c(dead_procs,x)
+    })
+    dead_procs <- unique(dead_procs)
+    process_list[[dead_procs]] <<- NULL
   }
   
   process_list <<- append(process_list,process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = "",stderr = "2>&1")) #stderr = T, stdout =  T
@@ -52,7 +59,7 @@ add_to_process <- function(p_cmd,p_args=list(),p_wait){
   }
 }
 
-check_files <-function(fasta_path,org){
+check_files <-function(fasta_path,org,genes){
   if(dir.exists(fasta_path) && length(dir(fasta_path)) > 0){
     missing_genes <- c()
     available_genes <- c()
@@ -73,7 +80,7 @@ check_files <-function(fasta_path,org){
   print(paste(fasta_path,": Check FAILED!"))
   return(FALSE)
 }
-fetch_genome_ensembl <- function(org) {
+fetch_genome_ensembl <- function(org, genes) {
   
   if(tolower(GENOMES_SOURCE)=="both"){
     if(!is.na(match(org,user_data$org))){
@@ -81,7 +88,7 @@ fetch_genome_ensembl <- function(org) {
     }
   }
   fasta_path <- file.path(OUT_PATH ,org) 
-  print(fasta_path)
+  #print(fasta_path)
   details <- file.info(list.files(path = fasta_path, full.names = TRUE))
   if(CLEAN_DOWNLOAD==TRUE){
     try(file.remove(paste(GENOMES_PATH, "/",org,".fa.gz",sep = ""),showWarnings=F))
@@ -137,7 +144,7 @@ fetch_genome_ensembl <- function(org) {
     }
     
   }
-  if(CLEAN_EXTRACT || !check_files(fasta_path,org)){
+  if(CLEAN_EXTRACT || !check_files(fasta_path,org,genes)){
     do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",org,sep="_"), "./extract_genomic_regions.sh", genome_path, gtf_path, gene_list, org), p_wait = SUBPROCESS_WAIT))
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
@@ -148,67 +155,71 @@ fetch_genome_ensembl <- function(org) {
     }}
   Sys.sleep(5) 
 }
-fetch_genome_user <- function(data){
+fetch_genome_user <- function(data, genes){
   genome_path <- c()
   gtf_path <- c()
   print(data)
-  if(data$genome == "-" || data$gtf == "-"){
-    fetch_genome_ensembl(data$org)
+  genome <- data["genome"]
+  gtf <- data["gtf"]
+  org <- data["org"]
+  
+  if(genome == "-" || gtf == "-"){
+    fetch_genome_ensembl(org, genes)
     break;
   }
-  genome_path<-paste(GENOMES_PATH, "/",data$org,".fa.gz",sep = "")
-  gtf_path<-paste(ANNOS_PATH, "/",data$org,".gtf.gz",sep = "")  
-  fasta_path <- file.path(OUT_PATH ,data$org)
+  genome_path<-paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
+  gtf_path<-paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")  
+  fasta_path <- file.path(OUT_PATH ,org)
   
-  if(grepl("http",data$genome)){
+  if(grepl("http",genome)){
     if(!file.exists(genome_path) || !file.info(genome_path)$size > 0){
-      curl_fetch_disk(data$genome, paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep=""))
-      genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep="")
+      curl_fetch_disk(genome, paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
+      genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep="")
     }else{
       if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL) == 0){
         genome_path<-genome_path 
       }else{
-        lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(data$org,"_",2)[1]),function(x){
+        lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
           if(grepl(x,pattern = "fa|gz")){
             try(file.remove(x, showWarnings=F))
           }
         })
-        curl_fetch_disk(data$genome, basename(URLdecode(data$genome)))
-        genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(data$genome)),sep="") #basename(URLdecode(data$genome))
+        curl_fetch_disk(genome, basename(URLdecode(genome)))
+        genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep="") #basename(URLdecode(genome))
       }
     }
     
   }else{
-      genome_path <- data$genome
+      genome_path <- genome
     }
   
-  if(grepl("http",data$gtf)){
+  if(grepl("http",gtf)){
     if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 0){
-      curl_fetch_disk(data$gtf, paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
-      gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep="")
+      curl_fetch_disk(gtf, paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+      gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
     }else{
       if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL) == 0){
         gtf_path<-gtf_path        
       }else{
-        lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(data$org,"_",2)[1]),function(x){
+        lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
           if(grepl(x,pattern = "gtf|gz")){
             try(file.remove(x, showWarnings=F))
           }
         })
-        curl_fetch_disk(data$gtf, paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep=""))
-        gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(data$gtf)),sep="")
+        curl_fetch_disk(gtf, paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+        gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
       }
     }
     
   }else{
-      gtf_path <- data$gtf
+      gtf_path <- gtf
     }
   
   print(genome_path)
   print(gtf_path)
   
-  if(CLEAN_EXTRACT || !check_files(fasta_path,data$org)){
-    do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",data$org,sep="_"), "./extract_genomic_regions.sh",genome_path, gtf_path, gene_list, data$org), p_wait = SUBPROCESS_WAIT))
+  if(CLEAN_EXTRACT || !check_files(fasta_path,org,genes)){
+    do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",org,sep="_"), "./extract_genomic_regions.sh",genome_path, gtf_path, gene_list, org), p_wait = SUBPROCESS_WAIT))
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
       try(file_move(genome_path, paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")))
@@ -253,17 +264,18 @@ print(paste("GENOMES_SOURCE:",GENOMES_SOURCE))
 print(paste("MAX PROCESSES:",max_concurrent_jobs))
 print(paste("SUBPROCESS_WAIT:",SUBPROCESS_WAIT))
 
-tryCatch(numWorkers <- detectCores(all.tests = T, logical = T), error=function(){numWorkers=2})
+tryCatch(numWorkers <<- detectCores(all.tests = T, logical = T), error=function(){numWorkers <<- 2})
 if(is.na(numWorkers) || numWorkers > max_concurrent_jobs){
-  numWorkers=max_concurrent_jobs
+  numWorkers <<- max_concurrent_jobs
 }
 
-dir.create("files")
-dir.create(BED_PATH)
-dir.create(TEMP_PATH)
+dir.create("files",showWarnings = F, recursive = T)
+dir.create(BED_PATH,showWarnings = F, recursive = T)
+unlink(TEMP_PATH, recursive = T,force = T,expand = T)
+dir.create(TEMP_PATH,showWarnings = F, recursive = T)
 unlink(GROUPS_PATH, recursive = T,force = T,expand = T)
-dir.create(GROUPS_PATH)
-dir.create(OUT_PATH)
+dir.create(GROUPS_PATH,showWarnings = F, recursive = T)
+dir.create(OUT_PATH,showWarnings = F, recursive = T)
 
 genes <- gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
 genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
@@ -285,15 +297,21 @@ print("Checking and downloading organisms...")
 
 if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
   if(nrow(user_data)!=0){
-    for (row in 1:nrow(user_data)) {
-      #print(user_data[row,])
-      fetch_genome_user(user_data[row,])
-    }
+    #for (row in 1:nrow(user_data)) {
+    #  #print(user_data[row,])
+    #  fetch_genome_user(user_data[row,], genes)
+    #}
+    apply(user_data, MARGIN = 1, function(x){
+      fetch_genome_user(x, genes)
+    })
   }
 }
 
 if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="ensembl"){
-  mclapply(org.meta$name, fetch_genome_ensembl, mc.cores = 1)
+  #mclapply(org.meta$name, fetch_genome_ensembl, mc.cores = 1)
+  lapply(org.meta$name, FUN = function(x){
+    fetch_genome_ensembl(x, genes)
+  })
 }
 
 print(process_list)

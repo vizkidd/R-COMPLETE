@@ -16,7 +16,7 @@ f_org_name=$1
 gene_list=($(cat $2 | grep -v -w -i "gene"))
 ANNO_FILE=$4
 
-source fasta_functions.sh
+source functions.sh
 
 TEMP_PATH=$(grep -i -w "temp_path" parameters.txt | check_param) 
 ORTHODB_PATH_PREFIX=$(grep -i -w "orthodb_path_prefix" parameters.txt | check_param) 

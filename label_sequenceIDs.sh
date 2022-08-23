@@ -13,7 +13,7 @@ if [[ ! -s $4 ]]; then
 	exit 1
 fi
 
-source fasta_functions.sh
+source functions.sh
 
 rm -f $3
 
