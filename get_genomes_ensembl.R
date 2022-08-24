@@ -7,16 +7,17 @@ require(purrr)
 require(fs)
 require(processx)
 require(ps)
+require(stringi)
 require(stringr)
 
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
-  stop("Give the (1) folder path for storing genomes (2) folder path for storing annotations (3) the filename with gene symbols(without header) (4) FASTA OUTPUT PATH(absolute path)", call.=FALSE)
+  stop("Give the (1) Gene List", call.=FALSE)
 }
 set.seed(123)
 
-options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0))
+#options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0))
 
 #FUNCTIONS
 add_to_process <- function(p_cmd,p_args=list(),p_wait){
@@ -69,7 +70,7 @@ check_files <-function(fasta_path,org,genes){
     if(file.exists(paste("files/genes/",org,"/","AVAILABLE_GENES",sep=""))){
       available_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste("files/genes/",org,"/","AVAILABLE_GENES",sep=""), character())))
     }
-    files_in_dir <- unique(sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){str_split_fixed(string = x, pattern = fixed('.'),n=2)[1]})) 
+    files_in_dir <- unique(sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){stri_split_fixed(string = x, pattern = fixed('.'),n=2,simplify = T)[1]})) 
     missing_genes <- missing_genes[is.na(match(missing_genes, available_genes))] 
     print(paste("Genes in Dir:",length(files_in_dir),", Missing:",length(missing_genes),", Available:",length(available_genes),", User Genes:",length(genes)))
     if(!is.na(all(match(files_in_dir,available_genes) && all(match(available_genes,files_in_dir)))) && is.na(all(match(missing_genes, files_in_dir)))){
@@ -80,13 +81,15 @@ check_files <-function(fasta_path,org,genes){
   print(paste(fasta_path,": Check FAILED!"))
   return(FALSE)
 }
-fetch_genome_ensembl <- function(org, genes) {
+fetch_genome_db <- function(org_row, genes) {
   
-  if(tolower(GENOMES_SOURCE)=="both"){
+  org <- org_row["name"]
+  release <- org_row["release"]
+  #if(tolower(GENOMES_SOURCE)=="both"){
     if(!is.na(match(org,user_data$org))){
       return()
     }
-  }
+  #}
   fasta_path <- file.path(OUT_PATH ,org) 
   #print(fasta_path)
   details <- file.info(list.files(path = fasta_path, full.names = TRUE))
@@ -99,52 +102,55 @@ fetch_genome_ensembl <- function(org, genes) {
   g_name <- paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
   a_name <- paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")
   if(!file.exists(g_name) || !file.info(g_name)$size > 0){
-    genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH)) 
+    genome_path <-  try(getGenome(db = tolower(GENOMES_SOURCE), org, reference = F, gunzip = F, path = GENOMES_PATH, release = release)) 
     if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL)!=0){ #IF file didnt download properly
-      lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+      lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
         if(grepl(x,pattern = "fa|gz")){
           try(file.remove(x, showWarnings=F))
         }
       })
-      genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH))
+      genome_path <-  try(getGenome(db = tolower(GENOMES_SOURCE), org, reference = F, gunzip = F, path = GENOMES_PATH, release = release))
     }
   }else{
     if(system2("gzip",args = c("-t", g_name), wait = T,stdout = NULL, stderr = NULL) == 0){
       genome_path<-g_name
     }else{
-      lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+      lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
         if(grepl(x,pattern = "fa|gz")){
           try(file.remove(x, showWarnings=F))
         }
       })
-      genome_path <-  try(getGenome(db = "ensembl", org, reference = F, gunzip = F, path = GENOMES_PATH)) 
+      genome_path <-  try(getGenome(db = tolower(GENOMES_SOURCE), org, reference = F, gunzip = F, path = GENOMES_PATH, release=release)) 
     }
   }
   
   if(!file.exists(a_name) || !file.info(a_name)$size > 0){
-    gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH))) 
+    gtf_path <- try(getGTF(db = tolower(GENOMES_SOURCE), org, path = file.path(ANNOS_PATH),release = release)) 
     if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL)!=0){ #IF file didnt download properly
-      lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+      lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
         if(grepl(x,pattern = "gtf|gz")){
           try(file.remove(x, showWarnings=F))
         }
       })
-      gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH)))
+      gtf_path <- try(getGTF(db = tolower(GENOMES_SOURCE), org, path = file.path(ANNOS_PATH),release=release))
       }
   }else{
     if(system2("gzip",args = c("-t", a_name), wait = T,stdout = NULL, stderr = NULL) == 0){
       gtf_path<-a_name
     }else{
-      lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+      lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
         if(grepl(x,pattern = "gtf|gz")){
           try(file.remove(x, showWarnings=F))
         }
       })
-      gtf_path <- try(getGTF(db = "ensembl", org, path = file.path(ANNOS_PATH))) 
+      gtf_path <- try(getGTF(db = tolower(GENOMES_SOURCE), org, path = file.path(ANNOS_PATH),release=release)) 
     }
-    
   }
-  if(CLEAN_EXTRACT || !check_files(fasta_path,org,genes)){
+  
+  print(genome_path)
+  print(gtf_path)
+  
+  if(CLEAN_EXTRACT || !check_files(fasta_path,org,genes) && !is.logical(gtf_path) && !is.logical(genome_path)){
     do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",org,sep="_"), "./extract_genomic_regions.sh", genome_path, gtf_path, gene_list, org), p_wait = SUBPROCESS_WAIT))
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
@@ -164,7 +170,7 @@ fetch_genome_user <- function(data, genes){
   org <- data["org"]
   
   if(genome == "-" || gtf == "-"){
-    fetch_genome_ensembl(org, genes)
+    fetch_genome_db(org, genes)
     break;
   }
   genome_path<-paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
@@ -179,7 +185,7 @@ fetch_genome_user <- function(data, genes){
       if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL) == 0){
         genome_path<-genome_path 
       }else{
-        lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+        lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
           if(grepl(x,pattern = "fa|gz")){
             try(file.remove(x, showWarnings=F))
           }
@@ -201,7 +207,7 @@ fetch_genome_user <- function(data, genes){
       if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL) == 0){
         gtf_path<-gtf_path        
       }else{
-        lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = str_split_fixed(org,"_",2)[1]),function(x){
+        lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
           if(grepl(x,pattern = "gtf|gz")){
             try(file.remove(x, showWarnings=F))
           }
@@ -218,7 +224,7 @@ fetch_genome_user <- function(data, genes){
   print(genome_path)
   print(gtf_path)
   
-  if(CLEAN_EXTRACT || !check_files(fasta_path,org,genes)){
+  if(CLEAN_EXTRACT || !check_files(fasta_path,org,genes) && !is.logical(gtf_path) && !is.logical(genome_path)){
     do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",org,sep="_"), "./extract_genomic_regions.sh",genome_path, gtf_path, gene_list, org), p_wait = SUBPROCESS_WAIT))
   }else{
     if(file.exists(genome_path) && file_ext(genome_path) == "gz"){
@@ -226,7 +232,8 @@ fetch_genome_user <- function(data, genes){
     }
     if(file.exists(gtf_path) && file_ext(gtf_path) == "gz"){
       try(file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")))
-    }}
+    }
+  }
 }
 
 ####ENTRY POINT
@@ -280,23 +287,24 @@ dir.create(OUT_PATH,showWarnings = F, recursive = T)
 genes <- gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
 genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
 
-org.meta <- c()
-for(org in getENSEMBLGENOMESInfo()$name){
-  org.meta <- rbind(org.meta, is.genome.available(db = "ensembl", org, details = T))
-}
+org.meta <- listGenomes(db = tolower(GENOMES_SOURCE), type = "all", details = T) #c()
+#for(org in getENSEMBLGENOMESInfo()$name){
+#  org.meta <- rbind(org.meta, is.genome.available(db = "tolower(GENOMES_SOURCE)", org, details = T))
+#}
 
 check_list <- list()
 
 #Read user data
-if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
+#if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
+if(!stri_isempty(USER_GENOMES) && !is.null(USER_GENOMES)){
   user_data <- read.csv(USER_GENOMES,header = F)
   names(user_data) <- c("org","genome","gtf")
 }
 
 print("Checking and downloading organisms...")
 
-if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
-  if(nrow(user_data)!=0){
+#if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
+  if(nrow(user_data)!=0 && !is.null(user_data)){
     #for (row in 1:nrow(user_data)) {
     #  #print(user_data[row,])
     #  fetch_genome_user(user_data[row,], genes)
@@ -305,14 +313,14 @@ if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="user"){
       fetch_genome_user(x, genes)
     })
   }
-}
+#}
 
-if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)=="ensembl"){
-  #mclapply(org.meta$name, fetch_genome_ensembl, mc.cores = 1)
-  lapply(org.meta$name, FUN = function(x){
-    fetch_genome_ensembl(x, genes)
+#if(tolower(GENOMES_SOURCE)=="both" || tolower(GENOMES_SOURCE)!="user"){
+  #mclapply(org.meta$name, fetch_genome_db, mc.cores = 1)
+  apply(org.meta, MARGIN = 1, FUN = function(x){
+    fetch_genome_db(x, genes)
   })
-}
+#}
 
 print(process_list)
 

@@ -17,6 +17,17 @@ function ctrl_c() {
         exit 255
 }
 
+function check_param() {
+  local STDIN=$(cat)
+  local tmp_name=$(echo $STDIN | awk -F'==' '{print $1}')
+  local tmp_var=$(echo $STDIN | awk -F'==' '{print $2}')
+  if [[ -z $tmp_var ]]; then
+    echo "Parameter Error : $tmp_name is empty"
+    exit 1
+  fi
+  echo $tmp_var
+}
+
 ##ENTRYPOINT
 
 shopt -s expand_aliases
@@ -34,12 +45,13 @@ if [[ ! -s parameters.txt ]] ; then
 fi
 
 ##CREATE tmp file, put cmd in tmp file and then execute the tmp file
-TMP_DIR=$(grep -i -w "temp_path" parameters.txt | awk -F'==' '{print $2}') 
-CLUSTER_OPTS=$(grep -i -w "cluster_options" parameters.txt | awk -F'==' '{print $2}')
-MAX_CONCURRENT_JOBS=$(grep -i -w "max_concurrent_jobs" parameters.txt | awk -F'==' '{print $2}')
+TMP_DIR=$(grep -i -w "temp_path" parameters.txt | check_param) 
+CLUSTER_OPTS=$(grep -i -w "cluster_options" parameters.txt | check_param)
+DEF_SHELL=$(grep -i -w "default_shell" parameters.txt | check_param)
+MAX_CONCURRENT_JOBS=$(grep -i -w "max_concurrent_jobs" parameters.txt | check_param)
 
 if [[ -z $TMP_DIR || -z $CLUSTER_OPTS || -z $MAX_CONCURRENT_JOBS ]] ; then
-  echo "ERROR: Missing parameters!"
+  echo "ERROR: Missing parameters! (temp_path, cluster_options, max_concurrent_jobs)"
   echo "Check parameters.txt"
   exit -1
 fi
@@ -56,7 +68,7 @@ chmod a+x $tmp_file
 #$$ is current shell's process ID, we can get the parent shell of current shell and see how many child processes it has
 #CURRENT_PARENT_SHELL=(ps -fC jobhold.sh) #$(ps -ho ppid --pid $$ | awk '{print $1}') 
 CLUSTER="sh"
-CLUSTER_QUEUE_CMD="sh $tmp_file" #CLUSTER_QUEUE_CMD="(time sh $(echo $tmp_file | awk '{$1="";print}')) 1>> $TMP_DIR/$jobname.o 2>> $TMP_DIR/$jobname.e "
+CLUSTER_QUEUE_CMD="$DEF_SHELL $tmp_file" #CLUSTER_QUEUE_CMD="(time sh $(echo $tmp_file | awk '{$1="";print}')) 1>> $TMP_DIR/$jobname.o 2>> $TMP_DIR/$jobname.e "
 CLUSTER_JOBS_CMD="jobs -rl" #CLUSTER_JOBS_CMD="jobs -x"
 PROCS_COUNT_CMD="ps -o pid,stat -C jobhold.sh" #PROCS_COUNT_CMD="ps -ho pid,stat --ppid $CURRENT_PARENT_SHELL"
 #PROCS_COUNT="jobs -rl"  
@@ -129,7 +141,7 @@ while [ -n "$status" ] # while $status is not empty
 do
     PROCS_COUNT=($($PROCS_COUNT_CMD | sed 1d | grep -i -w 'r\|s' | awk '{print $1}' | grep -v "[[:alpha:]]\|[[:punct:]]")) #PROCS_COUNT=($($PROCS_COUNT_CMD | grep -i 'r' | awk '{print $1}'))
     JOBHOLD_COUNT=${#PROCS_COUNT[@]}
-    echo "Job $id($1)($tmp_file)($TMP_DIR/$jobname)($JOBHOLD_COUNT) running..."
+    #echo "Job $id($1)($tmp_file)($TMP_DIR/$jobname)($JOBHOLD_COUNT) running..."
 	status=`myqstat | grep $id`
     #status=`$CLUSTER_JOBS_CMD | grep $id`
     #echo $status

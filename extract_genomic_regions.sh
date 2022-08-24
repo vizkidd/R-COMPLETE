@@ -14,7 +14,7 @@
 #Check if scripts exist
 if [[ ! -s extract_gtf_info.R || ! -s check_OrthoDB.sh || ! -s label_sequenceIDs.sh || ! -s parameters.txt ]] ; then
   >&2 color_FG_Bold $Red "Missing scripts &/or parameters.txt!"
-  >&2 color_FG_Bold $Red  "Need : extract_gtf_info.R, check_OrthoDB.sh, label_sequenceIDs.sh, parameters.txt"
+  >&2 color_FG_Bold $Red "Need : extract_gtf_info.R, check_OrthoDB.sh, label_sequenceIDs.sh, parameters.txt"
   exit -1
 fi
 
@@ -64,19 +64,6 @@ mkdir -p files/genes/$f_org_name/odb/
 mkdir -p $TEMP_PATH/$f_org_name
 mkdir -p $bed_prefix
 
-genome_pipe="$TEMP_PATH/$f_org_name/genome_pipe"
-rm -f $genome_pipe
-mkfifo $genome_pipe
-
-gfile_name=$GENOME_FILE
-if [[ ${GENOME_FILE##*.} == "gz" ]] ; then
-    gfile_name=${GENOME_FILE%.*}
-fi
-zcat -f $GENOME_FILE > $genome_pipe & 
-cat < $genome_pipe > $gfile_name &
-#zcat -f $GENOME_FILE > $gfile_name &
-genome_proc_id=$(echo $!)
-
 if [[ $(echo $ANNO_FILE | grep -q -i "gtf") ]] ; then
   file_name=${ANNO_FILE%.*}
   nohup zcat -f $ANNO_FILE | gffread - -T -O -E | gzip -c - > $ANNOS_PATH/"$5".gtf.gz &> /dev/null &
@@ -84,23 +71,28 @@ if [[ $(echo $ANNO_FILE | grep -q -i "gtf") ]] ; then
   ANNO_FILE=$ANNOS_PATH/"$5".gtf.gz
 fi
 
->&1 color_FG_BG_Bold $Black $BG_Yellow "Building Genome Index (Samtools faidx)..."
-
-#if [[ ! -s $gfile_name.fai ]] ; then
-  #if [[ ${GENOME_FILE##*.} == "gz" ]] ; then
-  #  time samtools faidx -o $gfile_name --fai-idx $gfile_name.fai <(cat $genome_pipe) &
-  #else
-  #  time samtools faidx --fai-idx $gfile_name.fai <(cat $genome_pipe) &
-  #fi
-  time samtools faidx --fai-idx $gfile_name.fai <(cat $genome_pipe) &
-  genome_index_proc=$(echo $!)
-#fi
-
 while [[ $(lsof -R -p $$ | wc -l) -gt $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200 
 do
   printf %s"\t"%s"\n" "Waiting for file handles to close.." $(lsof -R -p $$ | wc -l)
   sleep 5
 done
+
+>&1 color_FG_BG_Bold $Black $BG_Yellow "Extracting Genome & Building Index (Samtools faidx)..."
+
+FIFO_FILE="$TEMP_PATH/$f_org_name/genome_pipe"
+rm -f $FIFO_FILE
+mkfifo $FIFO_FILE
+if [[ ${GENOME_FILE##*.} == "gz" ]] ; then
+  gfile_name=${GENOME_FILE%.*}
+  zcat -f $GENOME_FILE | tee $gfile_name > $FIFO_FILE &
+  genome_ext_proc=$(echo $!)
+else
+  gfile_name=$GENOME_FILE
+  zcat -f $GENOME_FILE > $FIFO_FILE &
+fi
+
+time samtools faidx --fai-idx $gfile_name.fai $FIFO_FILE &
+genome_index_proc=$(echo $!)
 
 ###################################################################################################
 
@@ -120,7 +112,7 @@ if [[ ! -s files/genes/$f_org_name/1.list || ! -s files/genes/$f_org_name/2.list
   time zgrep -i $MODE -A 0 --group-separator='>' -f <(echo "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}'
   
   zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' > files/genes/$f_org_name/1.list
-  echo ${gene_list[@]/($(cat files/genes/$f_org_name/1.list)))} | awk 'NF' > files/genes/$f_org_name/2.list
+  printf -- "%s\n" ${gene_list[@]/($(cat files/genes/$f_org_name/1.list)))} | awk 'NF' > files/genes/$f_org_name/2.list
 fi
 
 >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
@@ -173,11 +165,11 @@ fi
 gene_list=($(cat files/genes/$f_org_name/final.list | awk 'NF' ))
 s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo ${gene_list[@]})))
 
+if [[ ! -z $genome_ext_proc ]]; then
+  wait $genome_ext_proc
+fi
 if [[ ! -z $genome_index_proc ]]; then
   wait $genome_index_proc
-fi
-if [[ ! -z $genome_proc_id ]]; then
-  wait $genome_proc_id
 fi
 
 >&1 color_FG_BG_Bold $Black $BG_Yellow "4. Fetching sequences from Genome..."

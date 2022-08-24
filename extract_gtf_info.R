@@ -6,7 +6,7 @@ suppressMessages(require(parallel))
 suppressMessages(require(dataPreparation))
 suppressMessages(require(dplyr))
 suppressMessages(require(bedr))
-suppressMessages(require(purrr))
+#suppressMessages(require(purrr))
 #suppressMessages(require(future))
 
 ###FUNCTIONS
@@ -30,7 +30,8 @@ get_gtf_attributes <- function(gtf_data,attribute){
   return(unlist(lapply(strsplit(gtf_data$attributes, split="; "), function(x){
     attr_present <- grepl(x=x,pattern = attribute,ignore.case = T)
     if(any(attr_present)){
-      return(unlist(strsplit(x = x[which(attr_present)], split=" "))[2])
+      #return(unlist(strsplit(x = x[which(attr_present)], split=" "))[2])
+      return(sub(x=unlist(strsplit(x = x[which(attr_present)], split=" "))[2],replacement = "",pattern = "[[:punct:]]$"))
     }else{
       return("")
     }
