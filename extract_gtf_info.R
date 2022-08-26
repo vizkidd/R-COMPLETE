@@ -6,7 +6,7 @@ suppressMessages(require(parallel))
 suppressMessages(require(dataPreparation))
 suppressMessages(require(dplyr))
 suppressMessages(require(bedr))
-#suppressMessages(require(purrr))
+suppressMessages(require(purrr))
 #suppressMessages(require(future))
 
 ###FUNCTIONS
@@ -48,7 +48,7 @@ parallel_extract_info <- function(slice_file, strandedness="+") {
     return()
   }
   
-  gtf <- read.gtf(file = slice_file ,attr = c("intact")) 
+  suppressMessages(gtf <- read.gtf(file = slice_file ,attr = c("intact")))
   
   #gtf$ranges <- IRanges(gtf$start, gtf$end)
   gtf$gene_id <- get_gtf_attributes(gtf,"gene_id")
@@ -173,7 +173,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
     return(unlist(x,use.names = F,recursive = F))
   })
   utr_len_list[sapply(utr_len_list, is.null)] <- NULL
-  #save(file = "utr_len_list.RData",list="utr_len_list")
+  save(file = "utr_len_list.RData",list="utr_len_list")
   
   utr_len_df  <- bind_rows(lapply(utr_len_list, function(x){
     return(x[[1]])
@@ -182,19 +182,23 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
   if(nrow(utr_len_df) > 0 || length(utr_len_df) > 0 || !is.null(utr_len_df)){
     utr_len_df <- utr_len_df %>% mutate(org=org_name)
     write.table(utr_len_df, file(output_file, open = "w"), sep = ",", quote = F,row.names = F, col.names = T) 
-    bed_df <- bind_rows(lapply(utr_len_list, function(x){
-        tmp_bed <- x[[2]] 
-        tmp_bed$transcript_id[tolower(tmp_bed$feature)=="gene"] <- unique(tmp_bed$gene_name)
+    
+    bed_df <- bind_rows(lapply(seq_along(utr_len_list), function(x){
+      #print(x)  
+      tmp_bed <- utr_len_list[[x]][[2]]
+        if(any(!is.na(match(levels(factor(tmp_bed$feature)),"gene")))){
+          tmp_bed$transcript_id[tolower(tmp_bed$feature)=="gene"] <- unique(tmp_bed$gene_name)
+        }
         tmp_bed$feature[tolower(tmp_bed$feature)=="three_prime_utr"] <- "3utr"
         tmp_bed$feature[tolower(tmp_bed$feature)=="five_prime_utr"] <- "5utr"
         tmp_bed$feature[tolower(tmp_bed$feature)=="cds"] <- "cds"
         gtf_bed <- c()
-        gtf_bed <- convert2bed(tmp_bed[,c("seqnames","start","end")], check.sort = F, check.valid=F, check.merge=F, check.chr = any(grepl("chr",tmp_bed[,c("seqnames")])))
+        suppressMessages(gtf_bed <- convert2bed(tmp_bed[,c("seqnames","start","end")], check.sort = F, check.valid=F, check.merge=F, check.chr = any(grepl("chr",tmp_bed[,c("seqnames")]))))
         
         gtf_bed$name <- paste(tmp_bed$transcript_id, tmp_bed$feature,sep = TRANSCRIPT_ID_DELIM) 
         gtf_bed$feature <- tmp_bed$feature
         gtf_bed$strand <- tmp_bed$strand
-        
+        gtf_bed <- gtf_bed %>% mutate(gene_name=unique(tmp_bed$gene_name))
         return(gtf_bed)
       }))
       
@@ -258,8 +262,9 @@ if(!file.exists(output_file) || file.info(output_file)$size<4 || !file.exists(pa
   utr_len_df <- read.table(file = file(output_file, open = "r"), sep = ",",header = T)
   
   bed_df <- read.table(file = file(paste(BED_PATH_PREFIX,"bed",sep="."), open = "r"), sep = "\t",header = T)
-  bed_genes <- sapply(stri_split(bed_df[bed_df$feature=="gene",c("name")], fixed = TRANSCRIPT_ID_DELIM), function(x){return(x[[1]])})
+  bed_genes <- bed_df$gene_name #sapply(stri_split(bed_df[bed_df$feature=="gene",c("name")], fixed = TRANSCRIPT_ID_DELIM), function(x){return(x[[1]])})
   if(!all(!is.na(match(unique(bed_genes),unique(utr_len_df$gene_name)))) || !all(!is.na(match(unique(utr_len_df$gene_name),unique(bed_genes))))){
+    print("Some genes were missing, re-extracting")
     get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
   }else{
     get_bed(bed_df=bed_df, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)

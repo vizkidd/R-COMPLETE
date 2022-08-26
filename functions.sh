@@ -365,7 +365,9 @@ local LABEL_FASTA=$9
 if [ ! -s $FASTA_PATH/$s_name.$reg ]; then #$FASTA_PATH/$file_out.cds
   >&2 echo $s_name $reg
   
-  grep -i -w $gene_full files/genes/$org_name/gtf_stats.csv | awk -F',' '{print $3}' | grep -w -f - "$base_bed"_"$reg.bed" > $TEMP_PATH/"$s_name"_"$reg.bed"
+  if [[ -s "$base_bed"_"$reg.bed" ]]; then
+  	grep -i -w $gene_full files/genes/$org_name/gtf_stats.csv | awk -F',' '{print $3}' | grep -w -f - "$base_bed"_"$reg.bed" > $TEMP_PATH/"$s_name"_"$reg.bed"
+  fi
 
   ##TO get flanks 
   #grep -i -f files/genes/some_org/cat1.rna_list files/genes/some_org/cat1.gtf_slice | grep -i "utr" | grep -i "three\|3"
@@ -411,6 +413,23 @@ fi
 
 return 0
 }
+
+# function index_genome(){
+# 	# 1 - GENOME FILE
+# 	# 2 - FIFO pipe name
+# 	local GENOME_FILE=$1
+# 	local FIFO_FILE=$2
+# 	mkfifo $FIFO_FILE
+# 	if [[ ${GENOME_FILE##*.} == "gz" ]] ; then
+#   	local gfile_name=${GENOME_FILE%.*}
+# 	  zcat -f $GENOME_FILE | tee $FIFO_FILE $gfile_name &
+# 	else
+# 		local gfile_name=$GENOME_FILE
+# 		zcat -f $GENOME_FILE > $FIFO_FILE &
+# 	fi
+
+#   time samtools faidx --fai-idx $gfile_name.fai $FIFO_FILE
+# }
 
 function color_FG(){
 	# 1 - FG color
@@ -464,6 +483,7 @@ export -f select_transcripts
 export -f delete_empty_orgs
 export -f count_genes4orgs
 export -f count_seqs4genes
+#export -f index_genome
 export -f get_fasta
 export -f get_length_dist
 export -f get_count_dist

@@ -15,7 +15,7 @@
 if [[ ! -s extract_gtf_info.R || ! -s check_OrthoDB.sh || ! -s label_sequenceIDs.sh || ! -s parameters.txt ]] ; then
   >&2 color_FG_Bold $Red "Missing scripts &/or parameters.txt!"
   >&2 color_FG_Bold $Red "Need : extract_gtf_info.R, check_OrthoDB.sh, label_sequenceIDs.sh, parameters.txt"
-  exit -1
+  exit 1
 fi
 
 GENOME_FILE=$1
@@ -91,8 +91,10 @@ else
   zcat -f $GENOME_FILE > $FIFO_FILE &
 fi
 
-time samtools faidx --fai-idx $gfile_name.fai $FIFO_FILE &
-genome_index_proc=$(echo $!)
+if [[ ! -s $gfile_name.fai ]]; then
+  time samtools faidx --fai-idx $gfile_name.fai $FIFO_FILE &
+  genome_index_proc=$(echo $!)
+fi
 
 ###################################################################################################
 
@@ -115,7 +117,12 @@ if [[ ! -s files/genes/$f_org_name/1.list || ! -s files/genes/$f_org_name/2.list
   printf -- "%s\n" ${gene_list[@]/($(cat files/genes/$f_org_name/1.list)))} | awk 'NF' > files/genes/$f_org_name/2.list
 fi
 
->&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
+if [[ -s files/genes/$f_org_name/1.list && -s files/genes/$f_org_name/2.list ]]; then
+  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
+else
+  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed") | tee >(cat >&2)
+  exit 1
+fi
 
 #######################################################################################################
 
@@ -134,31 +141,39 @@ if [[ $(awk 'END{print NR;}' "files/genes/$f_org_name/odb.list" | awk '{print $1
     eexp_gene=$(printf -- '%s\n' "${short_list[@]}")
     time echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' 
   fi
+
+  ##REFRESH geene list based on file names
+  cat files/genes/$f_org_name/1.list files/genes/$f_org_name/2.list files/genes/$f_org_name/odb.list | awk 'NF' > files/genes/$f_org_name/full.list
+
+  >&1 echo $(color_FG $Green "2. DONE : Full List : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/full.list")$(color_FG $Green ", List from ODB : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/odb.list")$(color_FG $Green ", ODB Cluster to Genes Map : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/odb.final_map")
+
 else
-  >&2 echo $(color_FG_Bold $Red "2. Error : ")$(color_FG_BG_Bold $White $BG_Red "files/genes/$f_org_name/odb/odb.list")$(color_FG_Bold $Red " missing, Possibly orthologous genes were not found ")
-  >&2 color_FG_Bold $Red "2. If unsure, re-run command: ./jobhold.sh check_ortho ./check_OrthoDB.sh $f_org_name $GENE_LIST $ANNO_FILE"
+  echo $(color_FG_Bold $Red "2. Error : ")$(color_FG_BG_Bold $White $BG_Red "files/genes/$f_org_name/odb/odb.list")$(color_FG_Bold $Red " missing, Possibly orthologous genes were not found ") | tee >(cat >&2)
+  color_FG_Bold $Red "2. If unsure, re-run command: ./jobhold.sh check_ortho ./check_OrthoDB.sh $f_org_name $GENE_LIST $ANNO_FILE" | tee >(cat >&2)
+  cat files/genes/$f_org_name/1.list files/genes/$f_org_name/2.list | awk 'NF' > files/genes/$f_org_name/full.list
 fi
-
-##REFRESH geene list based on file names
-cat files/genes/$f_org_name/1.list files/genes/$f_org_name/2.list files/genes/$f_org_name/odb.list | awk 'NF' > files/genes/$f_org_name/full.list
-
->&1 echo $(color_FG $Green "2. DONE : Full List : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/full.list")$(color_FG $Green ", List from ODB : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/odb.list")$(color_FG $Green ", ODB Cluster to Genes Map : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/odb.final_map")
 
 #######################################################################################################
 
->&1 color_FG_BG_Bold $Black $BG_Yellow "3. Extracting Transcript Stats from GTF_Slices...(log:$TEMP_PATH/$f_org_name/get_GTF_info.[o/e])"
+>&1 color_FG_BG_Bold $Black $BG_Yellow "3. Extracting Transcript Stats from GTF_Slices..." #(log:$TEMP_PATH/$f_org_name/get_GTF_info.[o/e])
 
-time Rscript --vanilla --verbose extract_gtf_info.R $TEMP_PATH/$f_org_name/ $f_org_name files/genes/$f_org_name/gtf_stats.csv 1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
+time Rscript --vanilla --verbose extract_gtf_info.R $TEMP_PATH/$f_org_name/ $f_org_name files/genes/$f_org_name/gtf_stats.csv #1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
+r_exit_code="$?"
 sed 1d files/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > files/genes/$f_org_name/final.list
 
-if [[ ! -s files/genes/$f_org_name/gtf_stats.csv || ! -s files/genes/$f_org_name/final.list ]] ; then
+if [[ ! -s files/genes/$f_org_name/gtf_stats.csv || ! -s files/genes/$f_org_name/final.list || $r_exit_code != 0 ]] ; then
   >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed..."
   >&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
   >&2 color_FG_Bold $Red "3. Remove $TEMP_PATH/$f_org_name/ & files/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
   exit 1
 fi
 
+if [[ -s files/genes/$f_org_name/gtf_stats.csv && -s files/genes/$f_org_name/final.list && $r_exit_code != 0 ]] ; then
 >&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/gtf_stats.csv")
+else
+  echo $(color_FG_BG_Bold $Red $BG_White "3. Error : Step 3 Failed") | tee >(cat >&2)
+  exit 1
+fi
 
 #######################################################################################################
 
@@ -175,13 +190,19 @@ fi
 >&1 color_FG_BG_Bold $Black $BG_Yellow "4. Fetching sequences from Genome..."
 >&1 color_FG $Yellow "Transcript Regions : $(IFS=","; echo ${TRANSCRIPT_REGIONS[*]}) "
 
-time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $LABEL_SEQS ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+if [[ -s $gfile_name ]]; then
 
->&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
+  time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $LABEL_SEQS ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+
+  >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
+else
+  echo $(color_FG_BG_Bold $Red $BG_White "4. Error : Step 4 Failed, Genome not found!") | tee >(cat >&2)
+  exit 1
+fi
 
 #############################################################################################################
 
-if [[ $LABEL_SEQS ==  "TRUE" ]] ; then
+if [[ $LABEL_SEQS ==  "TRUE" && -s files/genes/$f_org_name/odb.final_map ]] ; then
   >&1 color_FG_BG_Bold $Black $BG_Yellow "4.1 Labelling sequences..."
   tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
   time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "./label_sequenceIDs.sh $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp files/genes/$f_org_name/odb.final_map" 
@@ -200,8 +221,9 @@ if [[ ${GENOME_FILE##*.} == "gz" && ! -z $gfile_name ]]; then
   rm -f $gfile_name
 fi
 
+rm -f $FIFO_FILE
 rm -rf $TEMP_PATH/$f_org_name/
-rm -f $bed_prefix/$f_org_name_*
+rm -f $bed_prefix/"$f_org_name"_*
 if [[ $REMOVE_DOWNLOADS == "TRUE" ]] ; then
    rm $GENOME_FILE
    rm $ANNO_FILE
