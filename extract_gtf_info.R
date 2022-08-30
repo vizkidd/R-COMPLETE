@@ -186,20 +186,26 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
     bed_df <- bind_rows(lapply(seq_along(utr_len_list), function(x){
       #print(x)  
       tmp_bed <- utr_len_list[[x]][[2]]
-        if(any(!is.na(match(levels(factor(tmp_bed$feature)),"gene")))){
-          tmp_bed$transcript_id[tolower(tmp_bed$feature)=="gene"] <- unique(tmp_bed$gene_name)
+      tmp_bed <- split(tmp_bed,as.factor(tmp_bed$gene_name))
+      gtf_beds <- bind_rows(lapply(tmp_bed, function(x){
+        if(any(!is.na(match(levels(factor(x$feature)),"gene")))){
+          x$transcript_id[tolower(x$feature)=="gene"] <- unique(x$gene_name)
         }
-        tmp_bed$feature[tolower(tmp_bed$feature)=="three_prime_utr"] <- "3utr"
-        tmp_bed$feature[tolower(tmp_bed$feature)=="five_prime_utr"] <- "5utr"
-        tmp_bed$feature[tolower(tmp_bed$feature)=="cds"] <- "cds"
+        x$feature[tolower(x$feature)=="three_prime_utr"] <- "3utr"
+        x$feature[tolower(x$feature)=="five_prime_utr"] <- "5utr"
+        x$feature[tolower(x$feature)=="cds"] <- "cds"
         gtf_bed <- c()
-        suppressMessages(gtf_bed <- convert2bed(tmp_bed[,c("seqnames","start","end")], check.sort = F, check.valid=F, check.merge=F, check.chr = any(grepl("chr",tmp_bed[,c("seqnames")]))))
+        suppressMessages(gtf_bed <- convert2bed(x[,c("seqnames","start","end")], check.sort = F, check.valid=F, check.merge=F, check.chr = any(grepl("chr",x[,c("seqnames")])), verbose = F))
         
-        gtf_bed$name <- paste(tmp_bed$transcript_id, tmp_bed$feature,sep = TRANSCRIPT_ID_DELIM) 
-        gtf_bed$feature <- tmp_bed$feature
-        gtf_bed$strand <- tmp_bed$strand
-        gtf_bed <- gtf_bed %>% mutate(gene_name=unique(tmp_bed$gene_name))
+        gtf_bed$name <- paste(x$transcript_id, x$feature,sep = TRANSCRIPT_ID_DELIM) 
+        gtf_bed$feature <- x$feature
+        gtf_bed$strand <- x$strand
+        gtf_bed <- gtf_bed %>% mutate(gene_name=unique(x$gene_name))
+        #print(unique(x$gene_name))
         return(gtf_bed)
+      }))
+
+      return(gtf_beds)
       }))
       
       get_bed(bed_df=bed_df, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)

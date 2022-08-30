@@ -163,12 +163,12 @@ sed 1d files/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort
 
 if [[ ! -s files/genes/$f_org_name/gtf_stats.csv || ! -s files/genes/$f_org_name/final.list || $r_exit_code != 0 ]] ; then
   >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed..."
-  >&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
-  >&2 color_FG_Bold $Red "3. Remove $TEMP_PATH/$f_org_name/ & files/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
+  #>&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
+  >&2 color_FG_Bold $Red "3. (Possible Fix) : Remove $TEMP_PATH/$f_org_name/ & files/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
   exit 1
 fi
 
-if [[ -s files/genes/$f_org_name/gtf_stats.csv && -s files/genes/$f_org_name/final.list && $r_exit_code != 0 ]] ; then
+if [[ -s files/genes/$f_org_name/gtf_stats.csv && -s files/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 >&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/gtf_stats.csv")
 else
   echo $(color_FG_BG_Bold $Red $BG_White "3. Error : Step 3 Failed") | tee >(cat >&2)

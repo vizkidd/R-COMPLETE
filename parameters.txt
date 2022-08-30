@@ -20,7 +20,7 @@ groups_path==files/groups== path to save FASTA sequences as orthologous groups (
 blastdb_path==files/blastdb== path to save BLAST DBs to (Output)
 ref_orgs==../files/reference_ORGS.txt== subset of orgs from FASTA PATH(each line should be a folder name of an org) (Input)
 cluster_options== -V -l data -cwd -l h_rt=5:0:0 == Custom options for the cluster scheduler(SGE/SLURM) (WITHOUT job name) (Input)
-max_concurrent_jobs==16== Number of concurrent jobs to be executed at any given time in jobhold.sh and number of threads in rest of the scripts (Input)
+max_concurrent_jobs==5== Number of concurrent jobs to be executed at any given time in jobhold.sh and number of threads in rest of the scripts (Input)
 remove_downloads==FALSE== Remove downloaded GTFs and Genomes? (Input)
 clean_download==FALSE== Re-download genomes and GTFs? (Input)
 clean_extract==TRUE== Re-extract transcript regions? (Input)
