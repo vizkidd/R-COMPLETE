@@ -39,36 +39,39 @@ sleep_time=10 # seconds; don't make this too short! don't want to tax system wit
 me=`whoami`
 
 if [[ ! -s parameters.txt ]] ; then
-  echo "ERROR: Missing parameters.txt!"
-  echo "Need : parameters.txt"
-  exit -1
+  #echo "ERROR: Missing parameters.txt!"
+  #echo "Need : parameters.txt"
+  #exit -1
+  TMP_DIR=$(echo $TMPDIR)
+  CLUSTER_OPTS=""
+  MAX_CONCURRENT_JOBS=1
+else
+    TMP_DIR=$(grep -i -w "temp_path" parameters.txt | check_param) 
+    CLUSTER_OPTS=$(grep -i -w "cluster_options" parameters.txt | check_param)
+    MAX_CONCURRENT_JOBS=$(grep -i -w "max_concurrent_jobs" parameters.txt | check_param)
 fi
 
 ##CREATE tmp file, put cmd in tmp file and then execute the tmp file
-TMP_DIR=$(grep -i -w "temp_path" parameters.txt | check_param) 
-CLUSTER_OPTS=$(grep -i -w "cluster_options" parameters.txt | check_param)
-DEF_SHELL=$(grep -i -w "default_shell" parameters.txt | check_param)
-MAX_CONCURRENT_JOBS=$(grep -i -w "max_concurrent_jobs" parameters.txt | check_param)
 
-if [[ -z $TMP_DIR || -z $CLUSTER_OPTS || -z $MAX_CONCURRENT_JOBS ]] ; then
-  echo "ERROR: Missing parameters! (temp_path, cluster_options, max_concurrent_jobs)"
-  echo "Check parameters.txt"
-  exit -1
-fi
+# if [[ -z $TMP_DIR || -z $CLUSTER_OPTS || -z $MAX_CONCURRENT_JOBS ]] ; then
+#   echo "ERROR: Missing parameters! (temp_path, cluster_options, max_concurrent_jobs)"
+#   echo "Check parameters.txt"
+#   exit -1
+# fi
 
 mkdir -p $TMP_DIR
 tmp_file=$(mktemp -p $TMP_DIR)
 touch $tmp_file
 #printf -- "time ${full_cmd[@]/$1}" > $tmp_file
-printf -- %s"\n"%s"\n" "#!/bin/bash" " $(echo ${full_cmd[@]/$jobname})" > $tmp_file
+printf -- %s"\n"%s"\n" "#!$SHELL" " $(echo ${full_cmd[@]/$jobname})" > $tmp_file
 #printf -- %s"\n"%s"\n" "#!/bin/bash" $only_cmd > $tmp_file
 chmod a+x $tmp_file
 #cat $tmp_file #debugging
 
 #$$ is current shell's process ID, we can get the parent shell of current shell and see how many child processes it has
 #CURRENT_PARENT_SHELL=(ps -fC jobhold.sh) #$(ps -ho ppid --pid $$ | awk '{print $1}') 
-CLUSTER="sh"
-CLUSTER_QUEUE_CMD="$DEF_SHELL $tmp_file" #CLUSTER_QUEUE_CMD="(time sh $(echo $tmp_file | awk '{$1="";print}')) 1>> $TMP_DIR/$jobname.o 2>> $TMP_DIR/$jobname.e "
+CLUSTER="$SHELL"
+CLUSTER_QUEUE_CMD="$SHELL $tmp_file" #CLUSTER_QUEUE_CMD="(time sh $(echo $tmp_file | awk '{$1="";print}')) 1>> $TMP_DIR/$jobname.o 2>> $TMP_DIR/$jobname.e "
 CLUSTER_JOBS_CMD="jobs -rl" #CLUSTER_JOBS_CMD="jobs -x"
 PROCS_COUNT_CMD="ps -o pid,stat -C jobhold.sh" #PROCS_COUNT_CMD="ps -ho pid,stat --ppid $CURRENT_PARENT_SHELL"
 #PROCS_COUNT="jobs -rl"  
@@ -98,7 +101,7 @@ while [ "$JOBHOLD_COUNT" -gt "$MAX_CONCURRENT_JOBS" ];
 do
   printf %s"\n" "Waiting for jobs to end..($JOBHOLD_COUNT)"
   kill -STOP $$
-#  if [ $CLUSTER == "sh" ]; then 
+#  if [ $CLUSTER == "$SHELL" ]; then 
 #    kill -STOP $$
 #elif [ $CLUSTER == "SGE" ]; then 
 #    sleep $sleep_time
@@ -120,7 +123,7 @@ alias myqstat=$CLUSTER_JOBS_CMD
 export myqstat
 #stdout=`$@` # call the command and capture the stdout
 
-if [ $CLUSTER == "sh" ]; then 
+if [ $CLUSTER == "$SHELL" ]; then 
     nohup $CLUSTER_QUEUE_CMD 1>> $TMP_DIR/$jobname.o 2>> $TMP_DIR/$jobname.e& #&> /dev/null & # call the command and capture the stdout
     id="$!"
 elif [ $CLUSTER == "SGE" ]; then 
@@ -155,7 +158,7 @@ do
 
 done
 
-printf %s"\n" "----Job $id($1)(sh:$tmp_file)(logs:$TMP_DIR/$jobname.[o/e]) complete---- "
+printf %s"\n" "----Job $id($1)($SHELL:$tmp_file)(logs:$TMP_DIR/$jobname.[o/e]) complete---- "
 
 #declare -x -g -i JOBHOLD_COUNT=$(($JOBHOLD_COUNT-1)) #export -n JOBHOLD_COUNT=$(($JOBHOLD_COUNT-1))
 

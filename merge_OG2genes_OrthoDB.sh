@@ -12,6 +12,11 @@ ORTHODB_PATH_PREFIX=$(grep -i -w "orthodb_path_prefix" parameters.txt | check_pa
 CLEAN_EXTRACT=$(grep -i -w "clean_extract" parameters.txt | check_param) 
 n_threads=$(grep -i -w "max_concurrent_jobs" parameters.txt | check_param)
 
+if [[ $(ls -1 "$ORTHODB_PATH_PREFIX"*.gz | awk "END{print NR}") == 0 ]] ; then
+	echo $(color_FG_BG_Bold $Red $BG_White "Error : ODB Path not found!") | tee >(cat >&2)
+  exit 1
+fi
+
 if [[ $CLEAN_EXTRACT == "TRUE" ]]; then
 #	rm -f "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
 	rm -f "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz

@@ -7,14 +7,13 @@
 # $1 - reference organism
 # $2 - gene list (to look for orthologous genes)
 # $3 - output file for gene list from OrthoDB
-# $4 - ANNO_FILE
+# $4 - output file for gene clusters from OrthoDB
 
 ##ENTRYPOINT
 
 f_org_name=$1
 #readarray gene_list < $2
 gene_list=($(cat $2 | grep -v -w -i "gene"))
-ANNO_FILE=$4
 
 source functions.sh
 
@@ -29,6 +28,7 @@ if [[ $GENE_SEARCH_MODE=="HARD" ]]; then
   MODE="-w"
 fi
 
+mkdir -p $TEMP_PATH/$f_org_name/
 mkdir -p files/genes/$f_org_name/odb/
 
 #Check if ODB files exist
@@ -86,12 +86,23 @@ zgrep -f <(printf -- '%s\n' "${ref_org_IDs[@]}") $ODB_FILE | gzip -c > $TEMP_PAT
 #ODB GENE IDs and GENE NAMES are delimited with || which I am splitting with awk regexp \|/|, and selecting the elements which match the organisms and genes
 zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | grep -i $MODE -f <(printf -- '%s\n' "${lookup_genes[@]}") - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u > $3
 
->&1 echo $(color_FG $Green "2. DONE: Found Orthologous genes : ")$(color_FG_BG_Bold $White $BG_Purple "$3")
+if [[ -s $3 ]]; then
+  >&1 echo $(color_FG $Green "2. DONE: Found Orthologous genes : ")$(color_FG_BG_Bold $White $BG_Purple "$3")
+else
+  >&2 echo $(color_FG $Red "2. Error: Orthologous genes couldn't be found/saved to $3")
+  exit 1
+fi
 
 #Save selected clusters and the participating genes(delimiter=",") in odb.final_map
-zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat $2 $3 | grep -v -w -i "gene") | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > files/genes/$f_org_name/odb.final_map
+zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat $2 $3 | grep -v -w -i "gene") | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $4 #> files/genes/$f_org_name/odb.final_map
 
->&1 echo $(color_FG $Green "2. DONE: Mapped gene names to clusters : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/odb.final_map")
+if [[ -s $4 ]]; then #files/genes/$f_org_name/odb.final_map
+  >&1 echo $(color_FG $Green "2. DONE: Mapped gene names to clusters : ")$(color_FG_BG_Bold $White $BG_Purple "$4")
+else
+  >&2 echo $(color_FG $Red "2. Error: OG Cluster to gene mappings couldn't be saved to $4")
+  exit 1
+fi
+
 
 rm -f $TEMP_PATH/$f_org_name/odb.clusters.gz
 

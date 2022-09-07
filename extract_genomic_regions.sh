@@ -35,10 +35,9 @@ CLEAN_EXTRACT=$(grep -i -w "clean_extract" parameters.txt | check_param)
 TRANSCRIPT_REGIONS=($(grep -i -w "transcript_regions" parameters.txt | check_param | sed "s/,/\n/g" ))
 GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" parameters.txt | check_param)
 ORTHODB_PATH_PREFIX=$(grep -i -w "orthodb_path_prefix" parameters.txt | check_param) 
-REMOVE_DOWNLOADS=$(grep -i -w "remove_downloads" parameters.txt | check_param) 
 REF_ORGS=$(grep -i -w "ref_orgs" parameters.txt | check_param) 
 seqID_delimiter=$(grep -i -w "seqID_delimiter" parameters.txt | check_param) 
-LABEL_SEQS=$(grep -i -w "label_sequence_IDs" parameters.txt | check_param) 
+#LABEL_SEQS=$(grep -i -w "label_sequence_IDs" parameters.txt | check_param) 
 #n_threads=$(nproc --all)
 n_threads=$(grep -i -w "max_concurrent_jobs" parameters.txt | check_param)
 
@@ -64,11 +63,11 @@ mkdir -p files/genes/$f_org_name/odb/
 mkdir -p $TEMP_PATH/$f_org_name
 mkdir -p $bed_prefix
 
-if [[ $(echo $ANNO_FILE | grep -q -i "gtf") ]] ; then
+if [[ $(echo $ANNO_FILE | grep -q -i "gtf") != 0 ]] ; then
   file_name=${ANNO_FILE%.*}
-  nohup zcat -f $ANNO_FILE | gffread - -T -O -E | gzip -c - > $ANNOS_PATH/"$5".gtf.gz &> /dev/null &
+  zcat -f $ANNO_FILE | gffread - -T -O -E -o - | gzip -c > $ANNOS_PATH/"$f_org_name".gtf.gz &
   anno_proc_id=$(echo $!)
-  ANNO_FILE=$ANNOS_PATH/"$5".gtf.gz
+  ANNO_FILE=$ANNOS_PATH/"$f_org_name".gtf.gz
 fi
 
 while [[ $(lsof -R -p $$ | wc -l) -gt $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200 
@@ -79,29 +78,22 @@ done
 
 >&1 color_FG_BG_Bold $Black $BG_Yellow "Extracting Genome & Building Index (Samtools faidx)..."
 
-FIFO_FILE="$TEMP_PATH/$f_org_name/genome_pipe"
-rm -f $FIFO_FILE
-mkfifo $FIFO_FILE
 if [[ ${GENOME_FILE##*.} == "gz" ]] ; then
   gfile_name=${GENOME_FILE%.*}
-  zcat -f $GENOME_FILE | tee $gfile_name > $FIFO_FILE &
-  genome_ext_proc=$(echo $!)
 else
   gfile_name=$GENOME_FILE
-  zcat -f $GENOME_FILE > $FIFO_FILE &
 fi
 
-if [[ ! -s $gfile_name.fai ]]; then
-  time samtools faidx --fai-idx $gfile_name.fai $FIFO_FILE &
-  genome_index_proc=$(echo $!)
-fi
+index_genome $GENOME_FILE &
+genome_index_proc=$(echo $!)
+
+>&1 color_FG $Yellow "Genome : $gfile_name\nAnnotation : $ANNO_FILE"
 
 ###################################################################################################
 
 gene_list=($(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene"))
 
 >&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing..."
-
 
 if [[ ! -z $anno_proc_id ]]; then
   wait $anno_proc_id
@@ -111,14 +103,14 @@ if [[ ! -s files/genes/$f_org_name/1.list || ! -s files/genes/$f_org_name/2.list
   eexp_gene=$(printf -- '%s\n' "${gene_list[@]}")
   
   #Splitting GTF into multiple parts based on grep output for downstream parallel processing in extract_gtf_info.R
-  time zgrep -i $MODE -A 0 --group-separator='>' -f <(echo "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}'
+  time zgrep -i $MODE -A 0 --group-separator='>' -f <(echo "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
   
   zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' > files/genes/$f_org_name/1.list
   printf -- "%s\n" ${gene_list[@]/($(cat files/genes/$f_org_name/1.list)))} | awk 'NF' > files/genes/$f_org_name/2.list
 fi
 
 if [[ -s files/genes/$f_org_name/1.list && -s files/genes/$f_org_name/2.list ]]; then
-  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
+  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found in annotation: ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
 else
   echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed") | tee >(cat >&2)
   exit 1
@@ -129,7 +121,7 @@ fi
 >&1 color_FG_BG_Bold $Black $BG_Yellow "2. Checking OrthoDB for missing & orthologous genes..."
 
 if [[ ! -s files/genes/$f_org_name/odb.list || ! -s files/genes/$f_org_name/final.list || ! -s files/genes/$f_org_name/odb.final_map ]] ; then
-  time ./check_OrthoDB.sh $f_org_name $GENE_LIST files/genes/$f_org_name/odb.list $ANNO_FILE 
+  time ./check_OrthoDB.sh $f_org_name $GENE_LIST files/genes/$f_org_name/odb.list files/genes/$f_org_name/odb.final_map
 fi
 
 if [[ $(awk 'END{print NR;}' "files/genes/$f_org_name/odb.list" | awk '{print $1}') !=  0 ]] ; then
@@ -139,7 +131,7 @@ if [[ $(awk 'END{print NR;}' "files/genes/$f_org_name/odb.list" | awk '{print $1
 
   if [[ "${#short_list[@]}" > 0 ]] ; then
     eexp_gene=$(printf -- '%s\n' "${short_list[@]}")
-    time echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' 
+    time echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/2.gtf_slice 
   fi
 
   ##REFRESH geene list based on file names
@@ -180,9 +172,6 @@ fi
 gene_list=($(cat files/genes/$f_org_name/final.list | awk 'NF' ))
 s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo ${gene_list[@]})))
 
-if [[ ! -z $genome_ext_proc ]]; then
-  wait $genome_ext_proc
-fi
 if [[ ! -z $genome_index_proc ]]; then
   wait $genome_index_proc
 fi
@@ -192,7 +181,7 @@ fi
 
 if [[ -s $gfile_name ]]; then
 
-  time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $LABEL_SEQS ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+  time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
 
   >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
 else
@@ -202,17 +191,17 @@ fi
 
 #############################################################################################################
 
-if [[ $LABEL_SEQS ==  "TRUE" && -s files/genes/$f_org_name/odb.final_map ]] ; then
+#if [[ $LABEL_SEQS ==  "TRUE" && -s files/genes/$f_org_name/odb.final_map ]] ; then
   >&1 color_FG_BG_Bold $Black $BG_Yellow "4.1 Labelling sequences..."
   tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
   time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "./label_sequenceIDs.sh $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp files/genes/$f_org_name/odb.final_map" 
-fi
+#fi
 
 #######################################################################################################
 
 >&1 color_FG_BG_Bold $Black $BG_Yellow "5. Generating Metadata and Cleaning up..."
 
-sed 1d files/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $2}' | sort | uniq >  files/genes/$f_org_name/AVAILABLE_GENES
+sed 1d files/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1}' | sort | uniq >  files/genes/$f_org_name/AVAILABLE_GENES 
 grep -v -i -f files/genes/$f_org_name/AVAILABLE_GENES $GENE_LIST | sort | uniq > files/genes/$f_org_name/MISSING_GENES
 
 find $FASTA_PATH/$f_org_name/ -type f -name "*.fai" -exec rm -f {} +
@@ -221,13 +210,17 @@ if [[ ${GENOME_FILE##*.} == "gz" && ! -z $gfile_name ]]; then
   rm -f $gfile_name
 fi
 
-rm -f $FIFO_FILE
+if [[ ! -s $GENOMES_PATH/$f_org_name.fa.gz ]]; then
+     zcat -f $GENOME_FILE | gzip -c > $GENOMES_PATH/$f_org_name.fa.gz
+     >&1 echo $(color_FG $Green "Genome saved to : ")$(color_FG_BG_Bold $White $BG_Purple "$GENOMES_PATH/$f_org_name.fa.gz")
+fi
+if [[ ! -s $ANNOS_PATH/$f_org_name.gtf.gz ]]; then
+     zcat -f $ANNO_FILE | gzip -c > $ANNOS_PATH/$f_org_name.gtf.gz
+     >&1 echo $(color_FG $Green "Annotation saved to : ")$(color_FG_BG_Bold $White $BG_Purple "$ANNOS_PATH/$f_org_name.gtf.gz")
+fi
+
 rm -rf $TEMP_PATH/$f_org_name/
 rm -f $bed_prefix/"$f_org_name"_*
-if [[ $REMOVE_DOWNLOADS == "TRUE" ]] ; then
-   rm $GENOME_FILE
-   rm $ANNO_FILE
-fi
 
 >&1 color_FG_BG_Bold $Purple $BG_White "Extraction DONE for organism : $f_org_name"
 

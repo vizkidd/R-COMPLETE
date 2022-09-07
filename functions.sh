@@ -360,10 +360,10 @@ local org_name=$5
 local FASTA_PATH=$6
 local GTF_PATH=$7
 local TEMP_PATH=$8
-local LABEL_FASTA=$9
+#local LABEL_FASTA=$9
 
 if [ ! -s $FASTA_PATH/$s_name.$reg ]; then #$FASTA_PATH/$file_out.cds
-  >&2 echo $s_name $reg
+  #>&2 echo $s_name $reg
   
   if [[ -s "$base_bed"_"$reg.bed" ]]; then
   	grep -i -w $gene_full files/genes/$org_name/gtf_stats.csv | awk -F',' '{print $3}' | grep -w -f - "$base_bed"_"$reg.bed" > $TEMP_PATH/"$s_name"_"$reg.bed"
@@ -403,11 +403,11 @@ if [ ! -s $FASTA_PATH/$s_name.$reg ]; then #$FASTA_PATH/$file_out.cds
   fi
 
   if [[ -s $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed || -L $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed ]]; then
-    if [[ $LABEL_FASTA ==  "TRUE" ]] ; then
+    #if [[ $LABEL_FASTA ==  "TRUE" ]] ; then
       bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg.tmp" #NOTUSING name+ because it also gives coordinates
-    else
-      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
-    fi
+    #else
+    #  bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
+    #fi
   fi
 fi
 
@@ -463,6 +463,31 @@ function color_FG_BG_Bold(){
 	echo -e '\033[1;'$1';'$2'm '$3 ${Color_Off}
 }
 
+function index_genome(){
+	# This function also extracts genome because bedtools getfasta requires it to be
+	# 1 - Genome.fa File path
+
+	local GENOME_FILE=$1
+	#FIFO_FILE="$TEMP_PATH/$f_org_name/genome_pipe"
+	#rm -f $FIFO_FILE
+	#mkfifo $FIFO_FILE
+	if [[ ${GENOME_FILE##*.} == "gz" ]] ; then
+  	gfile_name=${GENOME_FILE%.*}
+ 	 zcat -f $GENOME_FILE > $gfile_name #| tee $gfile_name > $FIFO_FILE  &
+  	#genome_ext_proc=$(echo $!)
+	else
+  	gfile_name=$GENOME_FILE
+  	#zcat -f $GENOME_FILE > $FIFO_FILE &
+	fi
+
+	#if [[ ! -s $gfile_name.fai ]]; then
+  samtools faidx --fai-idx $gfile_name.fai $gfile_name #&
+  	#genome_index_proc=$(echo $!)
+	#else
+	#  rm -f $FIFO_FILE
+	#fi
+}
+
 # mask_stops_3utr() {
 # 	#python mask_motifs.py -f $1 -s 3 --pos 1 --mask "N"  -r TRUE --add TRUE -cm "TGA,TAA,TAG" -cmm - -o $1 ##Compare mask is negative, so this will add NNN if stop codon doesnt exist
 # 	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 1 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
@@ -477,6 +502,7 @@ function color_FG_BG_Bold(){
 export -f number_to_fastaID
 export -f fastaID_to_number
 export -f index_fastaIDs
+export -f index_genome
 export -f make_db
 export -f collate_fasta
 export -f select_transcripts
