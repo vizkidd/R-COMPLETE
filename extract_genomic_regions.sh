@@ -50,7 +50,7 @@ fi
 echo "Command : $0 $@"
 
 if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
-  rm -rf $FASTA_PATH/$5
+  rm -rf $FASTA_PATH/$f_org_name
   rm -rf files/genes/$f_org_name
   rm -rf $TEMP_PATH/$f_org_name
   rm -f $GENOME_FILE.fai
