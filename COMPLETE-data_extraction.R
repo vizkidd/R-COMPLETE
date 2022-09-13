@@ -29,6 +29,20 @@ print_toc <- function(clk){
   return(toc.outmsg(clk$tic,clk$toc,clk$msg))
 }
 
+toc_log_msg <- function(tic, toc, msg, info)
+{
+  if (is.null(msg) || is.na(msg) || length(msg) == 0)
+  {
+    outmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
+  }
+  else
+  {
+    outmsg <- paste0(info, ": ", msg, ": ",
+                     round(toc - tic, 3), " seconds elapsed")
+  }
+  outmsg
+}
+
 fetch_stat <- function(x,col_name){
   tmp_stat <- x[col_name][!is.na(x[col_name])]
   if (length(tmp_stat)==0) {
@@ -102,8 +116,8 @@ extract_stats <- function(gtf_data) {
     
     if (strandedness=="+" || strandedness=="-") {
       gtf_gr <- gtf_gr[strand(gtf_gr)==strandedness,]  
-      if(is.null(gtf_gr) || length(gtf_gr)==0 || all(is.na(gtf_gr))){ ##Probably the mrna is not in the + strand so we can safely discard it
-        message(paste("No",strandedness,"strand info (or) region of gtf missing for the gene : ", g_name))
+      if(is.null(gtf_gr) || length(gtf_gr)==0 || all(is.na(gtf_gr))){ ##Probably the mrna is not in the required strand so we can safely discard it
+        #message(paste("No",strandedness,"strand info (or) region of gtf missing for the gene : ", g_name))
         return()
       }
     }
@@ -257,11 +271,12 @@ get_gtf_mart <- function(org, genes){
                       "cds_end",
                       "3_utr_start",
                       "3_utr_end")
-  mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
-    stop(cond)
-  })
+  # mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
+  #   stop(cond)
+  # })
+  mart.dataset <- check_mart_dataset(org)
   using.mart.data <- mart_connect(useMart,args = list(ENSEMBL_MART, mart.dataset))
-  
+ 
   ##Splitting genes to the recomended number of queries for biomart through biomaRt
   #bm_gtf <- bind_rows(lapply(split(genes, ceiling(seq_along(genes)/500)), function(split_genes){
   #  return(mart_connect(getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = split_genes, curl=curl_handle)))
@@ -276,13 +291,165 @@ get_gtf_mart <- function(org, genes){
   return(bm_gtf)
 }
 
+# get_FASTA_mart <- function(org,gtf_stats, fasta_path){ ##OLD CODE###
+#   
+#   dir.create(path=fasta_path,showWarnings=F,recursive=T)
+#   seq_attributes <- c("5utr","coding","3utr") #"external_gene_name"
+#   mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
+#     stop(cond)
+#   })
+#   using.mart.data <- mart_connect(useMart,args = list(ENSEMBL_MART, mart.dataset))
+#   
+#   check_rows_idx <- unlist(sapply(seq_along(1:nrow(gtf_stats)), FUN=function(x){
+#     #print(gtf_stats[x,]<=3)
+#     if(any(na.omit(gtf_stats[x,c("five_len","three_len","five_flank","three_flank")]<=3))){ #any(is.na(gtf_stats[x,])) , not checking for CDS==NA because I was able to obtain coding sequences even when cds_len==NA
+#       return(x)
+#     }
+#   }))
+#   invalid_stats <- gtf_stats[check_rows_idx,]
+#   valid_transcripts <- unique(gtf_stats[-check_rows_idx,]$transcript_id)
+#   print("here1")
+#   if(length(valid_transcripts) > 0){
+#     bm_seq <- mclapply(seq_attributes, function(x){return(mart_connect(getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts, curl=curl_handle)))},mc.cores = numWorkers)
+#     
+#     bm_df <- bm_seq %>% purrr::reduce(full_join, by = "ensembl_transcript_id")
+#     unavailable_transcripts <- unique( unlist(apply(bm_df,MARGIN = 1, FUN = function(x){
+#       row_check <- grepl("unavailable",x=x,ignore.case = T)
+#       if(all(row_check) || row_check[2]==T){ #Removing transcripts which do not have any regions or CDS
+#         return(as.character(x["ensembl_transcript_id"]))
+#       }
+#     })) )
+#     if(length(unavailable_transcripts) > 0){
+#       bm_df <- bm_df[is.na(match(bm_df$ensembl_transcript_id,unavailable_transcripts)),]
+#       invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unavailable_transcripts)),]
+#     }
+#     
+#     bm_df <- bm_df %>% mutate(flanking_5utr=F)
+#     bm_df <- bm_df %>% mutate(flanking_3utr=F)
+#     
+#     #invalid_stats <- base::split(invalid_stats, as.factor(invalid_stats$gene_name))
+#     print("here2")
+#     bm_cds <- mart_connect(getBM,args=list(mart=using.mart.data,attributes= c("ensembl_transcript_id","coding"),uniqueRows=T, useCache=F, filters =c("ensembl_transcript_id"), values = invalid_stats$transcript_id, curl=curl_handle))
+#     
+#     unavailable_transcripts <- unique( bm_cds$ensembl_transcript_id[grepl("unavailable",x=bm_cds$coding,ignore.case = T)] ) #Removing transcripts which do not have any regions or CDS
+#     if(length(unavailable_transcripts) > 0){
+#       invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unavailable_transcripts)),]
+#       bm_cds <- bm_cds[is.na(match(bm_cds$ensembl_transcript_id,unavailable_transcripts)),]
+#     }
+#     
+#     transcripts_with_5utr <- unique( na.omit(invalid_stats$transcript_id[invalid_stats[,grep("five",colnames(invalid_stats),ignore.case = T,value = F)] > 3]) )
+#     transcripts_with_3utr <-unique( na.omit(invalid_stats$transcript_id[invalid_stats[,grep("three",colnames(invalid_stats),ignore.case = T,value = F)] > 3]) )
+#     print("here3")
+#     bm_5utr <- mart_connect(getBM,args=list(mart=using.mart.data,attributes= c("ensembl_transcript_id","5utr"),uniqueRows=T, useCache=F, filters =c("ensembl_transcript_id"), values = transcripts_with_5utr, curl=curl_handle))
+#     bm_3utr <- mart_connect(getBM,args=list(mart=using.mart.data,attributes= c("ensembl_transcript_id","3utr"),uniqueRows=T, useCache=F, filters =c("ensembl_transcript_id"), values = transcripts_with_3utr , curl=curl_handle))
+#     
+#     bm_5utr <- bm_5utr %>% mutate(flanking_5utr=F)
+#     bm_3utr <- bm_3utr %>% mutate(flanking_3utr=F)
+#     
+#     transcripts_without_utr <- unique( c( bm_5utr$ensembl_transcript_id[grepl("unavailable",x=bm_5utr[,c("5utr")],ignore.case = T)], bm_3utr$ensembl_transcript_id[grepl("unavailable",x=bm_3utr[,c("3utr")],ignore.case = T)] ) ) #We need flanks for unavilable utrs
+#     if(length(transcripts_without_utr) > 0){
+#       no_5utr <- intersect(transcripts_without_utr,transcripts_with_5utr)
+#       no_3utr <- intersect(transcripts_without_utr,transcripts_with_3utr)
+#       invalid_stats <- invalid_stats[!is.na(match(invalid_stats$transcript_id,unique( c(transcripts_without_utr, no_5utr, no_3utr) ) ) ),]
+#       #bm_5utr <- bm_5utr[is.na(match(bm_5utr$ensembl_transcript_id,transcripts_without_utr)),]
+#       #bm_3utr <- bm_3utr[is.na(match(bm_3utr$ensembl_transcript_id,transcripts_without_utr)),]
+#       bm_5utr <- bm_5utr[is.na(match(bm_5utr$ensembl_transcript_id,no_5utr)),]
+#       bm_3utr <- bm_3utr[is.na(match(bm_3utr$ensembl_transcript_id,no_3utr)),]
+#     }#else{
+#     #  invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unique( c(transcripts_with_5utr, transcripts_with_3utr) ) ) ),]
+#     #}
+#   }
+#   print("here4")
+#   missing_any_flank_info <- unique(c(invalid_stats$transcript_id[invalid_stats$five_flank==0],invalid_stats$transcript_id[invalid_stats$three_flank==0])) #unique( invalid_stats$transcript_id[apply(X = (invalid_stats[,unique(c(grep("five",colnames(invalid_stats),ignore.case = T,value = F),grep("three",colnames(invalid_stats),ignore.case = T,value = F)))] ==0) , MARGIN = 1, FUN = any)] ) #missing_any_flank_info <- unique( invalid_stats$transcript_id[apply(X = (invalid_stats[,unique(c(grep("five",colnames(invalid_stats),ignore.case = T,value = F),grep("three",colnames(invalid_stats),ignore.case = T,value = F)))] ==0) , MARGIN = 1, FUN = all)] )
+#   
+#   flank_stats <- invalid_stats #invalid_stats[is.na(match(invalid_stats$transcript_id,missing_any_flank_info)),]  
+#   if (nrow(flank_stats) > 0) {
+#     if (length(missing_any_flank_info) > 0) { ##All these transcripts have neither UTR Lengths nor Flank lengths info (possibly because the gene does not have isoforms or info is missing), so I set the utr flanks to transcript lengths and correct for variance
+#       print("here5")
+#       arbitrary_flanks <- flank_stats[!is.na(match(flank_stats$transcript_id,missing_any_flank_info)),]  
+#       arbitrary_flanks <- arbitrary_flanks[order(arbitrary_flanks$gene_name),]
+#       arb_flank_values <- bind_rows(lapply(base::split(arbitrary_flanks,as.factor(arbitrary_flanks$gene_name)), function(x){
+#         x$five_flank[ which(x$five_flank==0) ] <- mean(unique(arbitrary_flanks$transcript_length))
+#         x$three_flank[ which(x$three_flank==0) ] <- mean(unique(arbitrary_flanks$transcript_length))
+#         #Do variance correction
+#         return( data.frame(gene_name=x$gene_name,transcript_id=x$transcript_id,five_flank= x$five_flank + ceiling(mean(unique(abs(x$five_len-x$five_flank)))), three_flank=x$three_flank + ceiling(mean(unique(abs(x$three_len-x$three_flank)))) ) )
+#       }))
+#       arbitrary_flanks <- arbitrary_flanks %>% dplyr::select(-c("five_flank","three_flank")) %>% full_join(arb_flank_values, by = c("gene_name","transcript_id"))
+#       flank_stats <- flank_stats[is.na(match(flank_stats$transcript_id,missing_any_flank_info)),]
+#       flank_stats <- full_join(flank_stats, arbitrary_flanks)
+#     }
+#     #rm("invalid_stats") ##Cleaning up to save space, too many variables
+#     
+#     ##Calculate genomic coordinates for flanks
+#     flank_stats <- flank_stats %>% mutate(g.five_flank_start= abs(flank_stats$g.transcript_start-flank_stats$five_flank)-1 )
+#     flank_stats <- flank_stats %>% mutate(g.five_flank_end= abs(flank_stats$g.transcript_start-1) )
+#     flank_stats <- flank_stats %>% mutate(g.three_flank_start= abs(flank_stats$g.transcript_end+1) )
+#     flank_stats <- flank_stats %>% mutate(g.three_flank_end=  abs(flank_stats$g.transcript_end+flank_stats$three_flank)+1 )
+#     print("here6")
+#     if (nrow(flank_stats) > 0) {
+#       ##Get Flanking sequences
+#       print("here7")
+#       bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=unique(flank_stats$transcript_id),type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_stats$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, STRAND), curl=curl_handle))
+#       bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=unique(flank_stats$transcript_id),type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_stats$three_flank , mart=using.mart.data, useCache = F))
+#       
+#       names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
+#       names(bm_flanks_three)[grep(pattern="coding_transcript_flank",names(bm_flanks_three))] <- "3utr"
+#       
+#       bm_flanks_five <- bm_flanks_five %>% mutate(flanking_5utr=T)
+#       bm_flanks_three <- bm_flanks_three %>% mutate(flanking_3utr=T)
+#       
+#       bm_5utr_merged <- purrr::reduce(list(bm_5utr,bm_flanks_five), dplyr::full_join)
+#         
+#       bm_3utr_merged <- purrr::reduce(list(bm_3utr,bm_flanks_three), dplyr::full_join)
+#       
+#       bm_seqs <- purrr::reduce(list(bm_5utr_merged,bm_cds,bm_3utr_merged), dplyr::full_join)
+#     }else{
+#       bm_seqs <- purrr::reduce(list(bm_5utr,bm_cds,bm_3utr), dplyr::full_join)  
+#     }
+#   }else{
+#     bm_seqs <- purrr::reduce(list(bm_5utr,bm_cds,bm_3utr), dplyr::full_join)
+#   }
+#   
+#   if(nrow(bm_df)>0){
+#     bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join)
+#   }else{
+#    stop(paste("Error fetching FASTA for :",org))
+#   }
+#   names(bm_df)[grep(pattern="ensembl_transcript_id",names(bm_df))] <- "transcript_id"
+#   names(bm_df)[grep(pattern="coding",names(bm_df))] <- "cds"
+#   
+#   bm_df <- inner_join(gtf_stats[,c("gene_name","safe_gene_name","transcript_id","strand")],bm_df)
+#   bm_df <- unique(bm_df)
+#   
+#   mclapply(base::split(bm_df[,c("transcript_id","gene_name","safe_gene_name",TRANSCRIPT_REGIONS,"flanking_5utr","flanking_3utr","strand")],as.factor(bm_df$gene_name)), function(x){
+#     lapply(TRANSCRIPT_REGIONS, function(y){
+#       if (grepl("3utr|5utr",y,ignore.case = T)) { ##Adding "_FLANK" for transcripts with UTR Flanks
+#         flank_col <- grep(paste("flanking",y,sep="_"),colnames(x),ignore.case = T,value = T)
+#         x_unique <- unique(x[,c("transcript_id","safe_gene_name",y,flank_col,"strand")])
+#         seq_names <- paste(as.character(x_unique[,"transcript_id"]), y,sep = TRANSCRIPT_ID_DELIM) 
+#         seq_names[x_unique[,flank_col]==T] <- paste(seq_names[x_unique[,flank_col]==T], "FLANK",sep = "_")
+#       }else{
+#         x_unique <- unique(x[,c(y,"transcript_id","safe_gene_name","strand")])
+#         seq_names <- paste(as.character(x_unique[,"transcript_id"]), y,sep = TRANSCRIPT_ID_DELIM)   
+#       }
+#       seq_names <- paste(seq_names,"(",x_unique[,"strand"],")",sep = "")   
+#       write.fasta(as.list(x_unique[,y]), seq_names,file.out=paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep="") )
+#     })
+#   },mc.cores = numWorkers, mc.silent = T)
+#   
+#   
+#   
+#   return(gtf_stats[!is.na(match(gtf_stats$transcript_id,bm_df$transcript_id)),])
+# }
+
 get_FASTA_mart <- function(org,gtf_stats, fasta_path){
   
   dir.create(path=fasta_path,showWarnings=F,recursive=T)
   seq_attributes <- c("5utr","coding","3utr") #"external_gene_name"
-  mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
-    stop(cond)
-  })
+  # mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
+  #   stop(cond)
+  # })
+  mart.dataset <- check_mart_dataset(org)
   using.mart.data <- mart_connect(useMart,args = list(ENSEMBL_MART, mart.dataset))
   
   check_rows_idx <- unlist(sapply(seq_along(1:nrow(gtf_stats)), FUN=function(x){
@@ -311,56 +478,27 @@ get_FASTA_mart <- function(org,gtf_stats, fasta_path){
     
     bm_df <- bm_df %>% mutate(flanking_5utr=F)
     bm_df <- bm_df %>% mutate(flanking_3utr=F)
-    
-    #invalid_stats <- base::split(invalid_stats, as.factor(invalid_stats$gene_name))
-    
-    bm_cds <- mart_connect(getBM,args=list(mart=using.mart.data,attributes= c("ensembl_transcript_id","coding"),uniqueRows=T, useCache=F, filters =c("ensembl_transcript_id"), values = invalid_stats$transcript_id, curl=curl_handle))
-    
-    unavailable_transcripts <- unique( bm_cds$ensembl_transcript_id[grepl("unavailable",x=bm_cds$coding,ignore.case = T)] ) #Removing transcripts which do not have any regions or CDS
-    if(length(unavailable_transcripts) > 0){
-      invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unavailable_transcripts)),]
-      bm_cds <- bm_cds[is.na(match(bm_cds$ensembl_transcript_id,unavailable_transcripts)),]
-    }
-    
-    transcripts_with_5utr <- unique( na.omit(invalid_stats$transcript_id[invalid_stats[,grep("five",colnames(invalid_stats),ignore.case = T,value = F)] > 3]) )
-    transcripts_with_3utr <-unique( na.omit(invalid_stats$transcript_id[invalid_stats[,grep("three",colnames(invalid_stats),ignore.case = T,value = F)] > 3]) )
-    bm_5utr <- mart_connect(getBM,args=list(mart=using.mart.data,attributes= c("ensembl_transcript_id","5utr"),uniqueRows=T, useCache=F, filters =c("ensembl_transcript_id"), values = transcripts_with_5utr, curl=curl_handle))
-    bm_3utr <- mart_connect(getBM,args=list(mart=using.mart.data,attributes= c("ensembl_transcript_id","3utr"),uniqueRows=T, useCache=F, filters =c("ensembl_transcript_id"), values = transcripts_with_3utr , curl=curl_handle))
-    
-    bm_5utr <- bm_5utr %>% mutate(flanking_5utr=F)
-    bm_3utr <- bm_3utr %>% mutate(flanking_3utr=F)
-    
-    transcripts_without_utr <- unique( c( bm_5utr$ensembl_transcript_id[grepl("unavailable",x=bm_5utr[,c("5utr")],ignore.case = T)], bm_3utr$ensembl_transcript_id[grepl("unavailable",x=bm_3utr[,c("3utr")],ignore.case = T)] ) ) #We need flanks for unavilable utrs
-    if(length(transcripts_without_utr) > 0){
-      no_5utr <- intersect(transcripts_without_utr,transcripts_with_5utr)
-      no_3utr <- intersect(transcripts_without_utr,transcripts_with_3utr)
-      invalid_stats <- invalid_stats[!is.na(match(invalid_stats$transcript_id,unique( c(transcripts_without_utr, no_5utr, no_3utr) ) ) ),]
-      #bm_5utr <- bm_5utr[is.na(match(bm_5utr$ensembl_transcript_id,transcripts_without_utr)),]
-      #bm_3utr <- bm_3utr[is.na(match(bm_3utr$ensembl_transcript_id,transcripts_without_utr)),]
-      bm_5utr <- bm_5utr[is.na(match(bm_5utr$ensembl_transcript_id,no_5utr)),]
-      bm_3utr <- bm_3utr[is.na(match(bm_3utr$ensembl_transcript_id,no_3utr)),]
-    }#else{
-    #  invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unique( c(transcripts_with_5utr, transcripts_with_3utr) ) ) ),]
-    #}
   }
-  missing_any_flank_info <- unique(c(invalid_stats$transcript_id[invalid_stats$five_flank==0],invalid_stats$transcript_id[invalid_stats$three_flank==0])) #unique( invalid_stats$transcript_id[apply(X = (invalid_stats[,unique(c(grep("five",colnames(invalid_stats),ignore.case = T,value = F),grep("three",colnames(invalid_stats),ignore.case = T,value = F)))] ==0) , MARGIN = 1, FUN = any)] ) #missing_any_flank_info <- unique( invalid_stats$transcript_id[apply(X = (invalid_stats[,unique(c(grep("five",colnames(invalid_stats),ignore.case = T,value = F),grep("three",colnames(invalid_stats),ignore.case = T,value = F)))] ==0) , MARGIN = 1, FUN = all)] )
   
   flank_stats <- invalid_stats #invalid_stats[is.na(match(invalid_stats$transcript_id,missing_any_flank_info)),]  
   if (nrow(flank_stats) > 0) {
+    
+    missing_any_flank_info <- unique(c(flank_stats$transcript_id[flank_stats$five_flank==0],flank_stats$transcript_id[flank_stats$three_flank==0])) 
+    
     if (length(missing_any_flank_info) > 0) { ##All these transcripts have neither UTR Lengths nor Flank lengths info (possibly because the gene does not have isoforms or info is missing), so I set the utr flanks to transcript lengths and correct for variance
-      arbitrary_flanks <- flank_stats[!is.na(match(flank_stats$transcript_id,missing_any_flank_info)),]  
+      
+      arbitrary_flanks <- flank_stats[which(!is.na(match(flank_stats$transcript_id,missing_any_flank_info))),]  
       arbitrary_flanks <- arbitrary_flanks[order(arbitrary_flanks$gene_name),]
-      arb_flank_values <- bind_rows(lapply(base::split(arbitrary_flanks,as.factor(arbitrary_flanks$gene_name)), function(x){
-        x$five_flank[ which(x$five_flank==0) ] <- mean(unique(arbitrary_flanks$transcript_length))
-        x$three_flank[ which(x$three_flank==0) ] <- mean(unique(arbitrary_flanks$transcript_length))
+      arb_flank_values <- bind_rows(mclapply(base::split(arbitrary_flanks,as.factor(arbitrary_flanks$gene_name)), function(x){
+        x$five_flank[ which(x$five_flank==0) ] <- ceiling(mean(unique(arbitrary_flanks$transcript_length)))
+        x$three_flank[ which(x$three_flank==0) ] <- ceiling(mean(unique(arbitrary_flanks$transcript_length)))
         #Do variance correction
         return( data.frame(gene_name=x$gene_name,transcript_id=x$transcript_id,five_flank= x$five_flank + ceiling(mean(unique(abs(x$five_len-x$five_flank)))), three_flank=x$three_flank + ceiling(mean(unique(abs(x$three_len-x$three_flank)))) ) )
-      }))
+      }, mc.cores = numWorkers))
       arbitrary_flanks <- arbitrary_flanks %>% dplyr::select(-c("five_flank","three_flank")) %>% full_join(arb_flank_values, by = c("gene_name","transcript_id"))
-      flank_stats <- flank_stats[is.na(match(flank_stats$transcript_id,missing_any_flank_info)),]
-      flank_stats <- full_join(flank_stats, arbitrary_flanks)
+      flank_stats <- flank_stats[which(is.na(match(flank_stats$transcript_id,missing_any_flank_info))),]
+      flank_stats <- unique(full_join(flank_stats, arbitrary_flanks, by = c("gene_name", "gene_id", "transcript_id", "total_exon_len", "total_cds_len", "five_len", "three_len", "exon_count", "cds_count", "g.exon_start", "g.exon_end", "transcript_length", "five_flank", "three_flank", "g.transcript_start", "g.transcript_end", "chromosome_name", "strand", "safe_gene_name")))
     }
-    #rm("invalid_stats") ##Cleaning up to save space, too many variables
     
     ##Calculate genomic coordinates for flanks
     flank_stats <- flank_stats %>% mutate(g.five_flank_start= abs(flank_stats$g.transcript_start-flank_stats$five_flank)-1 )
@@ -370,8 +508,10 @@ get_FASTA_mart <- function(org,gtf_stats, fasta_path){
     
     if (nrow(flank_stats) > 0) {
       ##Get Flanking sequences
-      bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=unique(flank_stats$transcript_id),type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_stats$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, STRAND), curl=curl_handle))
-      bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=unique(flank_stats$transcript_id),type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_stats$three_flank , mart=using.mart.data, useCache = F))
+      flank_values <- unique(flank_stats[,c("transcript_id","five_flank","three_flank")])
+      bm_flanks_cds <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding", mart=using.mart.data, useCache = F) )
+      bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_stats$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, STRAND), curl=curl_handle))
+      bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_values$three_flank , mart=using.mart.data, useCache = F))
       
       names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
       names(bm_flanks_three)[grep(pattern="coding_transcript_flank",names(bm_flanks_three))] <- "3utr"
@@ -379,28 +519,49 @@ get_FASTA_mart <- function(org,gtf_stats, fasta_path){
       bm_flanks_five <- bm_flanks_five %>% mutate(flanking_5utr=T)
       bm_flanks_three <- bm_flanks_three %>% mutate(flanking_3utr=T)
       
-      bm_5utr_merged <- purrr::reduce(list(bm_5utr,bm_flanks_five), dplyr::full_join)
-      bm_3utr_merged <- purrr::reduce(list(bm_3utr,bm_flanks_three), dplyr::full_join)
+      transcripts_with_data <- intersect(flank_values$transcript_id,unique(c(bm_flanks_five$ensembl_transcript_id,bm_flanks_three$ensembl_transcript_id, bm_flanks_cds$ensembl_transcript_id)))
       
-      bm_seqs <- purrr::reduce(list(bm_5utr_merged,bm_cds,bm_3utr_merged), dplyr::full_join)
-    }else{
-      bm_seqs <- purrr::reduce(list(bm_5utr,bm_cds,bm_3utr), dplyr::full_join)  
+      bm_seqs <- purrr::reduce(list(bm_flanks_five,bm_flanks_cds,bm_flanks_three), full_join, by="ensembl_transcript_id")
+      
+      unavailable_transcripts <- unique( unlist(apply(bm_seqs,MARGIN = 1, FUN = function(x){
+        row_check <- grepl("unavailable",x=x,ignore.case = T)
+        names(row_check) <- names(bm_seqs)
+        #print(row_check)
+        if(all(row_check) || row_check["coding"]==T){ #Removing transcripts which do not have any regions or CDS
+          return(as.character(x["ensembl_transcript_id"]))
+        }
+      })) )
+      
+      if(length(unavailable_transcripts)>0){
+        flank_stats <- flank_stats[!is.na(match(flank_stats$transcript_id,unavailable_transcripts)),]
+        message(paste("(Some) Data missing for : ",paste(unique(unavailable_transcripts),sep=",",collapse=",")))
+      }
+      if(length(transcripts_with_data)>0){
+        flank_stats <- flank_stats[!is.na(match(flank_stats$transcript_id,transcripts_with_data)),]
+      }
+      if (nrow(flank_stats) > 0) {
+        invalid_stats <- flank_stats  
+      }
     }
-  }else{
-    bm_seqs <- purrr::reduce(list(bm_5utr,bm_cds,bm_3utr), dplyr::full_join)
   }
   
   if(nrow(bm_df)>0){
-    bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join)
+    if(nrow(bm_seqs)>0){
+      bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join,by = c("5utr", "ensembl_transcript_id", "coding", "3utr","flanking_5utr","flanking_3utr"))
+    }
   }else{
-   stop(paste("Error fetching FASTA for :",org))
+    if(nrow(bm_seqs)>0){
+      bm_df <- bm_seqs
+    }else{
+      stop(paste("Error fetching FASTA for :",org))
+    }
   }
   names(bm_df)[grep(pattern="ensembl_transcript_id",names(bm_df))] <- "transcript_id"
   names(bm_df)[grep(pattern="coding",names(bm_df))] <- "cds"
   
-  bm_df <- inner_join(gtf_stats[,c("gene_name","safe_gene_name","transcript_id","strand")],bm_df)
+  bm_df <- inner_join(gtf_stats[,c("gene_name","safe_gene_name","transcript_id","strand")],bm_df, by = "transcript_id")
   bm_df <- unique(bm_df)
-  
+  #print(head(bm_df))
   mclapply(base::split(bm_df[,c("transcript_id","gene_name","safe_gene_name",TRANSCRIPT_REGIONS,"flanking_5utr","flanking_3utr","strand")],as.factor(bm_df$gene_name)), function(x){
     lapply(TRANSCRIPT_REGIONS, function(y){
       if (grepl("3utr|5utr",y,ignore.case = T)) { ##Adding "_FLANK" for transcripts with UTR Flanks
@@ -415,12 +576,47 @@ get_FASTA_mart <- function(org,gtf_stats, fasta_path){
       seq_names <- paste(seq_names,"(",x_unique[,"strand"],")",sep = "")   
       write.fasta(as.list(x_unique[,y]), seq_names,file.out=paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep="") )
     })
-  },mc.cores = numWorkers, mc.silent = T)
+  },mc.cores = numWorkers, mc.silent = F)
   
   
   
   return(gtf_stats[!is.na(match(gtf_stats$transcript_id,bm_df$transcript_id)),])
 }
+
+fetch_FASTA_biomartr <- function(org_row){
+  org <- org_row["name"]
+  if(any(!is.na(match(org.meta$name,org)))){
+    org <- org.meta[which(!is.na(match(org.meta$name,org))),]  
+    org_name <- org$name
+    genome_path<-paste(GENOMES_PATH, "/",org_name,".fa.gz",sep = "")
+    gtf_path<-paste(ANNOS_PATH, "/",org_name,".gtf.gz",sep = "")  
+    org_fasta_path <- file.path(OUT_PATH ,org)   
+    
+      if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 20 || CLEAN_EXTRACT){
+        gtf_path <- getGTF(organism = org_name, db="ensembl",path = gtf_path,release=org$release-1)
+      }
+      if(!file.exists(genome_path) || !file.info(genome_path)$size > 20 || CLEAN_EXTRACT){
+        genome_path <- getGenome(organism = org_name, db="ensembl",path = genome_path,reference = F,release=org$release-1)
+      }
+      
+      if(CLEAN_EXTRACT || !try(check_files(org_fasta_path,org,genes))){
+        if (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path)) {
+          do.call(add_to_process,list(p_cmd = c("./jobhold.sh"), p_args = c(paste("extract",org,sep="_"), "./extract_genomic_regions.sh",genome_path, gtf_path, gene_list, org_name)))
+          #return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
+          print(print_toc(toc(quiet = T)))
+          return(org_row)      
+        }else{
+          return(NULL)
+        }
+      }else{
+        return(org_row)      
+      }
+      
+  }else{
+    stop(paste("Organism not available :", org))
+  }
+}
+
 
 fetch_fasta <- function(org_row) {
   
@@ -432,6 +628,14 @@ fetch_fasta <- function(org_row) {
     print(print_toc(toc(quiet = T)))
     return(org_row)
   }
+  
+  tryCatch(check_mart_dataset(org),error=function(cond){
+    return( tryCatch(fetch_FASTA_biomartr(org_row), error=function(cond){
+      message(cond)
+      print(print_toc(toc(quiet = T)))
+      return(NULL)
+    }) )
+  })
   
   odb_list <- paste("files/genes/",org,"/odb.list",sep = "")
   odb_gene_map <- paste("files/genes/",org,"/odb.final_map",sep = "")
@@ -472,7 +676,7 @@ fetch_fasta <- function(org_row) {
     return()
   }
   
-  gtf_stats <- suppressMessages(get_FASTA_mart(org,gtf_stats,org_fasta_path))
+  gtf_stats <- get_FASTA_mart(org,gtf_stats,org_fasta_path)
   
   if(nrow(gtf_stats)==0){
     message(paste("Error fetching FASTA for : ",org))
@@ -627,11 +831,13 @@ fetch_genome_user <- function(data){
 set.seed(123)
 
 options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0,timeout=200,maxconnects=200,connecttimeout=200))
+#options(download.file.method="curl")
 #connection_options <<- curlOptions(ssl.verifyhost=0, ssl.verifypeer=0,timeout=200,maxconnects=200,connecttimeout=200))
 
 process_list <<- c()
 
 param_file <- "parameters.txt"
+#do.call(add_to_process,list(p_cmd = c("./functions.sh"), p_args = c(""))) #CANNOT SOURCE BASH FUNCTIONS INTO R SHELL
 
 if(!file.exists(param_file) || file.info(param_file)$size < 0){
   stop("ERROR: parameters.txt is missing and is required")
@@ -648,6 +854,7 @@ BLAST_REGION <<- tolower(as.character(param_table[which(param_table=="blast_regi
 USER_GENOMES <<- as.character(param_table[which(param_table=="user_genomes"),c(2)])
 CLEAN_EXTRACT <<- as.logical(param_table[which(param_table=="clean_extract"),c(2)])
 TRANSCRIPT_ID_DELIM <<- param_table[which(param_table=="transcript_delimiter"),c(2)]
+SEQUENCE_ID_DELIM <<- param_table[which(param_table=="seqID_delimiter"),c(2)]
 DATA_SOURCE <<- tolower(param_table[which(param_table=="data_source"),c(2)])
 TRANSCRIPT_REGIONS <<- tolower(gsub("[[:space:]]","",x = unlist(stri_split(param_table[which(param_table=="transcript_regions"),c(2)],fixed = ","))))
 STRAND <<- param_table[which(param_table=="strand"),c(2)]
@@ -655,7 +862,7 @@ max_concurrent_jobs <<- as.numeric(param_table[which(param_table=="max_concurren
 
 curl_handle <<- getCurlMultiHandle()
 
-gene_list <<- args[1]
+gene_list <<- args[1] #"files/genelist.txt" 
 genes <<- factor(scan(gene_list, character())) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
 genes <<- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
 
@@ -692,6 +899,8 @@ print("Checking and downloading transcripts...")
 
 saved_meta <- c()
 
+tic(msg = "Total Extraction Time :")
+
 if(DATA_SOURCE=="both" || DATA_SOURCE=="user"){
   if(nrow(user_data)!=0 && !is.null(user_data)){
     saved_meta <- apply(user_data, MARGIN = 1, function(x){
@@ -720,6 +929,8 @@ if(DATA_SOURCE=="both" || DATA_SOURCE!="user"){
     ) } ) )
 }
 
+print(print_toc(toc(quiet = T)))
+
 save("saved_meta", file="saved_meta.RData")
 
 # print(process_list)
@@ -744,8 +955,10 @@ mclapply(process_list, function(x){
   }
 }, mc.cores =  numWorkers)
 
-saved_meta[sapply(saved_meta, is.null)] <- NULL
-saved_meta <- bind_rows(saved_meta)
+#saved_meta[sapply(saved_meta, is.null)] <- NULL
+#saved_meta <- bind_rows(saved_meta)
+
+saved_meta <- purrr::reduce(saved_meta,bind_rows)
 
 write.table(x = saved_meta,file = "files/org_meta.txt", quote = F,sep=",", row.names = F)
 
@@ -756,24 +969,61 @@ lapply(list.files(path = OUT_PATH,include.dirs=TRUE, full.names=TRUE), function(
     sz <- sum(file.info(f)$size)
     
     #as precaution, print to make sure before using unlink(x, TRUE)
-    if (sz==0L) print(x)   
+    if (sz==0L) unlink(x,recursive = T, force = T, expand =T) #print(x)
   }
 })
 
 #find $FASTA_PATH -name MISSING_GENES| awk -F'/' '{print $(NF-1)","$0}' > files/MISSING_GENES_FINAL
 #find $FASTA_PATH -name AVAILABLE_GENES| awk -F'/' '{print $(NF-1)","$0}' > files/AVAILABLE_GENES_FINAL
+
+missing_genes_list <- mclapply(list.files(path = "files/genes/",include.dirs=TRUE, full.names=TRUE),function(x){
+  if(file.exists(paste(x,"/MISSING_GENES",sep="")) && file.info(paste(x,"/MISSING_GENES",sep=""))$size > 0 ){
+    return(scan(paste(x,"/MISSING_GENES",sep=""), character()))
+  }
+}, mc.cores =  numWorkers)
+missing_genes <- purrr::reduce(missing_genes_list, unique)
+available_genes_list <- mclapply(list.files(path = "files/genes/",include.dirs=TRUE, full.names=TRUE),function(x){
+  if(file.exists(paste(x,"/AVAILABLE_GENES",sep="")) && file.info(paste(x,"/AVAILABLE_GENES",sep=""))$size > 0 ){
+    return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character()))
+  }
+}, mc.cores =  numWorkers)
+available_genes <- purrr::reduce(available_genes_list, unique)
+
 #find $FASTA_PATH/* -type d |  sort | uniq | awk -F'/' '{print $NF}' > files/available_orgs.txt
-#for f_org in $FASTA_PATH/*; do 
-#f_org_name=$(basename $f_org)
-#parallel --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f files/genes/$f_org_name/ALL_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1}  {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
-#done
+write.table(x = list.files(path = OUT_PATH,include.dirs=TRUE, full.names=F),file = "files/available_orgs.txt", quote = F, row.names = F,col.names = F)
 # ls $FASTA_PATH > files/selected_ORGS.txt
-# #Coerce gtf_stats.csv of all organisms
-# find files/genes -iname "gtf_stats.csv" -exec sed 1d {} \; > files/gtf_stats.csv
-# ##ID Alignments - GENERATE numeric ids for FASTA IDS (because they are long and downstream analysis have difficulty taking long names) 
-# #Only indexing the IDs for now because find_orthologs.sh depends on the long FASTA IDs and cannot be shorted until orthologous transcripts are obtained
-# #!!!!!!!#CHANGE FASTA IDs to numeric IDs (because some programs dont work well with long FASTA IDs) ONLY BEFORE ALIGNMENT!!!!!!!!
-# index_fastaIDs files/rna_ids.txt $FASTA_PATH
+if(CLEAN_EXTRACT || !file.exists("files/selected_ORGS.txt") && file.info("files/selected_ORGS.txt")$size==0 ){
+  write.table(x = list.files(path = OUT_PATH,include.dirs=TRUE, full.names=F),file = "files/selected_ORGS.txt", quote = F, row.names = F, col.names = F)
+}
+
+selected_orgs <<-  factor(scan( "files/selected_ORGS.txt", character()))
+
+#grep -h ">" ../files/fasta/danio_rerio/*  | awk -F"::" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > files/genes/danio_rerio/ORG_CLUSTERS
+
+print("Grouping & Indexing FASTA ...")
+
+# mclapply(selected_orgs,function(x){
+#   #do.call(add_to_process,list(p_cmd = c("accumulate_clusters"), p_args = c(paste(OUT_PATH,"/",x,sep=""),TRANSCRIPT_ID_DELIM,paste("files/genes/",x,"/ORG_CLUSTERS",sep=""))))
+#   print(paste(OUT_PATH,"/",x,"/*",sep=""))
+#   proc1 <- process$new(command = "grep", args = c("-r","-h",">",paste(OUT_PATH,"/",x,"/",sep="")),stdout = "|", stderr = NULL) 
+#   full_id <- str_split(proc1$read_all_output_lines(), pattern = SEQUENCE_ID_DELIM,simplify = T)
+#   cluster_groups <- unique( unlist( str_split(full_id[,ncol(full_id)], pattern = ",",simplify = F) ) )
+#   write.table(x = cluster_groups,file = paste("files/genes/",x,"/ORG_CLUSTERS",sep=""), quote = F, row.names = F, col.names = F)
+#   return()
+# 
+# }, mc.cores = numWorkers)
+
+group_proc <- do.call(add_to_process,list(p_cmd = c("./group_and_ID_FASTA.sh"), p_args = c(OUT_PATH)))
+group_proc$wait(timeout=-1)
+
+all_clusters_list <- mclapply(list.files(path = "files/genes/",include.dirs=TRUE, full.names=TRUE),function(x){
+  if(file.exists(paste(x,"/ORG_CLUSTERS",sep="")) && file.info(paste(x,"/ORG_CLUSTERS",sep=""))$size > 0 ){
+    return(scan(paste(x,"/ORG_CLUSTERS",sep=""), character()))
+  }
+}, mc.cores =  numWorkers)
+
+all_clusters <- purrr::reduce(all_clusters_list, unique)
+write.table(x = all_clusters,file = "files/ALL_CLUSTERS.txt", quote = F, row.names = F,col.names = F)
 # time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
 # time ./align_seqs.sh $1
 # time ./predict_structures.sh $1

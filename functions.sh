@@ -414,6 +414,13 @@ fi
 return 0
 }
 
+function accumulate_clusters(){
+	# $1 - ORGANISM FASTA PATH (../files/fasta/danio_rerio/)
+	# $2 - Transcript sequence ID delimiter (::)
+	# $3 - Output file (files/genes/danio_rerio/ALL_CLUSTERS)
+	grep -h ">" "$1"/* | awk -F"$2" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $3
+}
+
 # function index_genome(){
 # 	# 1 - GENOME FILE
 # 	# 2 - FIFO pipe name

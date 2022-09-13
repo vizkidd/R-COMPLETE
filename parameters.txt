@@ -1,4 +1,4 @@
-param_id==value== comment(param_id should not be changed)
+param_id==value(CASE SENSITIVE)== comment(param_id should not be changed)
 gene_search_mode==HARD== EASY/HARD, Mode to search for genes, HARD matches the whole gene name (grep -w flag wherever necessary) (Input)
 e_value==1e-05== evalue threshold (Input)
 minIdent==25== minimum percentage identity threshold for BLAST RESULTS (Input)
