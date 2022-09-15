@@ -57,7 +57,7 @@ readarray refs < $REF_ORGS
 s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo "${gene_list[@]}")))
 genes_strip=($(awk -F'_' '{print $(echo '$1')}' <(echo "${s_names[@]}")))
 lookup_genes=($(echo "${genes_strip[@]}" "${gene_list[@]}" | sort | uniq | awk 'NF' ))
-org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;')
+org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;' | awk -F" " '{print $1" "$2}')
 
 #Find ODB ORGANISM ID for the organism
 org_ID=$(zgrep -i -P "\t\b($org_name)\b\t" "$ORTHODB_PATH_PREFIX"_species.tab.gz | awk '{print $2}')

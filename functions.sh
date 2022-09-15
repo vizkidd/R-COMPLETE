@@ -495,6 +495,20 @@ function index_genome(){
 	#fi
 }
 
+function group_and_ID_FASTA(){
+	
+	local FASTA_PATH=$1
+	local GROUPS_PATH=$2
+	local seqID_delimiter=$3
+	local n_threads=$4
+
+	for f_org in $FASTA_PATH/*; do 
+	f_org_name=$(basename $f_org)
+	grep -r -h ">" $f_org  | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > files/genes/$f_org_name/ORG_CLUSTERS
+	parallel --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f files/genes/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1}  {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
+done
+}
+
 # mask_stops_3utr() {
 # 	#python mask_motifs.py -f $1 -s 3 --pos 1 --mask "N"  -r TRUE --add TRUE -cm "TGA,TAA,TAG" -cmm - -o $1 ##Compare mask is negative, so this will add NNN if stop codon doesnt exist
 # 	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 1 -cm "TGA,TAA,TAG" -r True -rf 1 -o $1
@@ -506,6 +520,7 @@ function index_genome(){
 # 	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 3 -o $1
 # }
 
+export -f group_and_ID_FASTA
 export -f number_to_fastaID
 export -f fastaID_to_number
 export -f index_fastaIDs

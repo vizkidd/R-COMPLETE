@@ -112,7 +112,7 @@ fi
 if [[ -s files/genes/$f_org_name/1.list && -s files/genes/$f_org_name/2.list ]]; then
   >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found in annotation: ")$(color_FG_BG_Bold $White $BG_Purple "files/genes/$f_org_name/2.list ")
 else
-  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed") | tee >(cat >&2)
+  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed (Check if the GTF file exists and if the size is right)") | tee >(cat >&2)
   exit 1
 fi
 
