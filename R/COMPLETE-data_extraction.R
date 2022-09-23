@@ -877,7 +877,11 @@ check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,cr
   if(is.character(param_table)){
     param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T) #Convert multibyte seperator to one byte sep
   }
-  param_value <- param_table[which(param_table==param_id),c(2)]
+  param_index <- which(param_table==param_id)
+  if(is.null(param_index) || is.na(param_index)){
+    stop(paste("Parameter :",param_id,"is missing!"))
+  }
+  param_value <- param_table[param_index,c(2)]
   #print(CAST_FUN(param_value))
   if(create_dir){
     dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
@@ -915,11 +919,15 @@ load_params <- function(param_file){
   #   OUT_PATH <<- "."
   # }
   BLAST_REGION <<- tolower(check_param(param_table,"blast_region",optional=F,CAST_FUN=as.character)) #tolower(as.character(param_table[which(param_table=="blast_region"),c(2)]))
-  USER_GENOMES <<-  tools::file_path_as_absolute(check_param(param_table,"user_genomes",optional=F,CAST_FUN=as.character)) #as.character(param_table[which(param_table=="user_genomes"),c(2)])
   CLEAN_EXTRACT <<- check_param(param_table,"clean_extract",optional=F,CAST_FUN=as.logical) #as.logical(param_table[which(param_table=="clean_extract"),c(2)])
   TRANSCRIPT_ID_DELIM <<- check_param(param_table,"transcript_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="transcript_delimiter"),c(2)]
   SEQUENCE_ID_DELIM <<- check_param(param_table,"seqID_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="seqID_delimiter"),c(2)]
   DATA_SOURCE <<- check_param(param_table,"data_source",optional=F,CAST_FUN=as.character) #tolower(param_table[which(param_table=="data_source"),c(2)])
+  if(grepl(pattern="both|user",DATA_SOURCE,ignore.case = T)){
+    USER_GENOMES <<-  tools::file_path_as_absolute(check_param(param_table,"user_genomes",optional=F,CAST_FUN=as.character)) #as.character(param_table[which(param_table=="user_genomes"),c(2)])
+  }else{
+    USER_GENOMES <<- ""
+  }
   TRANSCRIPT_REGIONS <<- tolower(gsub("[[:space:]]","",x = unlist(stringi::stri_split( check_param(param_table,"transcript_regions",optional=F,CAST_FUN=as.character) ,fixed = ",")))) #param_table[which(param_table=="transcript_regions"),c(2)]
   STRAND <<-  check_param(param_table,"strand",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="strand"),c(2)]
   max_concurrent_jobs <- check_param(param_table,"max_concurrent_jobs",optional=T,CAST_FUN=as.numeric) #as.numeric(param_table[which(param_table=="max_concurrent_jobs"),c(2)])
@@ -944,7 +952,6 @@ load_params <- function(param_file){
   ORTHODB_PREFIX <<- check_param(param_table,"orthodb_path_prefix",optional=F,CAST_FUN=as.character)
   MACSE_PATH <<- tools::file_path_as_absolute(check_param(param_table,"macse_path",optional=F,CAST_FUN=as.character))
   MAFFT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
-  R_WISARD_PATH <<- tools::file_path_as_absolute(check_param(param_table,"wisard_path",optional=F,CAST_FUN=as.character))
   TRANSAT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"transat_path",optional=F,CAST_FUN=as.character))
   RNADECODER_PATH <<- tools::file_path_as_absolute(check_param(param_table,"rnadecoder_path",optional=F,CAST_FUN=as.character))
   #python3_path  <<- check_param(param_table,"python3_path",optional=F,CAST_FUN=as.character)
@@ -984,7 +991,6 @@ load_params <- function(param_file){
            ORTHODB_PREFIX=ORTHODB_PREFIX,
            MACSE_PATH=MACSE_PATH,
            MAFFT_PATH=MAFFT_PATH,
-           R_WISARD_PATH=R_WISARD_PATH,
            TRANSAT_PATH=TRANSAT_PATH,
            RNADECODER_PATH=RNADECODER_PATH,
            FASTTREE_PATH=FASTTREE_PATH,
@@ -1260,4 +1266,4 @@ check_params_loaded <- function(){
   return(PARAMETERS_LOADED)
 }
 
-PARAMETERS_LOADED <- FALSE
+PARAMETERS_LOADED <<- FALSE

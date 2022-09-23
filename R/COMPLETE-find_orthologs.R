@@ -250,6 +250,190 @@ merge_wisard_table <- function(x, y){
   return(unlist(new_list))
 }
 
+#' Internal Function - To calculate gene conservation score (GSC)
+#'
+#'This function is only designed to work with long ID format followed by the R-COMPLETE pipeline and assumes that the BLAST table is filtered by WISARD. The BLAST File/Table must be of the format 6. BLAST formats can be converted between each other using. By default, Percentage Sequence Identity is used as a score metric, the function expects BLAST Hits from tblastx (because the sequence is translated before it is BLASTed and the Percentage Identity is from the protein sequence). Other columns can be used as a metric with the score_col parameter
+#'
+#' blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
+#'
+#' @param blast_table BLAST table
+#' @param gene BLAST table
+#' @param score_col Column name or number to be used as a score metric. Percentage Sequence Identity is used by default (column 3)
+#' @param available_orgs Vector of available organisms (in the FASTA_OUT_PATH)
+#' @param num_transcripts Number of Transcripts available for the gene. This can be obtained from the blastdb of a gene
+#' @return Named Vector with an double value between minimum and maximum values in the score column (0-100 in case of percentage identity) which is the gene conservation score for the gene
+calculate_gene_conservation <- function(blast_table, gene, score_col=3,available_orgs, num_transcripts){
+
+  #"Give the (1) blast results path (2) gene (3) identity tables output directory (4) [calculated] threshold (0-100) (0 - for everything, 100 - only exactly matching sequences (5) plots output directory (6) available orgs list (7) reference organisms list (8) organisms info directory"
+
+  #calculate_gene_conservation.R $tables_path/$gene $gene "files/idents" "files/gene_thresholds.txt" "files/available_orgs.txt" "files/orgs" "$(grep ">" $blastdb_path/$gene.$region | wc -l)"
+
+  if(!check_params_loaded()){
+    stop()
+  }
+
+  if(is.character(blast_table)){
+    blast_table <- LoadBLASTHits(blast_table)
+  }
+
+  identities_out_path <- "files/idents"
+  thres_out <- "files/gene_thresholds.txt"
+  #aorgs_path <- available_orgs
+  #sorgs_path <- REF_ORGS
+  oinfo_out_path <- "files/orgs"
+
+  dir.create(identities_out_path,showWarnings = F,recursive = T)
+  dir.create(oinfo_out_path)
+
+  blast_table <-  mutate(blast_table,from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[3])})))
+  blast_table <-  mutate(blast_table,to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[3])})))
+
+  blast_table[,1] <- factor(blast_table[,1])
+  blast_table[,2] <- factor(blast_table[,2])
+  blast_table$from_org <- factor(blast_table$from_org)
+  blast_table$to_org <- factor(blast_table$to_org)
+
+  min_seq_identity <- data.frame(matrix(numeric(), nrow = length(REF_ORGS), ncol = length(available_orgs)))
+  max_seq_identity <- data.frame(matrix(numeric(), nrow = length(REF_ORGS), ncol = length(available_orgs)))
+  rownames(min_seq_identity) <- REF_ORGS
+  rownames(max_seq_identity) <- REF_ORGS
+  colnames(min_seq_identity) <- available_orgs
+  colnames(max_seq_identity) <- available_orgs
+
+  min_seq_identity[is.na(min_seq_identity)] <- 101
+  max_seq_identity[is.na(max_seq_identity)] <- -1
+
+  invisible(lapply(REF_ORGS, function(s_org){
+    lapply(available_orgs,function(a_org){
+      if(s_org!=a_org){
+        min_seq_identity[s_org,a_org] <- min(blast_table[which(blast_table$"from_org" == s_org & blast_table$"to_org" == a_org),score_col] )
+        max_seq_identity[s_org,a_org] <- max(blast_table[which(blast_table$"from_org" == s_org & blast_table$"to_org" == a_org),score_col] )
+      }
+    })
+  }))
+
+  min_seq_identity <- apply(min_seq_identity, MARGIN = 2 , function(x) replace(x, is.infinite(x), 0))
+  max_seq_identity <- apply(max_seq_identity, MARGIN = 2 , function(x) replace(x, is.infinite(x), 0))
+
+  if(identical(class(max_seq_identity),"numeric") && identical(class(min_seq_identity),"numeric")){  #If only one organism is selected then we have to adjust datatypes
+    max_seq_identity <- t(as.data.frame(max_seq_identity))
+    rownames(max_seq_identity) <- REF_ORGS
+    min_seq_identity <- t(as.data.frame(min_seq_identity))
+    rownames(min_seq_identity) <- REF_ORGS
+  }
+
+  if(nrow(max_seq_identity)>1){
+    png(filename =paste(file.path(PLOT_PATH,gene),"max_ident.png",sep = "."),width = 15, height = 15 , units = "in", res = 100)
+    heatmap.2(max_seq_identity, trace = "row", tracecol = "black", margins = c(12,12), scale = "none",cexRow=1.2,cexCol=1.2)
+    dev.off()
+    }
+  if(nrow(min_seq_identity)>1){
+    png(filename =paste(file.path(PLOT_PATH,gene),"min_ident.png",sep = "."),width = 15, height = 15 , units = "in", res = 100)
+    heatmap.2(min_seq_identity, trace = "row", tracecol = "black", margins = c(12,12),scale = "none",cexRow=1.2,cexCol=1.2)
+    dev.off()
+    }
+
+  discardable_orgs <- available_orgs[which(is.na(match(available_orgs, levels(blast_table$to_org))))] # We have no sequences of the gene for these orgs
+  saveable_orgs <- available_orgs[which(!is.na(match(available_orgs, levels(blast_table$to_org))))]
+
+  nref_orgs <- c()
+  nref_orgs <- BiocGenerics::unlist(lapply(REF_ORGS,function(s_org){
+    if(max_seq_identity[which(rownames(max_seq_identity)==s_org),which(colnames(max_seq_identity)==s_org)]==0){
+      warning(paste(gene,": is not present in : ", s_org))
+      #nref_orgs <- c(nref_orgs, s_org)
+      return(s_org)
+    }
+  }))
+
+  if(any(is.na(match(REF_ORGS, levels(blast_table$from_org))))){ ## Are all reference species blasted
+    warning(paste(gene,": Either gene missing/Please rerun BLAST for ", gene," (",blast_results_path,")"))
+    #quit(status = 2)
+  }
+
+  if(any(is.na(match(available_orgs, levels(blast_table$to_org))))){ ## Do blast results contain all the available species?
+    warning(paste(gene, ": Species not blasted against: ")) # because gene not available
+    print(discardable_orgs)
+  }
+
+  if(any(is.na(match(REF_ORGS, levels(blast_table$to_org))))){
+    warning(paste("WARNING: ",gene, " not present in all reference species:"))
+    print(nref_orgs)
+  } ##Between reference species
+
+  max_seq_identity[,discardable_orgs] <- NA
+  max_seq_identity[nref_orgs,] <- NA
+  min_seq_identity[,discardable_orgs] <- NA
+  min_seq_identity[nref_orgs,] <- NA
+  max_seq_identity <- as.data.frame(max_seq_identity)
+  min_seq_identity <- as.data.frame(min_seq_identity)
+
+  semi_ortho_orgs <- unique(colnames(max_seq_identity)[which(max_seq_identity == 0, arr.ind = T)[,"col"]])
+
+  semi_orths <- max_seq_identity[, c(semi_ortho_orgs)]
+
+  for (a_org in names(semi_orths)) {
+    if(all(is.na(match(semi_orths[, (names(semi_orths) %in% a_org)],0)))){
+      discardable_orgs <- c(discardable_orgs, a_org)
+      semi_orths <- semi_orths[, !(names(semi_orths) %in% a_org)]
+      semi_ortho_orgs <- semi_ortho_orgs[!semi_ortho_orgs %in% a_org]
+    }
+  }
+  warning("These organisms are semi-orthologous (ie, they are not orthologous to all reference species):")
+  print(semi_ortho_orgs)
+  print(semi_orths)
+  write.table(semi_orths, file = file.path(identities_out_path,paste(gene,".semiorgs",sep = "")),quote = F, row.names = T, col.names = T)
+
+  ##Correct isoform representation, for all reference species
+  ##As in, we do not care about the similarity of the reference sequence and it's isoforms. So we make it 0
+  ##Having these values also gives rise to ridiculous scores for poorly conserved genes (camk2g scores - before correction = 100, after correction = 48)
+  #min_seq_identity[which(min_seq_identity == 100, arr.ind = T)] <- 0
+  #min_seq_identity[,(names(min_seq_identity) %in% orgs.selected)] <- 0
+  for (s_org in REF_ORGS) {
+    min_seq_identity[s_org,s_org] <- 0
+  }
+  if(length(semi_ortho_orgs) > 0){
+    max_seq_identity <- max_seq_identity[, !(names(max_seq_identity) %in% semi_ortho_orgs)]
+    min_seq_identity <- min_seq_identity[,!(names(min_seq_identity) %in% semi_ortho_orgs)]
+  }
+  if(length(discardable_orgs) > 0){
+    max_seq_identity <- max_seq_identity[,!(names(max_seq_identity) %in% discardable_orgs)]
+    min_seq_identity <- min_seq_identity[,!(names(min_seq_identity) %in% discardable_orgs)]
+  }
+
+  min_gene_conservation <- max(min(max_seq_identity,na.rm = T),max(min_seq_identity,na.rm = T))
+  #print(min_gene_conservation)
+  #print(max_seq_identity)
+  low_orthology_orgs <- unique(names(max_seq_identity)[which(apply(max_seq_identity,MARGIN=c(1,2),function(x){ x < min_gene_conservation }), arr.ind = T)[,"col"]])
+  if(!identical(low_orthology_orgs, character(0))){
+    warning(paste("These organisms did not pass the minimum threshold(",min_gene_conservation,"):"))
+    print(all_of(low_orthology_orgs))
+  }
+
+  saveable_orgs <- anti_join(as.data.frame(list(saveable_orgs), col.names=c("orgs")),as.data.frame(list(semi_ortho_orgs), col.names=c("orgs")))
+  saveable_orgs <- as.vector(t(saveable_orgs))
+  if(length(discardable_orgs) > 0){
+    fwrite(list(discardable_orgs), file = file.path(oinfo_out_path,paste(gene,".dorgs",sep = "")))
+  }
+  if(length(saveable_orgs) > 0){
+    fwrite(list(saveable_orgs), file = file.path(oinfo_out_path,paste(gene,".sorgs",sep = "")))
+  }
+  if(length(low_orthology_orgs) > 0){
+    fwrite(list(low_orthology_orgs), file = file.path(oinfo_out_path,paste(gene,".lorgs",sep = "")))
+  }
+  if(length(nref_orgs) > 0){
+    fwrite(list(nref_orgs), file = file.path(oinfo_out_path,paste(gene,".nref",sep = "")))
+  }
+  write.table(min_seq_identity, file = file.path(identities_out_path,paste(gene,".min",sep = "")), quote = F, row.names = T, col.names = T)
+  write.table(max_seq_identity, file = file.path(identities_out_path,paste(gene,".max",sep = "")), quote = F, row.names = T, col.names = T)
+
+  #fileConn<-file(thres_out,open = "at")
+  #writeLines(paste(gene, min_gene_conservation,length(nref_orgs)==0,num_transcripts,sep = ","), fileConn)
+  #close(fileConn)
+
+  names(min_gene_conservation) <- gene
+  return(min_gene_conservation)
+}
+
 #'Transcript Ortholog Extraction Function for R-COMPLETE pipeline
 #'
 #' This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables. Only exporting code for visibility purposes
@@ -290,11 +474,15 @@ transcript_ortholog_extraction <- function(blast_program){
     group_FASTA_clusters(FASTA_OUT_PATH)
   }
 
+  #time onewayblast $reference_ORGS $fasta_path $2 files/oneway $blastdb_path $region $region tblastx
+
   #calculate gene conservation - calculate_gene_conservation.R
 
   #create organism sets
 
-  ##STEP 2 - Place ungrouped sequences into groups (oneway BLAST ungrouped cluster againts all genes)
+  ##Place ungrouped sequences into groups (oneway BLAST ungrouped cluster againts all genes)
+
+  #calculate cluster occupancy - number of genes per cluster && number of organisms per cluster
 
   ##ITERATION 2 - two way RBH
 
