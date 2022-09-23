@@ -1,0 +1,1263 @@
+#suppressMessages(require(biomartr))
+#suppressMessages(require(dplyr))
+#suppressMessages(require(biomaRt))
+#suppressMessages(require(parallel))
+#suppressMessages(require(tools)) ##FOR removing file extensions (gz)
+#suppressMessages(require(RCurl))
+#suppressMessages(require(curl))
+#suppressMessages(require(purrr))
+#suppressMessages(require(fs))
+#suppressMessages(require(processx))
+#suppressMessages(require(ps))
+#suppressMessages(require(stringi))
+#suppressMessages(require(data.table))
+#suppressMessages(require(stringr))
+#suppressMessages(require(seqinr))
+#suppressMessages(require(GenomicRanges))
+#suppressMessages(require(tictoc))
+
+##Credits to https://nbisweden.github.io/workshop-RNAseq/2011/lab_download.html for GTF download through biomart with biomaRt
+
+#args = commandArgs(trailingOnly=TRUE)
+
+#if (length(args)==0) {
+#  stop("Give the (1) Gene List\n", call.=FALSE)
+#}
+
+###FUNCTIONS
+
+#' Pretty Print tictoc::toc() output
+#'
+#' This function takes the output of tictoc::toc() and
+#' pretty prints it to the console
+#'
+#' @param clk output of function tictoc::toc()
+#' @return A formatted string to print to stdout/console
+print_toc <- function(clk){
+  return(tictoc::toc.outmsg(clk$tic,clk$toc,clk$msg))
+}
+
+# toc_log_msg <- function(tic, toc, msg, info){
+#   if (is.null(msg) || is.na(msg) || length(msg) == 0)
+#   {
+#     outmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
+#   }
+#   else
+#   {
+#     outmsg <- paste0(info, ": ", msg, ": ",
+#                      round(toc - tic, 3), " seconds elapsed")
+#   }
+#   outmsg
+# }
+
+#' Load a Matrix
+#'
+#' This function loads a file as a matrix. It assumes that the first column
+#' contains the rownames and the subsequent columns are the sample identifiers.
+#' Any rows with duplicated row names will be dropped with the first one being
+#' kepted.
+#'
+#' @param x Data Frame with columns named as required
+#' @param col_name Name of the column for which the value is to be extracted
+#' @return A value which was requested from the GTF data frame
+fetch_stat <- function(x,col_name){
+  tmp_stat <- x[col_name][!is.na(x[col_name])]
+  if (length(tmp_stat)==0) {
+    tmp_stat <- 0
+  }
+  return(tmp_stat)
+}
+
+#' Check if a dataset exists for the organism in BIOMART (through biomaRt)
+#'
+#' This function accepts a name of an organism and
+#' returns the name of the biomaRt dataset if available
+#'
+#' @param org Name of the organism
+#' @return Name of the dataset in biomaRt
+#' @export
+check_mart_dataset <- function(org){
+  #mart_err <- paste("Dataset not found for :",org)
+  #class(mart_err) <- c("try-error", class(mart_err))
+  #split_org <- stringi::stri_split_fixed(org,"_",2,simplify = T)
+  if(is.null(org.meta.list)){
+    ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
+    using.mart <- mart_connect(biomaRt::useMart,args=list(ENSEMBL_MART)) #For biomaRt
+    org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=using.mart))
+  }
+
+  split_org <- stringi::stri_split(gsub(pattern = "[[:punct:]]|[[:space:]]",x = org, replacement = "_"),fixed="_",simplify = T)
+  if(stringi::stri_isempty(split_org[2])){
+    stop(paste(org,"name not in proper format, eg danio_rerio\n"))
+  }
+  mart.dataset <- grep(x = org.meta.list$dataset, pattern=regex(split_org[2],ignore_case = T),fixed=F, value = T)
+  if(length(mart.dataset)==0){
+    stop(paste("\nDataset not found in BIOMART for :",org,"\nYou can provide the organism in user data\n"))
+  }else if (length(unique(mart.dataset))==1) {
+      return(unique(mart.dataset))
+    }else{
+      f_name <- paste(tolower(substring(split_org[1],1,1)),split_org[2],sep="")
+      mart.dataset <- grep(x = mart.dataset,pattern=paste("^",f_name,sep="") ,ignore.case = T,value = T) #grep(x = mart.dataset,pattern= ,ignore.case = T,value = T)
+      if (length(unique(mart.dataset))==1) {
+        return(unique(mart.dataset))
+      }else{
+        stop(paste("\nMultiple datasets found in BIOMART for :",org,":",paste(mart.dataset,collapse = ","),"\n"))
+      }
+    }
+}
+
+#' Connect to a biomaRt repo/dataset
+#'
+#' This function tries to connect to BIOMART services (using biomaRt) and retries if the connection fails with a stepping timeout of 5secs.
+#' The MART_FUN is called with do.call()
+#'
+#' @param MART_FUN Fuction to be called
+#' @param args Named list of arguments to be used by the function
+#' @return Name of the dataset in biomaRt
+mart_connect <- function(MART_FUN=NULL,args=c(),verbose=T){
+  if (!is.null(MART_FUN)) {
+    #print(args)
+    time_out <- 0
+    while (time_out < 600) { #max time out is 10mins, code will fibonacci to it stepping up 5 seconds
+      time_out <- time_out+5
+      catch_value <- tryCatch(do.call(MART_FUN,args),
+                              error=function(cond){
+                                if(verbose){
+                                  message(cond)
+                                  #print(class(cond))
+                                  message(paste("\nWaiting for",time_out,"s & trying again...\n"))
+                                }
+                                Sys.sleep(time_out)
+                              })
+      if(!any(grepl(pattern = "error|exception|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
+        #print("Done!")
+        return(catch_value)
+      }
+    }
+    stop("\nEnsembl is unresponsive, please check connection\n")
+  }else{
+    return(0)
+  }
+}
+
+#' Calculate Flank Values and other statistics from GTF Data
+#'
+#' This function calculates Flank Values (for transcripts whose UTR lengths are not known in which case Flank values are used instead of lengths to obtain the Flanking regions),
+#'  CDS lengths, Number of Exon & CDS Blocks from GTF Data obtained from biomaRt. This function also checks for strandedness and only keeps the genes which are present in a strand (if requested by the user).
+#' The GTF Data should have these columns c("chromosome_name", "strand", "ensembl_gene_id", "ensembl_transcript_id", "external_gene_name",
+#' "start_position","end_position","exon_chrom_start","exon_chrom_end","transcript_version","transcript_length","5_utr_start","5_utr_end",
+#' "transcript_start","transcription_start_site","transcript_end","cds_start","cds_end","3_utr_start","3_utr_end")
+#'
+#' For calculating stats for actual GTF file, refer to extract_gtf_info.R in the github repo
+#'
+#' @param gtf_data GTF data obtained from biomaRt for an organism
+#' @return Transcript Statistics from GTF data
+#' @export
+calculate_stats <- function(gtf_data) {
+
+  #print(g_name)
+  #print(paste(g_name, slice_file, output_file))
+  strandedness=STRAND
+  gtf_split <- base::split(gtf_data, as.factor(gtf_data$external_gene_name))
+  return(parallel::mclapply(gtf_split, function(gtf_x){
+    g_name <- unique(gtf_x$external_gene_name)
+    print(g_name)
+    gtf_gr <- unique(GRanges(
+      seqnames=Rle(gtf_x$ensembl_transcript_id),
+      ranges=IRanges(gtf_x$transcript_start, gtf_x$transcript_end),
+      strand=Rle(droplevels(factor(gtf_x$strand))),
+      gene_name=gtf_x$external_gene_name,
+      gene_id=gtf_x$ensembl_gene_id,
+      #transcript_id=gtf_x$ensembl_transcript_id,
+      feature="transcript" #gtf_x$feature,
+      #score=gtf_x$score
+      #attribute=gtf$attributes
+    ))
+
+    if (strandedness=="+" || strandedness=="-") {
+      gtf_gr <- gtf_gr[strand(gtf_gr)==strandedness,]
+      if(is.null(gtf_gr) || length(gtf_gr)==0 || all(is.na(gtf_gr))){ ##Probably the mrna is not in the required strand so we can safely discard it
+        #message(paste("No",strandedness,"strand info (or) region of gtf missing for the gene : ", g_name))
+        return()
+      }
+    }
+
+    transcript_stats <- lapply(base::split(gtf_x, as.factor(gtf_x$ensembl_transcript_id)), function(x){
+      five_start <- fetch_stat(x,"5_utr_start")
+      five_end <- fetch_stat(x,"5_utr_end")
+      five_len <- sum( unique(five_end)-unique(five_start) ) #+ 1
+      three_start <- fetch_stat(x,"3_utr_start")
+      three_end <- fetch_stat(x,"3_utr_end")
+      three_len <- sum( unique(three_end)-unique(three_start) ) #+ 1
+      cds_start <- min(x["cds_start"])
+      cds_end <- max(x["cds_end"])
+      cds_len <- sum(x["cds_end"]-x["cds_start"]) # + 1
+      exon_len <- sum(x["exon_chrom_end"]-x["exon_chrom_start"])
+
+
+      stats_df <- dplyr::bind_rows(list(transcript_id=as.character(unique(x["ensembl_transcript_id"])),cds_count=nrow(x),exon_count=length(unlist(unique(x["exon_chrom_end"]-x["exon_chrom_start"]))),transcript_length=as.numeric(unique(x["transcript_length"])),five_len=five_len,three_len=three_len, cds_start=cds_start,cds_end=cds_end,total_cds_len=cds_len,total_exon_len=exon_len,g.exon_start=unique(x["exon_chrom_start"]),g.exon_end=unique(x["exon_chrom_end"]),g.transcript_start=as.numeric(unique(x["transcript_start"])),g.transcript_end=as.numeric(unique(x["transcript_end"])),chromosome_name=as.character(unique(x["chromosome_name"])) ) ) #,g.three_start=three_start,g.three_end=three_end, g.five_start=five_start,g.five_end=five_end
+      ##Remove rows with len==3, for the same transcript it is the coordinates for stop codons & start codons
+      #stats_df <- stats_df[stats_df$three_len>3,]
+      #stats_df <- stats_df[stats_df$five_len>3,]
+      #print(stats_df)
+      return(stats_df)
+    })
+    transcript_stats <- dplyr::bind_rows(transcript_stats)
+    #transcript_stats <- transcript_stats[match(seqnames(gtf_gr)@values,transcript_stats$transcript_id),]
+    gtf_gr <- invisible(full_join(as.data.frame(gtf_gr),transcript_stats, by = c("seqnames"="transcript_id") ))
+    #gtf_gr$five_len[gtf_gr$five_len<=4] <- ceiling(mean(gtf_gr$five_len)) #correcting for Start codons
+    #gtf_gr$three_len[gtf_gr$three_len<=4] <- ceiling(mean(gtf_gr$three_len)) #correcting for stop codons
+    gtf_gr[is.na(gtf_gr)] <- 0
+    ##gtf_gr <- remove_sd_outlier(as.data.frame(gtf_gr),cols=c("five_len","three_len"), verbose = F)
+    gtf_gr <- gtf_gr %>% mutate(five_flank=ceiling(mean(unique(gtf_gr$five_len)))) #correcting for Start codons
+    gtf_gr <- gtf_gr %>% mutate(three_flank=ceiling(mean(unique(gtf_gr$three_len)))) #correcting for stop codons
+    #gtf_gr <- remove_sd_outlier(as.data.frame(gtf_gr),cols=c("five_len","three_len"), verbose = F)
+
+    #do variance correction
+    gtf_gr$five_flank <- gtf_gr$five_flank + ceiling(mean(unique(abs(gtf_gr$five_len-gtf_gr$five_flank))))
+    gtf_gr$three_flank <- gtf_gr$three_flank + ceiling(mean(unique(abs(gtf_gr$three_len-gtf_gr$three_flank))))
+    #gtf_gr$five_flank <- gtf_gr$five_flank + ceiling(mean(unique(gtf_gr$five_flank-gtf_gr$five_len)))
+    #gtf_gr$three_flank <- gtf_gr$three_flank + ceiling(mean(unique(gtf_gr$three_flank-gtf_gr$three_len)))
+
+
+    return(gtf_gr[,c("gene_name","gene_id","seqnames","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand")])
+  },mc.silent = T,mc.cores = numWorkers)) #,mc.cleanup = T
+}
+
+#' Add process to a list of process
+#'
+#' This function adds process to a list and makes sure hte number of processes do not
+#' exceed a user defined limit (< max_concurrent_jobs/cores/threads). Uses processx library to call
+#' a child process
+#'
+#' @param p_cmd Command to be executed
+#' @param p_args Arguments to be passed to the command
+#' @return Process ID from processx::new() which can be used for further monitoring of the process
+#' @export
+add_to_process <- function(p_cmd,p_args=list(),verbose=T){
+  if (is.null(process_list)) {
+    process_list <<- c()
+  }
+
+  process_list[sapply(process_list, function(x){
+    return(!x$is_alive())
+  })] <<- NULL
+  tryCatch(expr = function(){
+    process_list[sapply(process_list, is.null)] <<- NULL
+  }, error = function(){
+    if(is.null(process_list)){
+      process_list <<- c()
+    }
+  })
+  if (verbose) {
+    print(paste("Adding process to list...(",length(process_list),")",sep=""))
+  }
+  if(length(process_list)>=numWorkers || ps::ps_num_fds() >= 250){
+    #for (p_id in seq_along(process_list)) {
+    #  if(process_list[[p_id]]$is_alive()){
+    #    print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
+    #    save(process_list, files="proces_list.RData")
+    #    process_list[[p_id]]$wait(timeout=-1)
+    #    process_list[[p_idx]] <<- NULL
+    #    break;
+    #  }
+    if (verbose) {
+      print(paste("Process Q Full...Waiting for a process to end(",length(process_list),")",sep=""))
+    }
+    #save(process_list, file="proces_list.RData")
+    dead_procs <- c()
+    for (x in seq_along(process_list)) {
+      if(process_list[[x]]$is_alive()){
+        process_list[[x]]$wait(timeout=-1)
+        break;
+      }else{
+        dead_procs <- c(dead_procs,x)
+      }
+    }
+
+    #lapply(seq_along(process_list), function(x){
+    #  if(process_list[[x]]$is_alive()){
+    #    process_list[[x]]$wait(timeout=-1)
+    #    break;
+    #  }else{
+    #    dead_procs <- c(dead_procs,x)
+    #  }
+    #})
+
+    if (length(dead_procs)>0) {
+      dead_procs <- unique(dead_procs)
+      process_list[[dead_procs]] <<- NULL
+    }
+  }
+
+  proc <- processx::process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = "",stderr = "2>&1" ) #stderr = T, stdout =  T
+  #proc$wait(timeout=-1)
+  process_list <<- append(process_list,proc)
+
+  return(proc)
+}
+
+#' Checks FASTA files in a folder
+#'
+#' This function checks if all the genes (and the transcript regions (cds,3utr,5utr)) are present
+#' in the given folder path. The FASTA files should be of the format {gene}.{transcript region} for this
+#' function to work.
+#'
+#' @param fasta_path Path of folder to check
+#' @param org Name of the organism (format important, eg. "danio_rerio")
+#' @param genes Vector of genes to check for
+#' @return TRUE if check passed, FALSE if check failed
+check_files <-function(fasta_path,org,genes){
+  # if(CLEAN_EXTRACT){
+  #   print(paste(fasta_path,": Check FAILED! (CLEAN_EXTRACT : TRUE)"))
+  #   return(FALSE)
+  # }
+  return(tryCatch({
+    if(dir.exists(fasta_path) && length(dir(fasta_path,all.files = F)) > 0 && length(grep(list.files(path=fasta_path), pattern="tmp", invert=T, value=TRUE)) > 0){
+      missing_genes <- c()
+      available_genes <- c()
+      if(file.exists(paste(OUT_PATH,org,"/","MISSING_GENES",sep=""))){
+        missing_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste(OUT_PATH,org,"/","MISSING_GENES",sep=""), character())))
+      }
+      if(file.exists(paste(OUT_PATH,org,"/","AVAILABLE_GENES",sep=""))){
+        available_genes <- gsub('[[:punct:] ]+','_', factor(scan(paste(OUT_PATH,org,"/","AVAILABLE_GENES",sep=""), character())))
+      }
+      files_in_dir <- unique(sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){stringi::stri_split(str = x, fixed='.',simplify = T)[1]}))
+      missing_genes <- missing_genes[is.na(match(missing_genes, available_genes))]
+      print(paste("Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)))
+      if((all(!is.na(match(files_in_dir,available_genes))) && all(!is.na(match(available_genes,files_in_dir)))) && all(is.na(match(missing_genes, files_in_dir)))){
+        print(paste(fasta_path,": Check PASSED!"))
+        return(TRUE)
+      }
+    }
+    print(paste(fasta_path,": Check FAILED!"))
+    return(FALSE)
+  }, error=function(cond){
+    message(cond)
+    return(FALSE)
+  }))
+}
+
+#' Get GTF data from BIOMART (using biomaRt)
+#'
+#' This function downloads GTF data from BIOMART using biomaRt. The attributes downloaded are
+#' c("chromosome_name", "strand", "ensembl_gene_id", "ensembl_transcript_id", "external_gene_name",
+#' "start_position","end_position","exon_chrom_start","exon_chrom_end","transcript_version","transcript_length",
+#' "5_utr_start","5_utr_end","transcript_start","transcription_start_site","transcript_end","cds_start","cds_end","3_utr_start","3_utr_end")
+#'
+#' @param org Name of the organism (format important, eg. "danio_rerio")
+#' @param genes Vector of genes to fetch the GTF data
+#' @return GTF Data
+#' @export
+get_gtf_mart <- function(org, genes){
+  ##Credits to https://nbisweden.github.io/workshop-RNAseq/2011/lab_download.html for GTF download through biomart with biomaRt
+  gtf_attributes <- c("chromosome_name",
+                      "strand",
+                      "ensembl_gene_id",
+                      "ensembl_transcript_id",
+                      "external_gene_name",
+                      "start_position",
+                      "end_position",
+                      "exon_chrom_start",
+                      "exon_chrom_end",
+                      "transcript_version",
+                      "transcript_length",
+                      "5_utr_start",
+                      "5_utr_end",
+                      "transcript_start",
+                      "transcription_start_site",
+                      "transcript_end",
+                      "cds_start",
+                      "cds_end",
+                      "3_utr_start",
+                      "3_utr_end")
+  # mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
+  #   stop(cond)
+  # })
+  mart.dataset <- check_mart_dataset(org)
+  using.mart.data <- mart_connect(biomaRt::useMart,args = list(ENSEMBL_MART, mart.dataset))
+
+  mart.attributes <- biomaRt::listAttributes(using.mart.data)
+
+  if( !all(!is.na(match(gtf_attributes,mart.attributes$name))) ){
+    stop(paste("GTF Attributes were not available for :",org,"\n"))
+  }
+
+  ##Splitting genes to the recomended number of queries for biomart through biomaRt
+  #bm_gtf <- dplyr::bind_rows(lapply(split(genes, ceiling(seq_along(genes)/500)), function(split_genes){
+  #  return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = split_genes, curl=curl_handle)))
+  #}))
+  bm_gtf <- mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = genes, curl=curl_handle))
+  bm_gtf <- dplyr::arrange(bm_gtf,chromosome_name,start_position)
+
+  bm_gtf$strand[bm_gtf$strand==1] <- "+"
+  #bm_gtf$strand[bm_gtf$strand== -1] <- "-"
+  bm_gtf$strand[is.na(match(bm_gtf$strand,"+"))] <- "-"
+  #bm_gtf$source_name <- "Ensembl"
+  return(bm_gtf)
+}
+
+#' Get FASTA data from BIOMART (using biomaRt)
+#'
+#' This function downloads FASTA data from BIOMART using biomaRt. The Data Frame from calculate_stats() is required.
+#'
+#' @param org Name of the organism (format important, eg. "danio_rerio")
+#' @param gtf_stats Data Frame from calculate_stats()
+#' @param fasta_path Output path for transcript FASTA files
+#' @return Data Frame with transcripts for which FASTA was obtained
+#' @export
+fetch_FASTA_mart <- function(org,gtf_stats, fasta_path){
+
+  req_columns <- c("gene_name","gene_id","transcript_id","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand")
+
+  if(any(grepl(x = class(gtf_stats), pattern = "list",ignore.case = T))){
+    gtf_stats <- dplyr::bind_rows(gtf_stats)
+  }
+
+  if (any(grepl(pattern="seqnames",names(gtf_stats)))) {
+    names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
+  }
+
+  if (any(is.na(match(req_columns, names(gtf_stats))))) {
+    stop(paste("Missing columns, Require :",paste(req_columns,collapse = ",")))
+  }
+
+  if (!any(grepl(pattern="safe_gene_name",names(gtf_stats)))) {
+    gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
+  }
+
+  gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
+
+  dir.create(path=fasta_path,showWarnings=F,recursive=T)
+  seq_attributes <- c("5utr","coding","3utr") #"external_gene_name"
+  # mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
+  #   stop(cond)
+  # })
+  mart.dataset <- check_mart_dataset(org)
+  using.mart.data <- mart_connect(biomaRt::useMart,args = list(ENSEMBL_MART, mart.dataset))
+
+  check_rows_idx <- unlist(sapply(seq_along(1:nrow(gtf_stats)), FUN=function(x){
+    #print(gtf_stats[x,]<=3)
+    if(any(na.omit(gtf_stats[x,c("five_len","three_len","five_flank","three_flank")]<=3))){ #any(is.na(gtf_stats[x,])) , not checking for CDS==NA because I was able to obtain coding sequences even when cds_len==NA
+      return(x)
+    }
+  }))
+  invalid_stats <- gtf_stats[check_rows_idx,]
+  valid_transcripts <- unique(gtf_stats[-check_rows_idx,]$transcript_id)
+
+  bm_df <- c()
+
+  if(length(valid_transcripts) > 0){
+    bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts, curl=curl_handle)))},mc.cores = numWorkers)
+
+    bm_df <- bm_seq %>% purrr::reduce(full_join, by = "ensembl_transcript_id")
+    unavailable_transcripts <- unique( unlist(apply(bm_df,MARGIN = 1, FUN = function(x){
+      row_check <- grepl("unavailable",x=x,ignore.case = T)
+      if(all(row_check) || row_check[2]==T){ #Removing transcripts which do not have any regions or CDS
+        return(as.character(x["ensembl_transcript_id"]))
+      }
+    })) )
+    if(length(unavailable_transcripts) > 0){
+      bm_df <- bm_df[is.na(match(bm_df$ensembl_transcript_id,unavailable_transcripts)),]
+      invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unavailable_transcripts)),]
+    }
+
+    bm_df <- bm_df %>% mutate(flanking_5utr=F)
+    bm_df <- bm_df %>% mutate(flanking_3utr=F)
+  }
+
+  flank_stats <- invalid_stats #invalid_stats[is.na(match(invalid_stats$transcript_id,missing_any_flank_info)),]
+  if (nrow(flank_stats) > 0) {
+
+    missing_any_flank_info <- unique(c(flank_stats$transcript_id[flank_stats$five_flank==0],flank_stats$transcript_id[flank_stats$three_flank==0]))
+
+    if (length(missing_any_flank_info) > 0) { ##All these transcripts have neither UTR Lengths nor Flank lengths info (possibly because the gene does not have isoforms or info is missing), so I set the utr flanks to transcript lengths and correct for variance
+
+      arbitrary_flanks <- flank_stats[which(!is.na(match(flank_stats$transcript_id,missing_any_flank_info))),]
+      arbitrary_flanks <- arbitrary_flanks[order(arbitrary_flanks$gene_name),]
+      arb_flank_values <- dplyr::bind_rows(parallel::mclapply(base::split(arbitrary_flanks,as.factor(arbitrary_flanks$gene_name)), function(x){
+        x$five_flank[ which(x$five_flank==0) ] <- ceiling(mean(unique(arbitrary_flanks$transcript_length)))
+        x$three_flank[ which(x$three_flank==0) ] <- ceiling(mean(unique(arbitrary_flanks$transcript_length)))
+        #Do variance correction
+        return( data.frame(gene_name=x$gene_name,transcript_id=x$transcript_id,five_flank= x$five_flank + ceiling(mean(unique(abs(x$five_len-x$five_flank)))), three_flank=x$three_flank + ceiling(mean(unique(abs(x$three_len-x$three_flank)))) ) )
+      }, mc.cores = numWorkers))
+      arbitrary_flanks <- arbitrary_flanks %>% dplyr::select(-c("five_flank","three_flank")) %>% full_join(arb_flank_values, by = c("gene_name","transcript_id"))
+      flank_stats <- flank_stats[which(is.na(match(flank_stats$transcript_id,missing_any_flank_info))),]
+      flank_stats <- unique(full_join(flank_stats, arbitrary_flanks, by = c("gene_name", "gene_id", "transcript_id", "total_exon_len", "total_cds_len", "five_len", "three_len", "exon_count", "cds_count", "g.exon_start", "g.exon_end", "transcript_length", "five_flank", "three_flank", "g.transcript_start", "g.transcript_end", "chromosome_name", "strand", "safe_gene_name")))
+    }
+
+    ##Calculate genomic coordinates for flanks
+    flank_stats <- flank_stats %>% mutate(g.five_flank_start= abs(flank_stats$g.transcript_start-flank_stats$five_flank)-1 )
+    flank_stats <- flank_stats %>% mutate(g.five_flank_end= abs(flank_stats$g.transcript_start-1) )
+    flank_stats <- flank_stats %>% mutate(g.three_flank_start= abs(flank_stats$g.transcript_end+1) )
+    flank_stats <- flank_stats %>% mutate(g.three_flank_end=  abs(flank_stats$g.transcript_end+flank_stats$three_flank)+1 )
+
+    if (nrow(flank_stats) > 0) {
+      ##Get Flanking sequences
+      flank_values <- unique(flank_stats[,c("transcript_id","five_flank","three_flank")])
+      bm_flanks_cds <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding", mart=using.mart.data, useCache = F) )
+      bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_stats$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, STRAND), curl=curl_handle))
+      bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_values$three_flank , mart=using.mart.data, useCache = F))
+
+      names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
+      names(bm_flanks_three)[grep(pattern="coding_transcript_flank",names(bm_flanks_three))] <- "3utr"
+
+      bm_flanks_five <- bm_flanks_five %>% mutate(flanking_5utr=T)
+      bm_flanks_three <- bm_flanks_three %>% mutate(flanking_3utr=T)
+
+      transcripts_with_data <- intersect(flank_values$transcript_id,unique(c(bm_flanks_five$ensembl_transcript_id,bm_flanks_three$ensembl_transcript_id, bm_flanks_cds$ensembl_transcript_id)))
+
+      bm_seqs <- purrr::reduce(list(bm_flanks_five,bm_flanks_cds,bm_flanks_three), full_join, by="ensembl_transcript_id")
+
+      unavailable_transcripts <- unique( unlist(apply(bm_seqs,MARGIN = 1, FUN = function(x){
+        row_check <- grepl("unavailable",x=x,ignore.case = T)
+        names(row_check) <- names(bm_seqs)
+        #print(row_check)
+        if(all(row_check) || row_check["coding"]==T){ #Removing transcripts which do not have any regions or CDS
+          return(as.character(x["ensembl_transcript_id"]))
+        }
+      })) )
+
+      if(length(unavailable_transcripts)>0){
+        flank_stats <- flank_stats[!is.na(match(flank_stats$transcript_id,unavailable_transcripts)),]
+        message(paste("(Some) Data missing for : ",org,":",paste(unique(unavailable_transcripts),sep=",",collapse=",")))
+      }
+      if(length(transcripts_with_data)>0){
+        flank_stats <- flank_stats[!is.na(match(flank_stats$transcript_id,transcripts_with_data)),]
+      }
+      if (nrow(flank_stats) > 0) {
+        invalid_stats <- flank_stats
+      }
+    }
+  }
+
+  if(!is.null(bm_df)){
+    if(nrow(bm_seqs)>0 && nrow(bm_df)>0){
+      bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join,by = c("5utr", "ensembl_transcript_id", "coding", "3utr","flanking_5utr","flanking_3utr"))
+    }else if(nrow(bm_seqs)>0){
+      bm_df <- bm_seqs
+    }else{
+      stop(paste("Error fetching FASTA for :",org,"\n"))
+    }
+  }else{
+    if(nrow(bm_seqs)>0){
+      bm_df <- bm_seqs
+    }else{
+      stop(paste("Error fetching FASTA for :",org,"\n"))
+    }
+  }
+  names(bm_df)[grep(pattern="ensembl_transcript_id",names(bm_df))] <- "transcript_id"
+  names(bm_df)[grep(pattern="coding",names(bm_df))] <- "cds"
+
+  bm_df <- inner_join(gtf_stats[,c("gene_name","safe_gene_name","transcript_id","strand")],bm_df, by = "transcript_id")
+  bm_df <- unique(bm_df)
+  #print(head(bm_df))
+  parallel::mclapply(base::split(bm_df[,c("transcript_id","gene_name","safe_gene_name",TRANSCRIPT_REGIONS,"flanking_5utr","flanking_3utr","strand")],as.factor(bm_df$gene_name)), function(x){
+    lapply(TRANSCRIPT_REGIONS, function(y){
+      if (grepl("3utr|5utr",y,ignore.case = T)) { ##Adding "_FLANK" for transcripts with UTR Flanks
+        flank_col <- grep(paste("flanking",y,sep="_"),colnames(x),ignore.case = T,value = T)
+        x_unique <- unique(x[,c("transcript_id","safe_gene_name",y,flank_col,"strand")])
+        seq_names <- paste(as.character(x_unique[,"transcript_id"]), y,sep = TRANSCRIPT_ID_DELIM)
+        seq_names[x_unique[,flank_col]==T] <- paste(seq_names[x_unique[,flank_col]==T], "FLANK",sep = "_")
+      }else{
+        x_unique <- unique(x[,c(y,"transcript_id","safe_gene_name","strand")])
+        seq_names <- paste(as.character(x_unique[,"transcript_id"]), y,sep = TRANSCRIPT_ID_DELIM)
+      }
+      seq_names <- paste(seq_names,"(",x_unique[,"strand"],")",sep = "")
+      write.fasta(as.list(x_unique[,y]), seq_names,file.out=paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep="") )
+    })
+  },mc.cores = numWorkers, mc.silent = F)
+
+
+
+  return(gtf_stats[!is.na(match(gtf_stats$transcript_id,bm_df$transcript_id)),])
+}
+
+#' Get FASTA data from BIOMART (using biomartr)
+#'
+#' This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
+#' This function invokes external SHELL function extract_genomic_regions from system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE") (just like the piepline for user data) and cannot be monitored
+#'
+#' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
+#' @return Named Vector of the organism details
+#' @export
+fetch_FASTA_biomartr <- function(org_row){
+  org <- org_row["name"]
+  if (is.null(org.meta)) {
+    org.meta <<- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+  }
+
+  if(any(!is.na(match(org.meta$name,org)))){
+    org <- org.meta[which(!is.na(match(org.meta$name,org))),]
+    org_name <- org$name
+    genome_path<-paste(GENOMES_PATH, "/",org_name,".fa.gz",sep = "")
+    gtf_path<-paste(ANNOS_PATH, "/",org_name,".gtf.gz",sep = "")
+    org_fasta_path <- file.path(FASTA_OUT_PATH ,org_name)
+
+    if(biomartr::is.genome.available(db="ensembl", organism = org_name)){
+      if(!file.exists(gtf_path) || file.info(gtf_path)$size <= 20 || CLEAN_EXTRACT){
+        gtf_ori <- biomartr::getGTF(organism = org_name, db="ensembl",path = ANNOS_PATH) #,release=org$release-1)
+        if(!is.logical(gtf_ori)){
+          file.rename(tools::file_path_as_absolute(gtf_ori),gtf_path)
+        }
+      }
+      if(!file.exists(genome_path) || file.info(genome_path)$size <= 20 || CLEAN_EXTRACT){
+        genome_ori <- biomartr::getGenome(organism = org_name, db="ensembl",path = GENOMES_PATH,reference = T,gunzip = F) #,release=org$release-1)
+        if(!is.logical(genome_ori)){
+          file.rename(tools::file_path_as_absolute(genome_ori),genome_path)
+        }
+      }
+    }else{
+      stop(paste("Organism not available :", org,"\n"))
+    }
+      if(CLEAN_EXTRACT || !try(check_files(org_fasta_path,org_name,genes))){
+        if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !SKIP_USER_DATA) {
+          #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
+          do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
+          ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
+          print(print_toc(tictoc::toc(quiet = T)))
+          return(org_row)
+        }else{
+          return(NULL)
+        }
+      }else{
+        return(org_row)
+      }
+
+  }else{
+    stop(paste("Organism not available :", org,"\n"))
+  }
+}
+
+#' Get FASTA data
+#'
+#' Main function to download FASTA data. This function wraps around other fetch_FASTA_*() functions (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome and a gtf are not provided)
+#'
+#' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
+#' @return Named Vector of the organism details
+#' @export
+fetch_FASTA <- function(org_row) {
+
+  org <- org_row["name"]
+  tictoc::tic(msg=paste("Processed:",org))
+  org_fasta_path <- file.path(FASTA_OUT_PATH ,org)
+
+  if(!CLEAN_EXTRACT && check_files(org_fasta_path,org,genes)){
+    print(print_toc(tictoc::toc(quiet = T)))
+    return(org_row)
+  }
+
+  invisible(tryCatch(check_mart_dataset(org),error=function(cond){
+    #return(
+      tryCatch(fetch_FASTA_biomartr(org_row), error=function(cond){
+      print(print_toc(tictoc::toc(quiet = T)))
+      stop(cond)
+    }) #)
+    stop()
+  }))
+
+  odb_list <- paste(OUT_PATH,org,"/odb.list",sep = "")
+  odb_gene_map <- paste(OUT_PATH,org,"/odb.final_map",sep = "")
+  gtf_stats_file <- paste(OUT_PATH,org,"/gtf_stats.csv",sep = "")
+
+  if(CLEAN_EXTRACT){
+    unlink(org_fasta_path,recursive = T,force=T,expand = T)
+    unlink(odb_list,force=T,expand = T)
+    unlink(odb_gene_map,force=T,expand = T)
+    unlink(gtf_stats_file,force=T,expand = T)
+  }
+
+  gtf_data <- tryCatch(get_gtf_mart(org, genes),error=function(cond){
+    message(cond)
+    print(print_toc(tictoc::toc(quiet = T)))
+    return(NULL)
+  })
+
+  if(CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
+    #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
+    proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("check_OrthoDB",org,gene_list, odb_list, odb_gene_map,param_file)))
+    proc$wait(timeout=-1)
+  }
+  if(file.exists(odb_list) && file.info(odb_list)$size > 0){
+    odb_list_genes <- factor(scan(odb_list, character()))
+    odb_list_genes <- odb_list_genes[grep("gene",tolower(odb_list_genes), invert = T, fixed = T)]
+    odb_list_data <- get_gtf_mart(org, odb_list_genes)
+    gtf_data <- unique(merge(odb_list_data,gtf_data))
+  }else{
+    message(paste("ODB gene list could not be found for : ",org))
+  }
+
+  gtf_stats <- calculate_stats(gtf_data)
+  gtf_stats <- dplyr::bind_rows(gtf_stats)
+  names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
+  gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
+  gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
+
+
+  if(nrow(gtf_stats)==0){
+    message(paste("No genes passed filters for : ",org))
+    print(print_toc(tictoc::toc(quiet = T)))
+    return()
+  }
+
+  gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path)
+
+  if(nrow(gtf_stats)==0){
+    message(paste("Error fetching FASTA for : ",org))
+    print(print_toc(tictoc::toc(quiet = T)))
+    return()
+  }
+
+  local_procs <- c()
+  local_procs <- unlist(parallel::mclapply(base::split(gtf_stats,as.factor(gtf_stats$gene_name)), function(x){
+    gene <- unique(x[,"gene_name"])
+    safe_name <- unique(x[,"safe_gene_name"])
+    return(unlist(lapply(TRANSCRIPT_REGIONS, function(y){
+      output_fasta <- paste(org_fasta_path,"/",safe_name,".",y,sep="")
+      input_fasta <- paste(org_fasta_path,"/",safe_name,".",y,".tmp",sep="")
+      proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("label_sequenceIDs",org,gene, output_fasta,input_fasta,param_file, odb_gene_map), verbose=F))
+      return(proc)
+    })))
+  }, mc.cores = numWorkers,mc.silent = T))
+  invisible(parallel::mclapply(local_procs, function(x){
+    #print(x)
+    if(x$is_alive()){
+      x$wait(timeout=-1)
+    }
+  }, mc.cores = numWorkers))
+
+  names(gtf_stats)[grep(pattern="transcript_length",names(gtf_stats))] <- "transcript_length.annotated"
+  gtf_stats <- gtf_stats %>% mutate(org=org)
+  gtf_stats$transcript_length.estimated <- gtf_stats$five_flank + gtf_stats$total_cds_len + gtf_stats$three_flank
+  gtf_stats <- gtf_stats[,c("gene_name","gene_id","transcript_id","total_cds_len","five_len","three_len","exon_count","cds_count","five_flank","three_flank","transcript_length.estimated","transcript_length.annotated","org")]
+
+  write.table(x = gtf_stats,file = gtf_stats_file,quote = F,sep = ",",row.names = F,col.names = T)
+  write.table(x= unique(tolower(gtf_stats$gene_name)),file=paste(file.path("files","genes",org) ,"/","AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F )
+  write.table(x= unique(genes[is.na(match( tolower(genes),tolower(unique(gtf_stats$gene_name)) ))]) ,file=paste(file.path("files","genes",org),"/","MISSING_GENES",sep=""),quote=F,row.names=F,col.names=F )
+
+  print(paste("DONE :", org))
+  print(print_toc(tictoc::toc(quiet = T)))
+  return(org_row)
+}
+
+#' Get FASTA data
+#'
+#' Function to download FASTA data for user data. fetch_FASTA() in invoked if a genome and a gtf are not provided.
+#'
+#' @param data Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",genome="http://some.link",gtf="some.file",version="106")
+#' @return Named Vector of the organism details
+#' @export
+fetch_FASTA_user <- function(data){
+  genome_path <- c()
+  gtf_path <- c()
+  #print(data)
+  genome <- data["genome"]
+  gtf <- data["gtf"]
+  org <- data["org"]
+
+  if(genome == "-" || gtf == "-" || genome == " " || gtf == " " || stringi::stri_isempty(genome) || stringi::stri_isempty(gtf)){
+    return( tryCatch(fetch_FASTA(c(name=as.character(org),genome="-",gtf="-")),error=function(cond){
+      message(cond)
+      return(NULL)
+    }) )
+    #break;
+  }
+
+  tictoc::tic(msg = paste("Processed:",org))
+  genome_path<-paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
+  gtf_path<-paste(ANNOS_PATH, "/",org,tools::file_ext(basename(URLdecode(gtf))),sep = "")  #".gtf.gz"
+  org_fasta_path <- file.path(FASTA_OUT_PATH ,org)
+
+  if(grepl("://|http|ftp|www",genome)){
+    if(!file.exists(genome_path) || !file.info(genome_path)$size > 20 || CLEAN_EXTRACT){
+      curl_fetch_disk(genome, paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
+      #genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep="")
+      file.rename(paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""),genome_path)
+    } # else{
+    #   if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL) == 0){
+    #     genome_path<-genome_path
+    #   }else{
+    #     lapply(list.files(GENOMES_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
+    #       if(grepl(x,pattern = "fa|gz")){
+    #         try(file.remove(x, showWarnings=F))
+    #       }
+    #     })
+    #     curl_fetch_disk(genome, basename(URLdecode(genome)))
+    #     genome_path <- paste(GENOMES_PATH, "/",basename(URLdecode(genome)),sep="") #basename(URLdecode(genome))
+    #   }
+    # }
+
+  }else{
+    if(file.exists(genome) && file.info(genome)$size > 0){
+      genome_path <- genome
+    }else{
+      message(paste("User Genome not found :",org,"-",genome))
+      print(print_toc(tictoc::toc(quiet = T)))
+      return(NULL)
+    }
+  }
+
+  if(grepl("://|http|ftp|www",gtf)){
+    if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 20 || CLEAN_EXTRACT){
+      curl_fetch_disk(gtf, paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+      #gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
+
+      #zcat -f $ANNO_FILE | gffread - -T -O -E -o - | gzip -c > $ANNOS_PATH/"$f_org_name".gtf.gz
+      if(!grepl(pattern = "gtf",x = basename(URLdecode(gtf)),ignore.case = T)){
+
+      }
+      file.rename(paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""),gtf_path)
+    }# else{
+    #   if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL) == 0){
+    #     gtf_path<-gtf_path
+    #   }else{
+    #     lapply(list.files(ANNOS_PATH, full.names = T, ignore.case = T, no.. = T, pattern = regex(stri_split_fixed(org,"_",2,simplify = T),ignore_case = T)),function(x){
+    #       if(grepl(x,pattern = "gtf|gz")){
+    #         try(file.remove(x, showWarnings=F))
+    #       }
+    #     })
+    #     curl_fetch_disk(gtf, paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+    #     gtf_path <- paste(ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
+    #   }
+    # }
+
+  }else{
+    if(file.exists(gtf) && file.info(gtf)$size > 0){
+      gtf_path <- gtf
+    }else{
+      message(paste("User GTF not found :",org,"-",gtf))
+      print(print_toc(tictoc::toc(quiet = T)))
+      return(NULL)
+    }
+  }
+
+  # if(!is.logical(genome_path) && file_ext(genome_path) == "gz"){
+  #   try(file_move(genome_path, paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")))
+  #   genome_path <- paste(GENOMES_PATH, "/",org,".fa.gz",sep = "")
+  # }else if(!is.logical(genome_path)){
+  #   g_ext <- file_ext(genome_path)
+  #   try(file_move(genome_path, paste(GENOMES_PATH, "/",org,".",g_ext,sep = "")))
+  #   genome_path <- paste(GENOMES_PATH, "/",org,".",g_ext,sep = "")
+  # }
+  # if(!is.logical(gtf_path) && file_ext(gtf_path) == "gz"){
+  #   try(file_move(gtf_path, paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")))
+  #   gtf_path <- paste(ANNOS_PATH, "/",org,".gtf.gz",sep = "")
+  # }else if(!is.logical(gtf_path)){
+  #   a_ext <- file_ext(gtf_path)
+  #   try(file_move(gtf_path, paste(ANNOS_PATH, "/",org,".",a_ext,sep = "")))
+  #   gtf_path <- paste(ANNOS_PATH, "/",org,".",a_ext,sep = "")
+  # }
+
+  #print(paste(genome_path,gtf_path,org))
+
+  if(CLEAN_EXTRACT || !try(check_files(org_fasta_path,org,genes))){
+    if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !SKIP_USER_DATA) {
+      #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
+      do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
+      ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
+      print(print_toc(tictoc::toc(quiet = T)))
+      return(data)
+    }else{
+      return(NULL)
+    }
+  }else{
+    print(print_toc(tictoc::toc(quiet = T)))
+    return(data)
+  }
+}
+
+#' Checks for parameter and return the value
+#'
+#' If a parameter ID does not exist or if the value is empty and if the parameter is NOT optional then the execution is stopped
+#'
+#' @param param_table parameter table or parameter file name
+#' @param param_id ID of the paramter to be extracted from parameter file
+#' @param gene_list File with a list of genes to extract data for(check the github repo for an example)
+check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,create_dir=F){
+  if(is.character(param_table)){
+    param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T) #Convert multibyte seperator to one byte sep
+  }
+  param_value <- param_table[which(param_table==param_id),c(2)]
+  #print(CAST_FUN(param_value))
+  if(create_dir){
+    dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
+  }
+  if(!stringi::stri_isempty(param_value) || optional){
+    return(CAST_FUN(param_value))
+  }else{
+    stop(paste("Parameter :",param_id,"is empty and is not optional!"))
+  }
+}
+
+#' Loads the parameters from param file
+#'
+#' The function loads parameters from the param file into Global R variables and returns a named parameter table. The parameters are checked and an error is output if there are any missing parameters
+#'
+#'\textbf{NOTE : Parameters are case sensitive and are de-limited with '=='}
+#'
+#' @param param_file parameter file name
+#' @return param_vector named parameter vector
+#' @export
+load_params <- function(param_file){
+  if(!is.character(param_file)){
+    message("Give the file name of the parameters")
+    return(NULL)
+  }
+  param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T) #Convert multibyte seperator to one byte sep
+
+  GENOMES_PATH <<- tools::file_path_as_absolute(check_param(param_table,"genomes_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="genomes_path"),c(2)]
+  ANNOS_PATH <<- tools::file_path_as_absolute(check_param(param_table,"annos_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="annos_path"),c(2)]
+  TEMP_PATH <<- tools::file_path_as_absolute(check_param(param_table,"temp_path",optional=T,CAST_FUN=as.character,create_dir=T)) #param_table[which(param_table=="temp_path"),c(2)]
+  GROUPS_PATH <<- tools::file_path_as_absolute(check_param(param_table,"groups_path",optional=F,CAST_FUN=as.character,create_dir=T)) #param_table[which(param_table=="groups_path"),c(2)]
+  FASTA_OUT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"fasta_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="fasta_path"),c(2)]
+  OUT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"out_path",optional=F,CAST_FUN=as.character,create_dir=T))
+  # if(stringi::stri_isempty(OUT_PATH)){
+  #   OUT_PATH <<- "."
+  # }
+  BLAST_REGION <<- tolower(check_param(param_table,"blast_region",optional=F,CAST_FUN=as.character)) #tolower(as.character(param_table[which(param_table=="blast_region"),c(2)]))
+  USER_GENOMES <<-  tools::file_path_as_absolute(check_param(param_table,"user_genomes",optional=F,CAST_FUN=as.character)) #as.character(param_table[which(param_table=="user_genomes"),c(2)])
+  CLEAN_EXTRACT <<- check_param(param_table,"clean_extract",optional=F,CAST_FUN=as.logical) #as.logical(param_table[which(param_table=="clean_extract"),c(2)])
+  TRANSCRIPT_ID_DELIM <<- check_param(param_table,"transcript_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="transcript_delimiter"),c(2)]
+  SEQUENCE_ID_DELIM <<- check_param(param_table,"seqID_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="seqID_delimiter"),c(2)]
+  DATA_SOURCE <<- check_param(param_table,"data_source",optional=F,CAST_FUN=as.character) #tolower(param_table[which(param_table=="data_source"),c(2)])
+  TRANSCRIPT_REGIONS <<- tolower(gsub("[[:space:]]","",x = unlist(stringi::stri_split( check_param(param_table,"transcript_regions",optional=F,CAST_FUN=as.character) ,fixed = ",")))) #param_table[which(param_table=="transcript_regions"),c(2)]
+  STRAND <<-  check_param(param_table,"strand",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="strand"),c(2)]
+  max_concurrent_jobs <- check_param(param_table,"max_concurrent_jobs",optional=T,CAST_FUN=as.numeric) #as.numeric(param_table[which(param_table=="max_concurrent_jobs"),c(2)])
+
+  tryCatch(numWorkers <<- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <<- 2})
+  if(is.na(numWorkers) || numWorkers > max_concurrent_jobs){
+    numWorkers <<- max_concurrent_jobs
+  }
+
+  GENE_SEARCH_MODE <<- check_param(param_table,"gene_search_mode",optional=T,CAST_FUN=as.character)
+  E_VALUE_THRESH <<- check_param(param_table,"e_value_thresh",optional=F,CAST_FUN=as.double)
+  MIN_IDENT_THRESH  <<- check_param(param_table,"minIdent_thresh",optional=F,CAST_FUN=as.double)
+  BLAST_OPTIONS  <<- check_param(param_table,"blast_options",optional=F,CAST_FUN=as.character)
+  #allow_cross_gene_hits <<- check_param(param_table,"allow_cross_gene_hits",optional=F,CAST_FUN=as.logical)
+  TRANSCRIPT_REGIONS_DELIMITER <<- check_param(param_table,"transcript_regions_delimiter",optional=F,CAST_FUN=as.character)
+  BLAST_DB_PATH <<- tools::file_path_as_absolute(check_param(param_table,"blastdb_path",optional=F,CAST_FUN=as.character,create_dir=T))
+  REF_ORGS_FILE <<- tools::file_path_as_absolute(check_param(param_table,"ref_orgs",optional=F,CAST_FUN=as.character))
+  CLUSTER_OPTIONS  <<- check_param(param_table,"cluster_options",optional=T,CAST_FUN=as.character)
+  BED_PATH <<- tools::file_path_as_absolute(check_param(param_table,"bed_path",optional=F,CAST_FUN=as.character,create_dir=T))
+  PLOT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"plot_path",optional=F,CAST_FUN=as.character,create_dir=T))
+  GENE_DROP_THRESHOLD <<- check_param(param_table,"gene_drop_thresh",optional=F,CAST_FUN=as.double)
+  ORTHODB_PREFIX <<- check_param(param_table,"orthodb_path_prefix",optional=F,CAST_FUN=as.character)
+  MACSE_PATH <<- tools::file_path_as_absolute(check_param(param_table,"macse_path",optional=F,CAST_FUN=as.character))
+  MAFFT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
+  R_WISARD_PATH <<- tools::file_path_as_absolute(check_param(param_table,"wisard_path",optional=F,CAST_FUN=as.character))
+  TRANSAT_PATH <<- tools::file_path_as_absolute(check_param(param_table,"transat_path",optional=F,CAST_FUN=as.character))
+  RNADECODER_PATH <<- tools::file_path_as_absolute(check_param(param_table,"rnadecoder_path",optional=F,CAST_FUN=as.character))
+  #python3_path  <<- check_param(param_table,"python3_path",optional=F,CAST_FUN=as.character)
+  FASTTREE_PATH <<- tools::file_path_as_absolute(check_param(param_table,"fasttree_path",optional=F,CAST_FUN=as.character))
+  ALIGNMENTS_PATH <<- tools::file_path_as_absolute(check_param(param_table,"alignments_path",optional=F,CAST_FUN=as.character,create_dir=T))
+  ALIGNMENT_GAP_THRESHOLD  <<- check_param(param_table,"aln_gap_thres",optional=F,CAST_FUN=as.double)
+  MIN_COVERAGE_THRESHOLD <<- check_param(param_table,"min_coverage_thres",optional=F,CAST_FUN=as.double)
+
+  PARAMETERS_LOADED <<- TRUE
+
+  return(list(GENOMES_PATH=GENOMES_PATH,
+           ANNOS_PATH=ANNOS_PATH,
+           TEMP_PATH=TEMP_PATH,
+           GROUPS_PATH=GROUPS_PATH,
+           FASTA_OUT_PATH=FASTA_OUT_PATH,
+           OUT_PATH=OUT_PATH,
+           BLAST_REGION=BLAST_REGION,
+           USER_GENOMES=USER_GENOMES,
+           CLEAN_EXTRACT=CLEAN_EXTRACT,
+           TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM,
+           SEQUENCE_ID_DELIM=SEQUENCE_ID_DELIM,
+           DATA_SOURCE=DATA_SOURCE,
+           TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS,
+           STRAND=STRAND,
+           max_concurrent_jobs=max_concurrent_jobs,
+           GENE_SEARCH_MODE=GENE_SEARCH_MODE,
+           E_VALUE_THRESH=E_VALUE_THRESH,
+           MIN_IDENT_THRESH=MIN_IDENT_THRESH,
+           BLAST_OPTIONS=BLAST_OPTIONS,
+           TRANSCRIPT_REGIONS_DELIMITER=TRANSCRIPT_REGIONS_DELIMITER,
+           BLAST_DB_PATH=BLAST_DB_PATH,
+           REF_ORGS_FILE=REF_ORGS_FILE,
+           CLUSTER_OPTIONS=CLUSTER_OPTIONS,
+           BED_PATH=BED_PATH,
+           PLOT_PATH=PLOT_PATH,
+           GENE_DROP_THRESHOLD=GENE_DROP_THRESHOLD,
+           ORTHODB_PREFIX=ORTHODB_PREFIX,
+           MACSE_PATH=MACSE_PATH,
+           MAFFT_PATH=MAFFT_PATH,
+           R_WISARD_PATH=R_WISARD_PATH,
+           TRANSAT_PATH=TRANSAT_PATH,
+           RNADECODER_PATH=RNADECODER_PATH,
+           FASTTREE_PATH=FASTTREE_PATH,
+           ALIGNMENTS_PATH=ALIGNMENTS_PATH,
+           ALIGNMENT_GAP_THRESHOLD=ALIGNMENT_GAP_THRESHOLD,
+           MIN_COVERAGE_THRESHOLD=MIN_COVERAGE_THRESHOLD))
+
+}
+
+#' Index FASTA IDs
+#'
+#' Convert longer FASTA IDs into short indices. Indices are generated recursively. If path and index_out are not provided, the default FASTA_OUT_PATH and "files/rna_ids.txt" are used
+#'
+#' @param path Path with FASTA Files to index
+#' @param index_out Output files with the indices of the format "file"\t"long_id"\t"index"
+#' @export
+index_FASTA_IDs <- function(path=NULL, index_out=NULL){
+  if (is.null(path) && check_params_loaded()) {
+    path <- FASTA_OUT_PATH
+  }
+  if (is.null(index_out) && check_params_loaded()) {
+    index_out <- paste(OUT_PATH,"/files/rna_ids.txt",sep="")
+  }
+  if (!is.null(path) && !is.null(index_out)){
+    processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = "")
+  }else{
+    stop("Give path and output file for index")
+  }
+}
+
+#' Internal Function - Group FASTA Sequences into Cluster Files
+#'
+#' Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format
+#'
+#' @param path Path with FASTA Files to index
+group_FASTA_clusters <- function(fasta_path){
+
+  if(!check_params_loaded()){
+    stop()
+  }
+
+  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_clusters",fasta_path,GROUPS_PATH,SEQUENCE_ID_DELIM,numWorkers,OUT_PATH ) ,spinner = T,stdout = "",stderr = "")
+}
+
+#' START HERE - Extracts Data
+#'
+#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example)
+#'
+#' @param param_file Filename of a formatted parameter file (check the github repo for an example)
+#' @param gene_list File with a list of genes to extract data for(check the github repo for an example)
+#' @export
+EXTRACT_DATA <- function(param_file, gene_list){
+  set.seed(123)
+
+  if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
+    stop("Pipeline only supports Linux (and bash) :(")
+  }
+
+  SKIP_USER_DATA <<- FALSE
+  if (stringi::stri_isempty(Sys.which("samtools")) || stringi::stri_isempty(Sys.which("bedtools")) || stringi::stri_isempty(Sys.which("parallel"))) {
+    #print("Missing samtools/bedtools in $PATH...User data will not be processed!")
+    message("Missing samtools/bedtools/parallel in $PATH...User data & biomartr genomes will not be processed! (because the shell scripts depend on these programs)")
+    SKIP_USER_DATA <<- TRUE
+  }
+
+  options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
+  #options(download.file.method="curl")
+  #connection_options <<- curlOptions(ssl.verifyhost=0, ssl.verifypeer=0,timeout=200,maxconnects=200,connecttimeout=200))
+
+  process_list <<- c()
+
+  #param_file <- "parameters.txt"
+  ##do.call(add_to_process,list(p_cmd = c("./functions.sh"), p_args = c(""))) #CANNOT SOURCE BASH FUNCTIONS INTO R SHELL
+
+  if(!file.exists(param_file) || file.info(param_file)$size < 0){
+    stop("ERROR: parameters.txt is missing and is required\n")
+  }
+
+  param_file <<- param_file
+  param_table <<- load_params(param_file)
+  print(param_table)
+
+  if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
+    SHELL <<- Sys.getenv("SHELL")
+    print(paste("SHELL :",SHELL))
+  }else if(file.exists("/bin/bash")){
+    SHELL <<- "/bin/bash"
+    print(paste("SHELL :",SHELL))
+  }else{
+    stop(paste("SHELL (",SHELL,") : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
+  }
+
+  curl_handle <<- RCurl::getCurlMultiHandle()
+
+  #gene_list <<- args[1] #"files/genelist.txt"
+  gene_list <<- gene_list
+  genes <<- factor(scan(gene_list, character())) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
+  genes <<- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
+
+  print(paste("MAX PROCESSES:",numWorkers))
+
+  dir.create("files",showWarnings = F, recursive = T)
+  unlink(TEMP_PATH, recursive = T,force = T,expand = T)
+  dir.create(TEMP_PATH,showWarnings = F, recursive = T)
+  unlink(GROUPS_PATH, recursive = T,force = T,expand = T)
+  dir.create(GROUPS_PATH,showWarnings = F, recursive = T)
+  dir.create(FASTA_OUT_PATH,showWarnings = F, recursive = T)
+  dir.create(GENOMES_PATH,showWarnings = F, recursive = T)
+  dir.create(ANNOS_PATH,showWarnings = F, recursive = T)
+
+  ENSEMBL_MART <<- "ENSEMBL_MART_ENSEMBL"
+  using.mart <- mart_connect(biomaRt::useMart,args=list(ENSEMBL_MART)) #For biomaRt
+  org.meta.list <<- mart_connect(biomaRt::listDatasets,args=list(mart=using.mart)) #For biomaRt
+  org.meta <<- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+
+  if( (!stringi::stri_isempty(USER_GENOMES) && !is.null(USER_GENOMES)) && !SKIP_USER_DATA){
+    user_data <- read.csv(USER_GENOMES,header = F)
+    names(user_data) <- c("org","genome","gtf")
+  }
+
+  print("Transforming ODB Files...")
+
+  ##ODB_proc <- do.call(add_to_process,list(p_cmd = c("./merge_OG2genes_OrthoDB.sh"), p_args = c(gene_list)))
+  #ODB_proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "./merge_OG2genes_OrthoDB.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,gene_list)))
+  #ODB_proc$wait(timeout=-1)
+
+  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"merge_OG2genes_OrthoDB",ORTHODB_PREFIX,CLEAN_EXTRACT,numWorkers,gene_list ) ,spinner = T,stdout = "",stderr = "")
+
+  print("Checking and downloading transcripts...")
+
+  saved_meta <- c()
+
+  tictoc::tic(msg = "Total Extraction Time :")
+
+  if(!SKIP_USER_DATA && (DATA_SOURCE=="both" || DATA_SOURCE=="user") ){
+    if(nrow(user_data)!=0 && !is.null(user_data)){
+      saved_meta <- apply(user_data, MARGIN = 1, function(x){
+        #user_proc <- fetch_FASTA_user(x)
+        #user_proc$wait()
+        tictoc::tic.clear();
+        return( tryCatch(fetch_FASTA_user(x),error=function(cond){
+          message(cond)
+          return(NULL)
+        })
+        ) } )
+    }
+  }
+
+  save("saved_meta", file="saved_meta.RData")
+
+  if(DATA_SOURCE=="both" || DATA_SOURCE!="user"){
+    #parallel::mclapply(org.meta$name, fetch_genome_db, mc.cores = 1)
+    #lapply(org.meta$name, FUN = function(x){
+    saved_meta <- list( saved_meta, apply(org.meta, MARGIN = 1, FUN = function(x){
+      #tictoc::tic.clear();
+      return( tryCatch(fetch_FASTA(x),error=function(cond){
+        message(cond)
+        return(NULL)
+      })
+      ) } ) )
+  }
+
+  save("saved_meta", file="saved_meta.RData")
+
+  # print(process_list)
+  # for(proc in process_list){
+  #   if(proc$is_alive()){
+  #     print(proc$get_status())
+  #     if(ps_is_running(proc$as_ps_handle())){
+  #       ## if SIGCHLD is overwritten the process is lost, so we try to get pid and check if the process is running
+  #       proc$wait(timeout = -1)
+  #     }else{
+  #       print(proc$print())
+  #       print(proc$get_status())
+  #       proc$interrupt()
+  #     }
+  #   }
+  #   #print(proc$get_exit_status())
+  # }
+
+  save("process_list", file="process_list.RData")
+
+  try(parallel::mclapply(process_list, function(x){
+    if(!is.null(x) && x$is_alive()){
+      x$wait(timeout=-1)
+    }
+  }, mc.cores =  numWorkers))
+
+  #saved_meta[sapply(saved_meta, is.null)] <- NULL
+  #saved_meta <- dplyr::bind_rows(saved_meta)
+
+  print(print_toc(tictoc::toc(quiet = T)))
+
+  saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
+
+  write.table(x = saved_meta,file = "files/org_meta.txt", quote = F,sep=",", row.names = F)
+
+  lapply(list.files(path = FASTA_OUT_PATH,include.dirs=TRUE, full.names=TRUE), function(x) {
+    fi <- file.info(x)
+    if (fi$isdir) {
+      f <- list.files(x, all.files=TRUE, recursive=TRUE, full.names=TRUE)
+      sz <- sum(file.info(f)$size)
+
+      #as precaution, print to make sure before using unlink(x, TRUE)
+      if (sz==0L) unlink(x,recursive = T, force = T, expand =T) #print(x)
+    }
+  })
+
+  print("Grouping & Indexing FASTA ...")
+
+  #processx::run( command = SHELL ,args=c("-c", paste("'source",system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"&&","group_FASTA_clusters",FASTA_OUT_PATH,GROUPS_PATH,SEQUENCE_ID_DELIM,numWorkers,"'",sep=" ") ) ,spinner = T)
+  if(!SKIP_USER_DATA){
+    group_FASTA_clusters(FASTA_OUT_PATH)
+  }
+
+  ##ID Alignments - GENERATE numeric ids for FASTA IDS (because they are long and downstream analysis have difficulty taking long names)
+  #Only indexing the IDs for now because find_orthologs.sh depends on the long FASTA IDs and cannot be shorted until orthologous transcripts are obtained
+  #!!!!!!!#CHANGE FASTA IDs to numeric IDs (because some programs dont work well with long FASTA IDs) ONLY BEFORE ALIGNMENT!!!!!!!!
+  #processx::run( command = SHELL ,args=c("-c", paste("'source",system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"&&","index_fastaIDs","files/rna_ids.txt",FASTA_OUT_PATH,"'",sep=" ") ) ,spinner = T)
+  index_FASTA_IDs(path = FASTA_OUT_PATH,index_out = "files/rna_ids.txt")
+
+  print("Coercing metdata from available organisms ...")
+
+  missing_genes_list <- parallel::mclapply(list.files(path = OUT_PATH,include.dirs=TRUE, full.names=TRUE),function(x){
+    if(file.exists(paste(x,"/MISSING_GENES",sep="")) && file.info(paste(x,"/MISSING_GENES",sep=""))$size > 0 ){
+      return(scan(paste(x,"/MISSING_GENES",sep=""), character()))
+    }
+  }, mc.cores =  numWorkers)
+  missing_genes <- purrr::reduce(missing_genes_list, unique)
+  available_genes_list <- parallel::mclapply(list.files(path = OUT_PATH,include.dirs=TRUE, full.names=TRUE),function(x){
+    if(file.exists(paste(x,"/AVAILABLE_GENES",sep="")) && file.info(paste(x,"/AVAILABLE_GENES",sep=""))$size > 0 ){
+      return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character()))
+    }
+  }, mc.cores =  numWorkers)
+  available_genes <- purrr::reduce(available_genes_list, unique)
+
+  write.table(x = list.files(path = FASTA_OUT_PATH,include.dirs=TRUE, full.names=F),file = "files/available_orgs.txt", quote = F, row.names = F,col.names = F)
+
+  #if(CLEAN_EXTRACT || (!file.exists("files/selected_ORGS.txt") && is.na(file.info("files/selected_ORGS.txt")$size)) ){
+    write.table(x = list.files(path = FASTA_OUT_PATH,include.dirs=TRUE, full.names=F),file = "files/selected_ORGS.txt", quote = F, row.names = F, col.names = F)
+  #}
+  selected_orgs <<-  factor(scan( "files/selected_ORGS.txt", character()))
+
+  all_clusters_list <- parallel::mclapply(list.files(path = OUT_PATH,include.dirs=TRUE, full.names=TRUE),function(x){
+    if(file.exists(paste(x,"/ORG_CLUSTERS",sep="")) && file.info(paste(x,"/ORG_CLUSTERS",sep=""))$size > 0 ){
+      return(scan(paste(x,"/ORG_CLUSTERS",sep=""), character()))
+    }
+  }, mc.cores =  numWorkers)
+
+  all_clusters <- purrr::reduce(all_clusters_list, unique)
+  write.table(x = all_clusters,file = "files/ALL_CLUSTERS.txt", quote = F, row.names = F,col.names = F)
+
+  all_gtf_stats <- dplyr::bind_rows(parallel::mclapply(list.files(path = OUT_PATH,include.dirs=TRUE, full.names=TRUE),function(x){
+    if(file.exists(paste(x,"/gtf_stats.csv",sep="")) && file.info(paste(x,"/gtf_stats.csv",sep=""))$size > 0 ){
+      return(unique(read.table(file = paste(x,"/gtf_stats.csv",sep=""),header = T,sep = ",")))
+    }
+  }, mc.cores =  numWorkers, mc.preschedule = T))
+  write.table(x = all_gtf_stats,file = "files/all_gtf_stats.csv", quote = F, row.names = F,col.names = T)
+
+  # time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
+  # time ./align_seqs.sh $1
+  # time ./predict_structures.sh $1
+  # rm $TEMP_PATH/*
+  # Rscript gene_stats.R >> files/stats.txt
+
+  sessionInfo()
+}
+
+check_params_loaded <- function(){
+  if (!PARAMETERS_LOADED) {
+    warning("Load parameters with load_params(). Check documentation/github repo for the specification of the parameters file")
+  }
+  return(PARAMETERS_LOADED)
+}
+
+PARAMETERS_LOADED <- FALSE
