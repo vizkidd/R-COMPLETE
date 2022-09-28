@@ -9,8 +9,8 @@ index_FASTA_IDs(path = NULL, index_out = NULL)
 \arguments{
 \item{path}{Path with FASTA Files to index}
 
-\item{index_out}{Output files with the indices of the format "file"\t"long_id"\t"index"}
+\item{index_out}{Output files with the indices of the format "file"[tab]"long_id"[tab]"index"}
 }
 \description{
-Convert longer FASTA IDs into short indices. Indices are generated recursively. If path and index_out are not provided, the default FASTA_OUT_PATH and "files/rna_ids.txt" are used
+Convert longer FASTA IDs into short indices. Indices are generated recursively. If path and index_out are not provided, the default complete_params$FASTA_OUT_PATH and "files/rna_ids.txt" are used
 }

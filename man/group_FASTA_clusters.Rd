@@ -10,5 +10,5 @@ group_FASTA_clusters(fasta_path)
 \item{path}{Path with FASTA Files to index}
 }
 \description{
-Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format
+Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in complete_params$GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format
 }

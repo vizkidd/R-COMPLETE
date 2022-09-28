@@ -16,5 +16,5 @@ param_vector named parameter vector
 The function loads parameters from the param file into Global R variables and returns a named parameter table. The parameters are checked and an error is output if there are any missing parameters
 }
 \details{
-\textbf{NOTE : Parameters are case sensitive and are de-limited with '=='}
+NOTE : Parameters are case sensitive and are de-limited with '=='
 }

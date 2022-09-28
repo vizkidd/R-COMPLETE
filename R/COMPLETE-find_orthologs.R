@@ -4,7 +4,7 @@
 #'
 #' Note : Column indices will be used when processing the data. Column names are only for user reference. First column must be the query sequence ID and the second column must be the subject sequence ID
 #'
-#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"\t"long_id"\t"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
+#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
 #'
 #' @param infile BLAST hits filename
 #' @param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
@@ -68,9 +68,9 @@ index_BLAST_table <- function(blast_table, index_col, offset=0){
 
 #' Create A GRanges Object from BLAST RESULTS
 #'
-#' Functions accepts a filename or a BLAST table and converts it into a GenomicRanges::GRanges object (which can be used by R-WISARD). Give col.names when passing BLAST filenames. The accepted BLAST format is 6 and can be formatted from BLAST format 11 using blast_formatter (shown below). Columns indices can provided with the col.indices option. length(col.names) and ncol(blast_input) are assumed to be the same. BLAST table/file must be non-indexed (IDs not shortened) if COMPLETE.format.ids=T
+#' Functions accepts a filename or a BLAST table and converts it into a GenomicRanges::GRanges object (which can be used by R-WISARD). Give col.names when passing BLAST filenames. The accepted BLAST format is 6 and can be formatted from BLAST format 11 using convert_BLAST_format (shown below). Columns indices can provided with the col.indices option. length(col.names) and ncol(blast_input) are assumed to be the same. BLAST table/file must be non-indexed (IDs not shortened) if COMPLETE.format.ids=T
 #'
-#' blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
+#' convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 #'
 #' @param blast_input Filename with BLAST hits or a BLAST table
 #' @param col.names Columns which for the BLAST tables/files
@@ -91,21 +91,21 @@ GRObject_from_BLAST <- function(blast_input, col.names=NULL, COMPLETE.format.ids
     colnames(blast_input) <- col.names
   }
 
-  if(COMPLETE.format.ids && check_params_loaded()){
+  if(COMPLETE.format.ids && check_params_loaded(verbose = F)){
     blast_input$subject_gene <- unlist(purrr::map(blast_input[,col.indices["sseqid"]],function(x){
-      genes <- unlist(stringi::stri_split_fixed(x,pattern = SEQUENCE_ID_DELIM))
+      genes <- unlist(stringi::stri_split_fixed(x,pattern = complete_params$SEQUENCE_ID_DELIM))
       return(genes[2])
     }))
 
     blast_input$query_gene <- unlist(purrr::map(blast_input[,col.indices["qseqid"]],function(x){
-      genes <- unlist(stringi::stri_split_fixed(x,pattern = SEQUENCE_ID_DELIM))
+      genes <- unlist(stringi::stri_split_fixed(x,pattern = complete_params$SEQUENCE_ID_DELIM))
       return(genes[2])
     }))
   }else{
     warning("Parameter file not loaded with load_params & COMPLETE.format.ids==FALSE")
   }
 
-  blast_input <- blast_input[which(blast_input[,col.indices["evalue"]] < E_VALUE_THRESH),]
+  blast_input <- blast_input[which(blast_input[,col.indices["evalue"]] < complete_params$E_VALUE_THRESH),]
 
   ##CHANGE strands
   change_qstrand <- which(blast_input[,col.indices["qstart"]] > blast_input[,col.indices["qend"]])
@@ -147,13 +147,13 @@ GRObject_from_BLAST <- function(blast_input, col.names=NULL, COMPLETE.format.ids
     frames <- as.integer(unlist(stringi::stri_split_fixed(x,pattern = "/")))
     return(frames[2])
   }))
-  if(COMPLETE.format.ids && check_params_loaded()){
+  if(COMPLETE.format.ids && check_params_loaded(verbose=F)){
     tmp_gr$query_org <- unlist(purrr::map(blast_input[,col.indices["qseqid"]],function(x){
-      org <- unlist(stringi::stri_split_fixed(x,pattern = SEQUENCE_ID_DELIM))
+      org <- unlist(stringi::stri_split_fixed(x,pattern = complete_params$SEQUENCE_ID_DELIM))
       return(org[3])
     }))
     tmp_gr$subject_org <- unlist(purrr::map(blast_input[,col.indices["sseqid"]],function(x){
-      org <- unlist(stringi::stri_split_fixed(x,pattern = SEQUENCE_ID_DELIM))
+      org <- unlist(stringi::stri_split_fixed(x,pattern = complete_params$SEQUENCE_ID_DELIM))
       return(org[3])
     }))
   }else{
@@ -176,8 +176,8 @@ GRObject_from_BLAST <- function(blast_input, col.names=NULL, COMPLETE.format.ids
 #' Select the highest scoring pairs (HSPs) which give the maximum coverage over the BLAST alignments of each transcript (without overlaps/minimal overlaps). These HSPs will then be used to find Transcript level orthologs across gene orthologs across organisms. This function only accepts bi-directional (Query <-> Subject) BLAST Hits formatted with GRObject_from_BLAST()
 #'
 #' @param blast_hits GRanges Object of BLAST Hits (Query -> Subject)
-#' @param score_col Column in the GRanges Object used for scoring intervals in WISARD
-#' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE otherwise)
+#' @param score_col Column in the GRanges Object used for scoring intervals in WISARD, Default would be qcovhsp (Query Coverage HSP)
+#' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using Data from EXTRACT_DATA()/BLAST results from this package, FALSE otherwise)
 #' @return A GRanges object of BLAST hits
 #' @export
 run_WISARD <- function(blast_hits, score_col, COMPLETE.format.ids=F){
@@ -186,10 +186,11 @@ run_WISARD <- function(blast_hits, score_col, COMPLETE.format.ids=F){
     stop("This function only accepts formatted GRanges Object from GRObject_from_BLAST()")
   }
 
-  if(!COMPLETE.format.ids || !check_params_loaded()){
-    tryCatch(numWorkers <<- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <<- 2})
+  if(!COMPLETE.format.ids || !check_params_loaded(verbose=F)){
+    tryCatch(numWorkers <- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <- 2})
   }else{
-    warning("Parameter file not loaded with load_params || COMPLETE.format.ids==FALSE")
+    #warning("Parameter file not loaded with load_params || COMPLETE.format.ids==FALSE")
+    numWorkers <- complete_params$numWorkers
   }
 
   query_vector <- unique(gr$query_id)
@@ -212,11 +213,11 @@ run_WISARD <- function(blast_hits, score_col, COMPLETE.format.ids=F){
   }, query_vector, MoreArgs=list(subject_ids=subject_vector,gr=gr,score_col=score_col) ,mc.cores = numWorkers, SIMPLIFY = FALSE,USE.NAMES = F),recursive = F, use.names = T)
 
   all_results <- list()
-  if(COMPLETE.format.ids && check_params_loaded()){
+  if(COMPLETE.format.ids && check_params_loaded(verbose = F)){
     for(child in child_results) {
       #print(child)
       g_name <- NULL
-      g_name <- unique(unlist(stri_split_fixed(child$alignments$subject_gene,pattern=SEQUENCE_ID_DELIM,n = 1,tokens_only = T)))
+      g_name <- unique(unlist(stri_split_fixed(child$alignments$subject_gene,pattern=complete_params$SEQUENCE_ID_DELIM,n = 1,tokens_only = T)))
       # print(g_name)
       #all_results<- c(all_results, child)
       if(!is.null(g_name)){
@@ -254,12 +255,12 @@ merge_wisard_table <- function(x, y){
 #'
 #'This function is only designed to work with long ID format followed by the R-COMPLETE pipeline and assumes that the BLAST table is filtered by WISARD. The BLAST File/Table must be of the format 6. BLAST formats can be converted between each other using. By default, Percentage Sequence Identity is used as a score metric, the function expects BLAST Hits from tblastx (because the sequence is translated before it is BLASTed and the Percentage Identity is from the protein sequence). Other columns can be used as a metric with the score_col parameter
 #'
-#' blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
+#' convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 #'
 #' @param blast_table BLAST table
 #' @param gene BLAST table
 #' @param score_col Column name or number to be used as a score metric. Percentage Sequence Identity is used by default (column 3)
-#' @param available_orgs Vector of available organisms (in the FASTA_OUT_PATH)
+#' @param available_orgs Vector of available organisms (in the complete_params$FASTA_OUT_PATH)
 #' @param num_transcripts Number of Transcripts available for the gene. This can be obtained from the blastdb of a gene
 #' @return Named Vector with an double value between minimum and maximum values in the score column (0-100 in case of percentage identity) which is the gene conservation score for the gene
 calculate_gene_conservation <- function(blast_table, gene, score_col=3,available_orgs, num_transcripts){
@@ -323,12 +324,12 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   }
 
   if(nrow(max_seq_identity)>1){
-    png(filename =paste(file.path(PLOT_PATH,gene),"max_ident.png",sep = "."),width = 15, height = 15 , units = "in", res = 100)
+    png(filename =paste(file.path(complete_params$PLOT_PATH,gene),"max_ident.png",sep = "."),width = 15, height = 15 , units = "in", res = 100)
     heatmap.2(max_seq_identity, trace = "row", tracecol = "black", margins = c(12,12), scale = "none",cexRow=1.2,cexCol=1.2)
     dev.off()
     }
   if(nrow(min_seq_identity)>1){
-    png(filename =paste(file.path(PLOT_PATH,gene),"min_ident.png",sep = "."),width = 15, height = 15 , units = "in", res = 100)
+    png(filename =paste(file.path(complete_params$PLOT_PATH,gene),"min_ident.png",sep = "."),width = 15, height = 15 , units = "in", res = 100)
     heatmap.2(min_seq_identity, trace = "row", tracecol = "black", margins = c(12,12),scale = "none",cexRow=1.2,cexCol=1.2)
     dev.off()
     }
@@ -434,49 +435,172 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   return(min_gene_conservation)
 }
 
+#'Convert between BLAST output formats
+#'
+#' Convert between formats using the blast_formatter program (Must be present in $PATH and be accessible with Sys.which("blast_formatter"))
+#'
+#' @param infile Input BLAST Hits File
+#' @param outfile Output BLAST Hits File
+#' @param outformat Format to convert to (Default 6)
+#' @param cols BLAST Columns to output. Check BLAST Output formats for more details
+convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")){
+  if(stringi::stri_isempty(conversion_prg)){
+    stop("blast_formatter not found in $PATH..cannot continue!")
+  }
+
+  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"convert_BLAST_format",infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = "",stderr = "")
+
+}
+
+#' Perform Nucleotide BLAST
+#'
+#' BLAST between two organisms/genes/clusters. ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+#'
+#' @param query_path Path to Query FASTA
+#' @param subject_path Path to Subject FASTA
+#' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
+#' @param blast_out Path to BLAST output file, Default BLAST FORMAT is 11
+#' @param run_name Name of the BLAST run
+#' @param blast_options Extra Options to be passed to the BLAST program
+#' @export
+run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, blast_program, run_name="BLAST",blast_options=""){
+
+  install_parallel()
+
+  if (!is.null(blast_DB_dir)) {
+    query_DB <- paste(blast_DB_dir,"/",query_path)
+    subject_DB <- paste(blast_DB_dir,"/",subject_path)
+    file.copy(query_path,query_DB,overwrite = T)
+    file.copy(subject_path,subject_DB,overwrite = T)
+    query_path <- query_DB
+    subject_path <- subject_DB
+  }
+
+  #MAKE BLAST DB of FASTA files
+  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",query_path) ,spinner = T,stdout = "",stderr = "")
+  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",subject_path) ,spinner = T,stdout = "",stderr = "")
+
+  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"do_BLAST",run_name,query_path,subject_path,blast_out,blast_program,blast_options) ,spinner = T,stdout = "",stderr = "")
+
+}
+
+#' Execute all2all BLAST
+#'
+#' Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir. ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+#'
+#' @param first_list Vector of PATHS to FASTA
+#' @param second_list Vector of PATHS to FASTA
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program
+#' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
+#' @param blast_options Extra Options to be passed to the BLAST program
+#' @param output_dir Path to BLAST output
+#' @param input_prefix_path If input lists/vectors are filenames, then provide input folder to prefix path
+#' @export
+all2all_BLAST <- function(first_list,second_list,blast_DB_dir=NULL,blast_program,output_dir="./", blast_options="", input_prefix_path=NULL){
+
+  if(!check_params_loaded(verbose=F)){
+    tryCatch(numWorkers <- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <- 2})
+  }else{
+    numWorkers <- complete_params$numWorkers
+  }
+
+  dir.create(path = output_dir,recursive = T,showWarnings = F)
+
+  mclapply(first_list, function(first_set){
+    mclapply(second_list,function(second_set){
+      if(!is.null(input_prefix_path)){
+        first_set <- paste(input_prefix_path,"/",first_set,sep="")
+        second_set <- paste(input_prefix_path,"/",second_set,sep="")
+      }
+      if (file.exists(first_set) && file.exists(second_set) && file.info(first_set)$size > 0 && file.info(second_set)$size > 0) {
+        run_name1 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(first_set)))
+        run_name2 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(second_set)))
+        run_name <- paste( run_name1,run_name2,"all2all" ,sep=".")
+        out_file <- paste( output_dir, run_name,sep="")
+        run_BLAST(query_path = first_set,subject_path = second_set,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options)
+      }
+    }, mc.cores = floor(sqrt(numWorkers)) )
+  }, mc.cores = floor(sqrt(numWorkers)) )
+
+}
+
 #'Transcript Ortholog Extraction Function for R-COMPLETE pipeline
 #'
-#' This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables. Only exporting code for visibility purposes
+#' This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables.
 #'
 #'  * Step 1 - Genes which are available in all the reference organisms are chosen
 #'  * Step 2 - A Per-Gene Conservation Score (GSC) is calculated from the availability of a gene across organisms (literally the count of organisms which have the gene, normalized to 1 relative to other genes). Genes which have GSC score below GENE_DROP_THRESHOLD (parameter) are dropped (GENE_DROP_THRESHOLD=0 does not omit any genes). Sets of organisms are created based on the available genes after GSC filtering. I can suggest reference organisms based on which ones have the maximum number of genes
 #'  * Step 3 - Two way BLAST followed by HSP selection with WISARD and Two way RBH are performed. Only transcripts which are bi-directional best hits are kept for further analysis (RBH from both the directions, not RBH in itself is bi-directionaly from the point of the QUERY, We can also do an RBH from the context of the SUBJECT to verify if it did not pas RBH by chance (even though it is very unlikely))
 #'
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program
-#' @export
-transcript_ortholog_extraction <- function(blast_program){
+#' @param blast_options Extra Options to be passed to the BLAST program
+#' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
+transcript_ortholog_extraction <- function(blast_program, blast_options="",blast_DB_dir=NULL){
 
   if(!check_params_loaded()){
     stop()
   }
 
+  install_parallel()
+
   #STEP 1
   #select genes which are available in all the reference organisms
-  available_genes_list <- parallel::mclapply(paste(paste(OUT_PATH,"/files/genes/",sep=""),REF_ORGS,sep=""),function(x){
+  available_genes_list <- parallel::mclapply(paste(paste(complete_params$OUT_PATH,"/files/genes/",sep=""),REF_ORGS,sep=""),function(x){
     if(file.exists(paste(x,"/AVAILABLE_GENES",sep="")) && file.info(paste(x,"/AVAILABLE_GENES",sep=""))$size > 0 ){
       return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character()))
     }
-  }, mc.cores =  numWorkers)
+  }, mc.cores =  complete_params$numWorkers)
   available_genes <- unique(purrr::reduce(available_genes_list, union))
 
   #find which clusters they belong to
-  odb_map_list <- parallel::mclapply(paste(paste(OUT_PATH,"/files/genes/",sep=""),REF_ORGS,sep=""),function(x){
+  odb_map_list <- parallel::mclapply(paste(paste(complete_params$OUT_PATH,"/files/genes/",sep=""),REF_ORGS,sep=""),function(x){
     if(file.exists(paste(x,"/odb.final_map",sep="")) && file.info(paste(x,"/odb.final_map",sep=""))$size > 0 ){
       return(read.table(paste(x,"/odb.final_map",sep=""),header = F,sep = "\t",quote = "", col.names = c("cluster","genes")))
     }
-  }, mc.cores =  numWorkers)
+  }, mc.cores =  complete_params$numWorkers)
   odb_map <- unique(purrr::reduce(odb_map_list, inner_join, by = c("cluster","genes")))
   available_clusters <- unique(BiocGenerics::unlist(lapply(available_genes, function(gene){
     return(odb_map[grep(pattern=gene,x = odb_map$genes,ignore.case = T), c("cluster")])
   })))
 
-  if(length(dir(GROUPS_PATH)==0)){
-    group_FASTA_clusters(FASTA_OUT_PATH)
+  if(length(dir(complete_params$GROUPS_PATH)==0)){
+    group_FASTA_clusters(complete_params$FASTA_OUT_PATH)
   }
 
-  #time onewayblast $reference_ORGS $fasta_path $2 files/oneway $blastdb_path $region $region tblastx
+  #all2allblast and then wisard and then RBH for grouping ungrouped clusters
+  all2all_BLAST(first_list = "ungrouped", second_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T),blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = "files/all2all",blast_options = blast_options,input_prefix_path = complete_params$GROUPS_PATH ) #paste(complete_params$TEMP_PATH,"/","all2all/",sep="")
+  all2all_BLAST(first_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T), second_list = "ungrouped",blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = "files/all2all",blast_options = blast_options,input_prefix_path = complete_params$GROUPS_PATH ) #paste(complete_params$TEMP_PATH,"/","all2all/",sep="")
 
-  #calculate gene conservation - calculate_gene_conservation.R
+  mclapply(list.files(path = "files/all2all",pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
+    out_file <- paste("files/all2all/",tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
+    convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+  }, mc.cores = complete_params$numWorkers )
+
+   mclapply(list.files(path = "files/all2all",pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
+    out_file <- paste("files/all2all/",tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".wis_out",sep="")
+    blast_GO <- GRObject_from_BLAST(blast_input = in_file,col.names = c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"), COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+    wis_GO <- run_WISARD(blast_hits = blast_GO,score_col = "qcovhsp",COMPLETE.format.ids = T) #score_col=16
+    #names(wis_GO) <- c(tools::file_path_sans_ext(BiocGenerics::basename(in_file)))
+    #return(wis_GO)
+    write.table(x = data.frame(wis_GO),file = out_file,quote = F,col.names = T,row.names = F)
+  }, mc.cores = complete_params$numWorkers )
+
+  #save("wisard_results", file="files/all2all/wisard_results.RData")
+  #load("files/all2all/wisard_results.RData")
+
+   ##RUN RBH
+   lapply("ungrouped", function(query){
+     mclapply(grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T),function(subject){
+       in1 <- paste("files/all2all/",query,"-",subject,".wis_out",sep="")
+       in2 <- paste("files/all2all/",subject,"-",query,".wis_out",sep="")
+       if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
+          RBH(in1 = in1, in2 = in2, index.tables = T, weight.col = "qcovhsp",col.names = c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+       }
+     }, mc.cores =numWorkers )
+   })
+
+  #calculate gene conservation - calculate_gene_conservation.R - probably not needed
+   ##Maybe write one for cluster conservation/coverage across organisms
 
   #create organism sets
 
@@ -498,6 +622,8 @@ transcript_ortholog_extraction <- function(blast_program){
 
 }
 
+
+
 #' START HERE - Find Transcript Orthologs
 #'
 #' This function can be executed after EXTRACT_DATA()
@@ -510,9 +636,8 @@ transcript_ortholog_extraction <- function(blast_program){
 #'
 #' @param param_file Filename of a formatted parameter file (check the github repo for an example)
 #' @param gene_list File with a list of genes to extract data for(check the github repo for an example)
-#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program (or Sys.which("tblastx"))
 #' @export
-FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list, blast_program=Sys.which("tblastx")){
+FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
   set.seed(123)
 
   if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
@@ -525,9 +650,10 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list, blast_program=Sys.w
     stop("ERROR: parameters.txt is missing and is required\n")
   }
 
-  param_file <<- param_file
-  param_table <<- load_params(param_file)
-  print(param_table)
+  #param_file <<- param_file
+  #param_table <<- load_params(param_file)
+  complete_params <<- load_params(param_file)
+  print(complete_params)
 
   if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
     SHELL <<- Sys.getenv("SHELL")
@@ -539,13 +665,14 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list, blast_program=Sys.w
     stop(paste("SHELL (",SHELL,") : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
   }
 
+  #complete_values <<- append(complete_values,list(genes=genes))
   gene_list <<- gene_list
   genes <<- factor(scan(gene_list, character())) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
   genes <<- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
 
-  REF_ORGS <<- factor(scan(REF_ORGS_FILE, character()))
+  REF_ORGS <<- factor(scan(complete_params$REF_ORGS_FILE, character()))
 
-  print(paste("MAX PROCESSES:",numWorkers))
+  print(paste("MAX PROCESSES:",complete_params$numWorkers))
 
   if(CLEAN_EXTRACT){
     unlink("files/oneway", recursive = T,force = T,expand = T)
@@ -559,7 +686,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list, blast_program=Sys.w
   dir.create("files/all2all_final",showWarnings = F, recursive = T)
 
   if (!stringi::stri_isempty(blast_program)) {
-    transcript_ortholog_extraction(blast_program)
+    transcript_ortholog_extraction(blast_program = Sys.which("tblastx"), blast_options = complete_params$BLAST_OPTIONS,blast_DB_dir = complete_params$BLAST_DB_PATH)
   }else{
     stop(paste(blast_program," NOT found. Is BLAST+ installed or in $PATH?"))
   }
@@ -569,24 +696,25 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list, blast_program=Sys.w
 
 #' Find Reciprocal Blast Hits (RBH)
 #'
-#' Find RBH between BLAST results of different organisms/genes/transcripts (FASTA/FASTQ). The BLAST results must be of the format 6 and can be converted from BLAST format 11 with blast_formatter.
+#' Find RBH between BLAST results of different organisms/genes/transcripts (FASTA/FASTQ). The BLAST results must be of the format 6 and can be converted from BLAST format 11 with convert_BLAST_format().
 #' The command with the required column names are given below.
 #'
-#' blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
+#' convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 #'
-#' \textbf{NOTE : Both the input files are expected to have the same number of columns with matching column order (and names)}
+#' NOTE : Both the input files are expected to have the same number of columns with matching column order (and names)
 #'
-#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"\t"long_id"\t"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
+#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
 #'
 #' @param in1 Input (query->subject) BLAST hits table/filename
 #' @param in2 Input (query<-subject) BLAST hits table/filename
 #' @param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
-#' @param col.names Columns which for the BLAST tables/files
-#' @param weight.cols Column indices which must be used as edge weights (eg, mincovhsp - HSP coverage scores, bitscore etc)
+#' @param col.names Columns names for the BLAST tables/files
+#' @param weight.col Column index which must be used as edge weight (eg, qcovhsp - HSP coverage scores, bitscore etc)
+#' @param sum.hit.weights Should the Weights be summed for each Query->Subject Hit? (TRUE/FALSE)
 #' @param index.tables Should the IDs in the tables be indexed?
 #' @return Named Vector of the organism details
 #' @export
-RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=F,weight.col){
+RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=F,weight.col, sum.hit.weights=T){
 
   if(!is.null(transcript_ID_metadata) && is.character(transcript_ID_metadata)){
     transcript_ID_metadata <- read.table(file = transcript_ID_metadata,header = F,sep="\t",quote = "")
@@ -607,6 +735,10 @@ RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tabl
     if(!is.null(col.names)){
       colnames(in2_data) <- col.names
     }
+  }
+
+  if(sum.hit.weights){
+
   }
 
     if(index.tables){

@@ -36,7 +36,7 @@ The command with the required column names are given below.
 \details{
 blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
 
-\textbf{NOTE : Both the input files are expected to have the same number of columns with matching column order (and names)}
+NOTE : Both the input files are expected to have the same number of columns with matching column order (and names)
 
-Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"\t"long_id"\t"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
+Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
 }

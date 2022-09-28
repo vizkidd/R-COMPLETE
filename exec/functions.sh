@@ -188,9 +188,9 @@ function num_to_fID_parallel() {
 	done
 }
 
-function make_db() {
-	echo "$1"
-	if [ -s "$1" ]; then
+function make_BLAST_db() {
+	#echo "$1"
+	if [[ ! -s $(blastdb_path -db "$1") ]]; then #if [ -s "$1" ]; then
 		makeblastdb -in "$1" -dbtype nucl  -hash_index || true # -parse_seqids -out $2
 	else
 		echo "$1 empty..."
@@ -207,7 +207,7 @@ function collate_fasta() {
 		if [[ ! -s $(blastdb_path -db "$out_dir/$safe_gene_name.$reg") ]]; then
 			touch "$out_dir/$safe_gene_name.$reg"
 			cat $(find $path/*/ -name "$safe_gene_name*" -type f ! -size 0 | grep -w -i "$reg" ) > "$out_dir/$safe_gene_name.$reg"
-			make_db "$out_dir/$safe_gene_name.$reg"
+			make_BLAST_db "$out_dir/$safe_gene_name.$reg"
 		fi
 	fi
 }
@@ -511,6 +511,44 @@ function group_FASTA_clusters(){
 done
 }
 
+function do_BLAST() {
+	# $1 - Name of the BLAST run
+	# $2 - Query FASTA
+	# $3 - Subject BLAST DB/FASTA
+	# $4 - BLAST output file
+	# $5 - BLAST program
+	# $6 - BLAST options
+
+	#echo $1 $2 $3 $4 $5 $6 $7
+	local script_args=($(echo $@))
+	local run_name=${script_args[0]}
+	local query=${script_args[1]}
+	local DB=${script_args[2]}
+	local BLAST_output=${script_args[3]}
+	local prog=${script_args[4]}
+	local blast_options=$(echo "${script_args[@]: 5:${#script_args[@]}}")
+
+		if [ -s "$BLAST_output" ]; then
+			rm $BLAST_output
+		fi
+		if [[ ! -s $(blastdb_path -db $DB) ]]; then
+			makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
+		fi
+
+		>&2 echo "echo $run_name Started..."
+
+		if [[ -s "$query" && -s "$DB" ]]; then
+ 
+		parallel -j1 --joblog parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+		
+		echo "$run_name is done"
+		else
+			>&2 echo "($run_name) Error: Either ($query)/($DB) is empty/not found"
+			exit 255
+		fi
+		exit 0
+}
+
 function all2allblast() {
 	#all2allblast $reference_ORGS $fasta_path files/genelist.txt files/all2all $blastdb_path cds cds 0 tblastx
 	#1 - list of species
@@ -724,7 +762,7 @@ function merge_OG2genes_OrthoDB(){
 	local gene_list=$(realpath ${script_args[3]}) #$4
 
 	if [[ $(ls -1 "$ORTHODB_PATH_PREFIX"*.gz | awk "END{print NR}") == 0 ]] ; then
-		echo $(color_FG_BG_Bold $Red $BG_White "Error : ODB Path not found!") | tee >(cat >&2)
+		>&2 echo $(color_FG_BG_Bold $Red $BG_White "Error : ODB Path not found!") #| tee >(cat >&2)
 	  exit 1
 	fi
 
@@ -800,7 +838,7 @@ function extract_genomic_regions(){
 	fi
 
 	mkdir -p $FASTA_PATH/$f_org_name
-	#mkdir -p $OUT_PATH/$f_org_name/odb/
+	mkdir -p $OUT_PATH/$f_org_name/
 	mkdir -p $TEMP_PATH/$f_org_name
 	mkdir -p $bed_prefix
 
@@ -837,6 +875,8 @@ function extract_genomic_regions(){
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing..."
 
+	touch $OUT_PATH/$f_org_name/1.list $OUT_PATH/$f_org_name/2.list $OUT_PATH/$f_org_name/odb.list
+
 	if [[ ! -z $anno_proc_id ]]; then
 	  wait $anno_proc_id
 	fi
@@ -844,17 +884,19 @@ function extract_genomic_regions(){
 	if [[ ! -s $OUT_PATH/$f_org_name/1.list || ! -s $OUT_PATH/$f_org_name/2.list || ! -s $OUT_PATH/$f_org_name/gtf_stats.csv || ! -s $BED_PATH/$f_org_name/$f_org_name.bed ]] ; then
 	  local eexp_gene=$(printf -- '%s\n' "${gene_list[@]}")
 	  
-	  #Splitting GTF into multiple parts based on grep output for downstream parallel processing in extract_gtf_info.R
+	  if [[ ${#eexp_gene[@]} > 0 ]]; then
+	  	#Splitting GTF into multiple parts based on grep output for downstream parallel processing in extract_gtf_info.R
 	  time zgrep -i $MODE -A 0 --group-separator='>' -f <(echo "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
+	  fi
 	  
 	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' > $OUT_PATH/$f_org_name/1.list
 	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/$f_org_name/1.list)))} | awk 'NF' > $OUT_PATH/$f_org_name/2.list
 	fi
 
-	if [[ -s $OUT_PATH/$f_org_name/1.list && -s $OUT_PATH/$f_org_name/2.list ]]; then
+	if [[ -s $OUT_PATH/$f_org_name/1.list || -s $OUT_PATH/$f_org_name/2.list ]]; then
 	  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/1.list")$(color_FG $Green ", Genes not found in annotation: ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/2.list ")
 	else
-	  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed (Check if the GTF file exists and if the size is right)") | tee >(cat >&2)
+	  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed (Check if the GTF file exists and if the size is right)") #| tee >(cat >&2)
 	  exit 1
 	fi
 
@@ -882,8 +924,8 @@ function extract_genomic_regions(){
 	  >&1 echo $(color_FG $Green "2. DONE : Full List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/full.list")$(color_FG $Green ", List from ODB : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/odb.list")$(color_FG $Green ", ODB Cluster to Genes Map : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/odb.final_map")
 
 	else
-	  echo $(color_FG_Bold $Red "2. Error : ")$(color_FG_BG_Bold $White $BG_Red "$OUT_PATH/$f_org_name/odb/odb.list")$(color_FG_Bold $Red " missing, Possibly orthologous genes were not found ") | tee >(cat >&2)
-	  color_FG_Bold $Red "2. If unsure, re-run command: $0 check_OrthoDB $f_org_name $GENE_LIST $ANNO_FILE" | tee >(cat >&2)
+	  echo $(color_FG_Bold $Red "2. Warning : ")$(color_FG_BG_Bold $White $BG_Red "$OUT_PATH/$f_org_name/odb/odb.list")$(color_FG_Bold $Red " missing, Possibly orthologous genes were not found ") #| tee >(cat >&2)
+	  color_FG_Bold $Red "2. If unsure, re-run command: $0 check_OrthoDB $f_org_name $GENE_LIST $ANNO_FILE" #| tee >(cat >&2)
 	  cat $OUT_PATH/$f_org_name/1.list $OUT_PATH/$f_org_name/2.list | awk 'NF' > $OUT_PATH/$f_org_name/full.list
 	fi
 
@@ -905,7 +947,7 @@ function extract_genomic_regions(){
 	if [[ -s $OUT_PATH/$f_org_name/gtf_stats.csv && -s $OUT_PATH/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/gtf_stats.csv")
 	else
-	  echo $(color_FG_BG_Bold $Red $BG_White "3. Error : Step 3 Failed") | tee >(cat >&2)
+	  echo $(color_FG_BG_Bold $Red $BG_White "3. Error : Step 3 Failed") #| tee >(cat >&2)
 	  exit 1
 	fi
 
@@ -927,7 +969,7 @@ function extract_genomic_regions(){
 
 	  >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
 	else
-	  echo $(color_FG_BG_Bold $Red $BG_White "4. Error : Step 4 Failed, Genome not found!") | tee >(cat >&2)
+	  echo $(color_FG_BG_Bold $Red $BG_White "4. Error : Step 4 Failed, Genome not found!") #| tee >(cat >&2)
 	  exit 1
 	fi
 
@@ -1127,6 +1169,31 @@ function check_OrthoDB(){
 	fi
 }
 
+function convert_BLAST_format(){
+	local script_args=($(echo $@))
+	local blast_archive=${script_args[0]}  #$1
+	local out_file=${script_args[1]}  #$2
+	local out_fmt=${script_args[2]}  #$3
+	local blast_cols=$(echo "${script_args[@]: 3:${#script_args[@]}}")
+
+	if [[ -s $blast_archive ]]; then
+		blast_formatter -archive $blast_archive -outfmt "$out_fmt $blast_cols" -out $out_file #&> /dev/null
+	fi
+}
+
+function install_parallel(){
+	if [[ $(which parallel | awk '{print NR}') == 0 ]] ; then
+		#(wget -O - pi.dk/3 || lynx -source pi.dk/3 || curl pi.dk/3/ || fetch -o - http://pi.dk/3 ) > $(dirname $0)/install.sh
+		if [[ ! -z $SHELL ]]; then
+			#$SHELL $(dirname $0)/install.sh
+			(wget -O - pi.dk/3 || lynx -source pi.dk/3 || curl pi.dk/3/ || fetch -o - http://pi.dk/3 ) | $SHELL
+		else
+			echo "Could not install GNU parallel..SHELL not set in path or SHELL not bash"
+			return 255
+		fi
+	fi
+	return 0
+}
 # function test_print(){
 # 	echo $1
 # 	echo $(pwd)
@@ -1145,13 +1212,14 @@ function check_OrthoDB(){
 # 	$PY2_PATH mask_motifs.py -f $1 -s 3 -m "N" -p 0 -cm "TGA,TAA,TAG" -r True -rf 3 -o $1
 # }
 
+export -f install_parallel
+
 ##DATA EXTRACTION FUNCTIONS
 export -f group_FASTA_clusters
 export -f number_to_fastaID
 export -f fastaID_to_number
 export -f index_fastaIDs
 export -f index_genome
-export -f make_db
 export -f collate_fasta
 export -f select_transcripts
 export -f delete_empty_orgs
@@ -1179,6 +1247,9 @@ export -f onewayblast
 export -f all2all_refblast
 export -f oneway_RBH
 export -f twoway_RBH
+export -f do_BLAST
+export -f make_BLAST_db
+export -f convert_BLAST_format
 
 ##FUNCTIONS FOR COLORING CONSOLE OUTPUT
 export -f color_FG

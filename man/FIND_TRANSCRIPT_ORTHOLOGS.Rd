@@ -4,18 +4,12 @@
 \alias{FIND_TRANSCRIPT_ORTHOLOGS}
 \title{START HERE - Find Transcript Orthologs}
 \usage{
-FIND_TRANSCRIPT_ORTHOLOGS(
-  param_file,
-  gene_list,
-  blast_program = Sys.which("tblastx")
-)
+FIND_TRANSCRIPT_ORTHOLOGS(param_file, gene_list)
 }
 \arguments{
 \item{param_file}{Filename of a formatted parameter file (check the github repo for an example)}
 
 \item{gene_list}{File with a list of genes to extract data for(check the github repo for an example)}
-
-\item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program (or Sys.which("tblastx"))}
 }
 \description{
 This function can be executed after EXTRACT_DATA()
