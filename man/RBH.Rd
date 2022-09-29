@@ -10,7 +10,8 @@ RBH(
   transcript_ID_metadata = NULL,
   col.names = NULL,
   index.tables = F,
-  weight.col
+  weight.col,
+  sum.hit.weights = T
 )
 }
 \arguments{
@@ -20,23 +21,36 @@ RBH(
 
 \item{transcript_ID_metadata}{Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.}
 
-\item{col.names}{Columns which for the BLAST tables/files}
+\item{col.names}{Columns names for the BLAST tables/files}
 
 \item{index.tables}{Should the IDs in the tables be indexed?}
 
-\item{weight.cols}{Column indices which must be used as edge weights (eg, mincovhsp - HSP coverage scores, bitscore etc)}
+\item{weight.col}{Column index which must be used as edge weight (eg, qcovhsp - HSP coverage scores, bitscore etc)}
+
+\item{sum.hit.weights}{Should the Weights be summed for each Query->Subject Hit? (TRUE/FALSE)}
 }
 \value{
 Named Vector of the organism details
 }
 \description{
-Find RBH between BLAST results of different organisms/genes/transcripts (FASTA/FASTQ). The BLAST results must be of the format 6 and can be converted from BLAST format 11 with blast_formatter.
+Find RBH between BLAST results of different organisms/genes/transcripts (FASTA/FASTQ). The BLAST results must be of the format 6 and can be converted from BLAST format 11 with convert_BLAST_format().
 The command with the required column names are given below.
 }
 \details{
-blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
-
-NOTE : Both the input files are expected to have the same number of columns with matching column order (and names)
+convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 
 Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
+}
+\note{
+Both the input files are expected to have the same number of columns with matching column order (and names)
+}
+\examples{
+   convert_BLAST_format(in_file1,outfile = out_file1,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+   convert_BLAST_format(in_file2,outfile = out_file2,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+   blast_GO1 <- GRObject_from_BLAST(blast_input = out_file1,col.names = c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"), COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+   blast_GO2 <- GRObject_from_BLAST(blast_input = out_file2,col.names = c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"), COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+   wis1 <- run_WISARD(blast_hits = blast_GO1,score_col = "qcovhsp",COMPLETE.format.ids = T) #score_col=16
+   wis2 <- run_WISARD(blast_hits = blast_GO2,score_col = "qcovhsp",COMPLETE.format.ids = T) #score_col=16
+   RBH(in1 = wis1, in2 = wis2, index.tables = T, weight.col = "qcovhsp",col.names = c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+
 }

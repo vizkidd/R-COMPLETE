@@ -4,21 +4,39 @@
 \alias{calculate_stats}
 \title{Calculate Flank Values and other statistics from GTF Data}
 \usage{
-calculate_stats(gtf_data)
+calculate_stats(
+  gtf_data,
+  allow_strand = "",
+  n_threads = tryCatch(parallel::detectCores(all.tests = T, logical = T), error =
+    function() {
+     return(2)
+ })
+)
 }
 \arguments{
 \item{gtf_data}{GTF data obtained from biomaRt for an organism}
+
+\item{allow_strand}{Only allow the specified strand. ("+","-",Default - ""/" ")}
+
+\item{n_threads}{Number of Threads}
 }
 \value{
 Transcript Statistics from GTF data
 }
 \description{
 This function calculates Flank Values (for transcripts whose UTR lengths are not known in which case Flank values are used instead of lengths to obtain the Flanking regions),
- CDS lengths, Number of Exon & CDS Blocks from GTF Data obtained from biomaRt. This function also checks for strandedness and only keeps the genes which are present in a strand (if requested by the user).
+ CDS lengths, Number of Exon & CDS Blocks from GTF Data obtained from biomaRt. Variance correction is performed for FLANKS in case the variance is huge (or 0) for the UTR lengths .This function also checks for strandedness and only keeps the genes which are present in a strand (if requested by the user).
 The GTF Data should have these columns c("chromosome_name", "strand", "ensembl_gene_id", "ensembl_transcript_id", "external_gene_name",
 "start_position","end_position","exon_chrom_start","exon_chrom_end","transcript_version","transcript_length","5_utr_start","5_utr_end",
 "transcript_start","transcription_start_site","transcript_end","cds_start","cds_end","3_utr_start","3_utr_end")
 }
-\details{
-For calculating stats for actual GTF file, refer to extract_gtf_info.R in the github repo
+\note{
+For calculating stats of actual GTF file, refer to exec/extract_gtf_info.R in the github repo. Variance correction is performed per-gene (seperately for 3' and 5' UTRs) which is, UTR FLANK LENGTH + abs(variance(transcript UTR lengths))
+}
+\examples{
+    gtf_data <- get_gtf_mart(org, genes)
+    gtf_stats <- calculate_stats(gtf_data)
+    gtf_stats <- dplyr::bind_rows(gtf_stats)
+    names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
+
 }

@@ -2,16 +2,29 @@
 % Please edit documentation in R/COMPLETE-data_extraction.R
 \name{fetch_FASTA_user}
 \alias{fetch_FASTA_user}
-\title{Get FASTA data}
+\title{Get FASTA for User data}
 \usage{
-fetch_FASTA_user(data)
+fetch_FASTA_user(data, params_list, gene_list)
 }
 \arguments{
-\item{data}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",genome="http://some.link",gtf="some.file",version="106")}
+\item{data}{Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").}
+
+\item{params_list}{Output of load_params()}
+
+\item{gene_list}{Filename with the list of genes}
 }
 \value{
 Named Vector of the organism details
 }
 \description{
-Function to download FASTA data for user data. fetch_FASTA() in invoked if a genome and a gtf are not provided.
+Function to download FASTA data for user data. fetch_FASTA() is invoked if a genome and a gtf are not provided.
+}
+\note{
+Use "-" in Genome/GTF to check for the organism in BIOMART
+}
+\examples{
+    params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+
 }

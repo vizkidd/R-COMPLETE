@@ -2,16 +2,28 @@
 % Please edit documentation in R/COMPLETE-data_extraction.R
 \name{fetch_FASTA}
 \alias{fetch_FASTA}
-\title{Get FASTA data}
+\title{Internal Function - Get FASTA data}
 \usage{
-fetch_FASTA(org_row)
+fetch_FASTA(org_row, params_list, gene_list)
 }
 \arguments{
 \item{org_row}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")}
+
+\item{params_list}{Output of load_params()}
+
+\item{gene_list}{Vector or File containing list of genes}
 }
 \value{
 Named Vector of the organism details
 }
 \description{
-Main function to download FASTA data. This function wraps around other fetch_FASTA_*() functions (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome and a gtf are not provided)
+Main function to download FASTA data.
+}
+\note{
+This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf are not provided)
+}
+\examples{
+    params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+
 }

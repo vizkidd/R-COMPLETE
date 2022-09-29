@@ -4,11 +4,13 @@
 \alias{group_FASTA_clusters}
 \title{Internal Function - Group FASTA Sequences into Cluster Files}
 \usage{
-group_FASTA_clusters(fasta_path)
+group_FASTA_clusters(fasta_path, params_list)
 }
 \arguments{
-\item{path}{Path with FASTA Files to index}
+\item{fasta_path}{Path with FASTA Files to index}
+
+\item{params_list}{Output of load_params()}
 }
 \description{
-Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in complete_params$GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format
+Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in params_list$GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format
 }

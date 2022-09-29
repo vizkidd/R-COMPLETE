@@ -2,20 +2,14 @@
 % Please edit documentation in R/COMPLETE-find_orthologs.R
 \name{transcript_ortholog_extraction}
 \alias{transcript_ortholog_extraction}
-\title{Transcript Ortholog Extraction Function for R-COMPLETE pipeline}
+\title{Internal Function - Transcript Ortholog Extraction Function for R-COMPLETE pipeline}
 \usage{
-transcript_ortholog_extraction(
-  blast_program,
-  blast_options = "",
-  blast_DB_dir = NULL
-)
+transcript_ortholog_extraction(blast_program, params_list)
 }
 \arguments{
 \item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program}
 
-\item{blast_options}{Extra Options to be passed to the BLAST program}
-
-\item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed}
+\item{params_list}{Output of load_params()}
 }
 \description{
 This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables.

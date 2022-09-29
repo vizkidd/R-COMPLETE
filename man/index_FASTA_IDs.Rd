@@ -4,7 +4,7 @@
 \alias{index_FASTA_IDs}
 \title{Index FASTA IDs}
 \usage{
-index_FASTA_IDs(path = NULL, index_out = NULL)
+index_FASTA_IDs(path, index_out)
 }
 \arguments{
 \item{path}{Path with FASTA Files to index}
@@ -12,5 +12,5 @@ index_FASTA_IDs(path = NULL, index_out = NULL)
 \item{index_out}{Output files with the indices of the format "file"[tab]"long_id"[tab]"index"}
 }
 \description{
-Convert longer FASTA IDs into short indices. Indices are generated recursively. If path and index_out are not provided, the default complete_params$FASTA_OUT_PATH and "files/rna_ids.txt" are used
+Convert longer FASTA IDs into short indices. Indices are generated recursively for fasta fasta files within subfolders of the path provided.
 }

@@ -4,7 +4,7 @@
 \alias{fetch_FASTA_mart}
 \title{Get FASTA data from BIOMART (using biomaRt)}
 \usage{
-fetch_FASTA_mart(org, gtf_stats, fasta_path)
+fetch_FASTA_mart(org, gtf_stats, fasta_path, params_list)
 }
 \arguments{
 \item{org}{Name of the organism (format important, eg. "danio_rerio")}
@@ -12,10 +12,23 @@ fetch_FASTA_mart(org, gtf_stats, fasta_path)
 \item{gtf_stats}{Data Frame from calculate_stats()}
 
 \item{fasta_path}{Output path for transcript FASTA files}
+
+\item{params_list}{Output of load_params()}
 }
 \value{
 Data Frame with transcripts for which FASTA was obtained
 }
 \description{
 This function downloads FASTA data from BIOMART using biomaRt. The Data Frame from calculate_stats() is required.
+}
+\examples{
+    gtf_data <- get_gtf_mart(org, genes)
+    gtf_stats <- calculate_stats(gtf_data)
+    gtf_stats <- dplyr::bind_rows(gtf_stats)
+    #names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
+    #gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
+    #gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
+    params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+    gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path,params_list)
+
 }

@@ -19,6 +19,11 @@ BLAST table with indexed IDs from index_col (original index_col is attached to t
 \description{
 Convert longer FASTA IDs into short indices. BLAST table IDs need to be short for downstream processing (eg, graph package does not accept long names). The IDs are stored as an extra column and returned along with the BLAST table.
 }
-\details{
+\note{
 WARNING : Do not index it more than once (although you may do index it as much as you like)
+}
+\examples{
+in1_data <- index_BLAST_table(in1_data,1,offset = 0)
+in1_data <- index_BLAST_table(in1_data,2,offset = nrow(in1_data))
+
 }

@@ -2,12 +2,16 @@
 % Please edit documentation in R/COMPLETE-data_extraction.R
 \name{fetch_FASTA_biomartr}
 \alias{fetch_FASTA_biomartr}
-\title{Get FASTA data from BIOMART (using biomartr)}
+\title{Internal Function - Get FASTA data from BIOMART (using biomartr)}
 \usage{
-fetch_FASTA_biomartr(org_row)
+fetch_FASTA_biomartr(org_row, params_list, gene_list)
 }
 \arguments{
 \item{org_row}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")}
+
+\item{params_list}{Output of load_params()}
+
+\item{gene_list}{Vector or File containing list of genes}
 }
 \value{
 Named Vector of the organism details
@@ -15,4 +19,9 @@ Named Vector of the organism details
 \description{
 This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
 This function invokes external SHELL function extract_genomic_regions from system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE") (just like the piepline for user data) and cannot be monitored
+}
+\examples{
+    params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+
 }

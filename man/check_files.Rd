@@ -4,7 +4,7 @@
 \alias{check_files}
 \title{Checks FASTA files in a folder}
 \usage{
-check_files(fasta_path, org, genes)
+check_files(fasta_path, org, genes, verbose = T, params_list)
 }
 \arguments{
 \item{fasta_path}{Path of folder to check}
@@ -12,6 +12,10 @@ check_files(fasta_path, org, genes)
 \item{org}{Name of the organism (format important, eg. "danio_rerio")}
 
 \item{genes}{Vector of genes to check for}
+
+\item{verbose}{Print check result messages?}
+
+\item{params_list}{Output of load_params()}
 }
 \value{
 TRUE if check passed, FALSE if check failed

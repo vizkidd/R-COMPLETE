@@ -9,7 +9,8 @@ calculate_gene_conservation(
   gene,
   score_col = 3,
   available_orgs,
-  num_transcripts
+  num_transcripts,
+  REF_ORGS
 )
 }
 \arguments{
@@ -19,9 +20,11 @@ calculate_gene_conservation(
 
 \item{score_col}{Column name or number to be used as a score metric. Percentage Sequence Identity is used by default (column 3)}
 
-\item{available_orgs}{Vector of available organisms (in the complete_params$FASTA_OUT_PATH)}
+\item{available_orgs}{Vector of available organisms (in the params_list$FASTA_OUT_PATH)}
 
 \item{num_transcripts}{Number of Transcripts available for the gene. This can be obtained from the blastdb of a gene}
+
+\item{REF_ORGS}{Vector of reference organisms}
 }
 \value{
 Named Vector with an double value between minimum and maximum values in the score column (0-100 in case of percentage identity) which is the gene conservation score for the gene
@@ -30,5 +33,5 @@ Named Vector with an double value between minimum and maximum values in the scor
 This function is only designed to work with long ID format followed by the R-COMPLETE pipeline and assumes that the BLAST table is filtered by WISARD. The BLAST File/Table must be of the format 6. BLAST formats can be converted between each other using. By default, Percentage Sequence Identity is used as a score metric, the function expects BLAST Hits from tblastx (because the sequence is translated before it is BLASTed and the Percentage Identity is from the protein sequence). Other columns can be used as a metric with the score_col parameter
 }
 \details{
-blast_formatter -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive"
+convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 }

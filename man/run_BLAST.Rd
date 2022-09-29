@@ -28,5 +28,12 @@ run_BLAST(
 \item{blast_options}{Extra Options to be passed to the BLAST program}
 }
 \description{
-BLAST between two organisms/genes/clusters. ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+BLAST between two organisms/genes/clusters.
+}
+\note{
+ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+}
+\examples{
+    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", blast_out = "blast.out", run_name = "blast_positive",blast_options = "-strand plus")
+
 }

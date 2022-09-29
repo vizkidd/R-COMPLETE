@@ -367,7 +367,7 @@ function get_fasta() {
 	  #>&2 echo $s_name $reg
 	  
 	  if [[ -s "$base_bed"_"$reg.bed" ]]; then
-	  	grep -i -w $gene_full $OUT_PATH/$org_name/gtf_stats.csv | awk -F',' '{print $3}' | grep -w -f - "$base_bed"_"$reg.bed" > $TEMP_PATH/"$s_name"_"$reg.bed"
+	  	grep -i -w $gene_full $OUT_PATH/genes/$org_name/gtf_stats.csv | awk -F',' '{print $3}' | grep -w -f - "$base_bed"_"$reg.bed" > $TEMP_PATH/"$s_name"_"$reg.bed"
 	  fi
 
 	  ##TO get flanks 
@@ -383,13 +383,13 @@ function get_fasta() {
 	    ln -r -f -s $TEMP_PATH/"$s_name"_"$reg.bed" $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed
 	  elif [[ -s $TEMP_PATH/"$s_name"_cds.bed && $reg!="cds" ]]; then
 	    if [[ "$reg" == "3utr" ]]; then
-	      local flank_len=$(grep -w -i "$gene_full" $OUT_PATH/$org_name/gtf_stats.csv | awk -F',' '{ if ($9 > 3) sum += $9; n++ } END { if (n > 0) print sum / n; }') ##3' UTR length must be > 3 (because of existence of stop codons)
+	      local flank_len=$(grep -w -i "$gene_full" $OUT_PATH/genes/$org_name/gtf_stats.csv | awk -F',' '{ if ($9 > 3) sum += $9; n++ } END { if (n > 0) print sum / n; }') ##3' UTR length must be > 3 (because of existence of stop codons)
 	      if [[ $flank_len == "" ]]; then
 	        return 2
 	      fi
 	      bedtools flank -s -l $flank_len -r 0 -i $TEMP_PATH/"$s_name"_cds.bed -g $genome_fa.fai > $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed 
 	    elif [[ "$reg" == "5utr" ]]; then
-	      local flank_len=$(grep -w -i "$gene_full" $OUT_PATH/$org_name/gtf_stats.csv | awk -F',' '{ if ($8 > 0) sum += $8; n++ } END { if (n > 0) print sum / n; }') ##5' UTR length must be > 0
+	      local flank_len=$(grep -w -i "$gene_full" $OUT_PATH/genes/$org_name/gtf_stats.csv | awk -F',' '{ if ($8 > 0) sum += $8; n++ } END { if (n > 0) print sum / n; }') ##5' UTR length must be > 0
 	      if [[ $flank_len == "" ]]; then
 	        return 2
 	      fi
@@ -418,7 +418,7 @@ function get_fasta() {
 function accumulate_clusters(){
 	# $1 - ORGANISM FASTA PATH (../files/fasta/danio_rerio/)
 	# $2 - Transcript sequence ID delimiter (::)
-	# $3 - Output file ($OUT_PATH/danio_rerio/ALL_CLUSTERS)
+	# $3 - Output file ($OUT_PATH/genes/danio_rerio/ALL_CLUSTERS)
 	grep -h ">" "$1"/* | awk -F"$2" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $3
 }
 
@@ -506,8 +506,8 @@ function group_FASTA_clusters(){
 
 	for f_org in $FASTA_PATH/*; do 
 	f_org_name=$(basename $f_org)
-	grep -r -h ">" $f_org  | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/$f_org_name/ORG_CLUSTERS
-	parallel --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f $OUT_PATH/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1}  {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
+	grep -r -h ">" $f_org  | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS
+	parallel --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1}  {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
 done
 }
 
@@ -819,10 +819,12 @@ function extract_genomic_regions(){
 	#LABEL_SEQS=$(grep -i -w "label_sequence_IDs" $5 | check_param) 
 	#n_threads=$(nproc --all)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
-
+	if [[ -z $n_threads || $n_threads == 0 || $n_threads == " " ]]; then
+		n_threads=$(nproc)
+	fi
 	local bed_prefix="$BED_PATH/$f_org_name"
 	local MODE=""
-	if [[ $GENE_SEARCH_MODE=="HARD" ]]; then
+	if [[ $GENE_SEARCH_MODE=="HARD" || -z $GENE_SEARCH_MODE || $GENE_SEARCH_MODE == " "  ]]; then
 	  local MODE="-w"
 	fi
 
@@ -830,15 +832,15 @@ function extract_genomic_regions(){
 
 	if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
 	  rm -rf $FASTA_PATH/$f_org_name
-	  rm -rf $OUT_PATH/$f_org_name
+	  rm -rf $OUT_PATH/genes/$f_org_name
 	  rm -rf $TEMP_PATH/$f_org_name
 	  rm -f $GENOME_FILE.fai
-	  rm -f $OUT_PATH/$f_org_name/*
+	  rm -f $OUT_PATH/genes/$f_org_name/*
 	  rm -f $bed_prefix/*
 	fi
 
 	mkdir -p $FASTA_PATH/$f_org_name
-	mkdir -p $OUT_PATH/$f_org_name/
+	mkdir -p $OUT_PATH/genes/$f_org_name/
 	mkdir -p $TEMP_PATH/$f_org_name
 	mkdir -p $bed_prefix
 
@@ -875,13 +877,13 @@ function extract_genomic_regions(){
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing..."
 
-	touch $OUT_PATH/$f_org_name/1.list $OUT_PATH/$f_org_name/2.list $OUT_PATH/$f_org_name/odb.list
+	touch $OUT_PATH/genes/$f_org_name/1.list $OUT_PATH/genes/$f_org_name/2.list $OUT_PATH/genes/$f_org_name/odb.list
 
 	if [[ ! -z $anno_proc_id ]]; then
 	  wait $anno_proc_id
 	fi
 
-	if [[ ! -s $OUT_PATH/$f_org_name/1.list || ! -s $OUT_PATH/$f_org_name/2.list || ! -s $OUT_PATH/$f_org_name/gtf_stats.csv || ! -s $BED_PATH/$f_org_name/$f_org_name.bed ]] ; then
+	if [[ ! -s $OUT_PATH/genes/$f_org_name/1.list || ! -s $OUT_PATH/genes/$f_org_name/2.list || ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || ! -s $BED_PATH/$f_org_name/$f_org_name.bed ]] ; then
 	  local eexp_gene=$(printf -- '%s\n' "${gene_list[@]}")
 	  
 	  if [[ ${#eexp_gene[@]} > 0 ]]; then
@@ -889,12 +891,12 @@ function extract_genomic_regions(){
 	  time zgrep -i $MODE -A 0 --group-separator='>' -f <(echo "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
 	  fi
 	  
-	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' > $OUT_PATH/$f_org_name/1.list
-	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/$f_org_name/1.list)))} | awk 'NF' > $OUT_PATH/$f_org_name/2.list
+	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/1.list
+	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/genes/$f_org_name/1.list)))} | awk 'NF' > $OUT_PATH/genes/$f_org_name/2.list
 	fi
 
-	if [[ -s $OUT_PATH/$f_org_name/1.list || -s $OUT_PATH/$f_org_name/2.list ]]; then
-	  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/1.list")$(color_FG $Green ", Genes not found in annotation: ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/2.list ")
+	if [[ -s $OUT_PATH/genes/$f_org_name/1.list || -s $OUT_PATH/genes/$f_org_name/2.list ]]; then
+	  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found in annotation: ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/2.list ")
 	else
 	  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed (Check if the GTF file exists and if the size is right)") #| tee >(cat >&2)
 	  exit 1
@@ -904,13 +906,13 @@ function extract_genomic_regions(){
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "2. Checking OrthoDB for missing & orthologous genes..."
 
-	if [[ ! -s $OUT_PATH/$f_org_name/odb.list || ! -s $OUT_PATH/$f_org_name/final.list || ! -s $OUT_PATH/$f_org_name/odb.final_map ]] ; then
-	  time check_OrthoDB $f_org_name $GENE_LIST $OUT_PATH/$f_org_name/odb.list $OUT_PATH/$f_org_name/odb.final_map $param_file
+	if [[ ! -s $OUT_PATH/genes/$f_org_name/odb.list || ! -s $OUT_PATH/genes/$f_org_name/final.list || ! -s $OUT_PATH/genes/$f_org_name/odb.final_map ]] ; then
+	  time check_OrthoDB $f_org_name $GENE_LIST $OUT_PATH/genes/$f_org_name/odb.list $OUT_PATH/genes/$f_org_name/odb.final_map $param_file
 	fi
 
-	if [[ $(awk 'END{print NR;}' "$OUT_PATH/$f_org_name/odb.list" | awk '{print $1}') !=  0 ]] ; then
-	    local odb_gene_list=($(cat "$OUT_PATH/$f_org_name/odb.list" | grep -v -w -i "gene"))
-	    local existing_list=($(cat $OUT_PATH/$f_org_name/1.list | sort | uniq)) 
+	if [[ $(awk 'END{print NR;}' "$OUT_PATH/genes/$f_org_name/odb.list" | awk '{print $1}') !=  0 ]] ; then
+	    local odb_gene_list=($(cat "$OUT_PATH/genes/$f_org_name/odb.list" | grep -v -w -i "gene"))
+	    local existing_list=($(cat $OUT_PATH/genes/$f_org_name/1.list | sort | uniq)) 
 	    local short_list=($(echo ${odb_gene_list[@]/${existing_list[@]}}))
 
 	  if [[ "${#short_list[@]}" > 0 ]] ; then
@@ -919,33 +921,33 @@ function extract_genomic_regions(){
 	  fi
 
 	  ##REFRESH geene list based on file names
-	  cat $OUT_PATH/$f_org_name/1.list $OUT_PATH/$f_org_name/2.list $OUT_PATH/$f_org_name/odb.list | awk 'NF' > $OUT_PATH/$f_org_name/full.list
+	  cat $OUT_PATH/genes/$f_org_name/1.list $OUT_PATH/genes/$f_org_name/2.list $OUT_PATH/genes/$f_org_name/odb.list | awk 'NF' > $OUT_PATH/genes/$f_org_name/full.list
 
-	  >&1 echo $(color_FG $Green "2. DONE : Full List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/full.list")$(color_FG $Green ", List from ODB : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/odb.list")$(color_FG $Green ", ODB Cluster to Genes Map : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/odb.final_map")
+	  >&1 echo $(color_FG $Green "2. DONE : Full List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/full.list")$(color_FG $Green ", List from ODB : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/odb.list")$(color_FG $Green ", ODB Cluster to Genes Map : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/odb.final_map")
 
 	else
-	  echo $(color_FG_Bold $Red "2. Warning : ")$(color_FG_BG_Bold $White $BG_Red "$OUT_PATH/$f_org_name/odb/odb.list")$(color_FG_Bold $Red " missing, Possibly orthologous genes were not found ") #| tee >(cat >&2)
+	  echo $(color_FG_Bold $Red "2. Warning : ")$(color_FG_BG_Bold $White $BG_Red "$OUT_PATH/genes/$f_org_name/odb/odb.list")$(color_FG_Bold $Red " missing, Possibly orthologous genes were not found ") #| tee >(cat >&2)
 	  color_FG_Bold $Red "2. If unsure, re-run command: $0 check_OrthoDB $f_org_name $GENE_LIST $ANNO_FILE" #| tee >(cat >&2)
-	  cat $OUT_PATH/$f_org_name/1.list $OUT_PATH/$f_org_name/2.list | awk 'NF' > $OUT_PATH/$f_org_name/full.list
+	  cat $OUT_PATH/genes/$f_org_name/1.list $OUT_PATH/genes/$f_org_name/2.list | awk 'NF' > $OUT_PATH/genes/$f_org_name/full.list
 	fi
 
 	#######################################################################################################
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "3. Extracting Transcript Stats from GTF_Slices..." #(log:$TEMP_PATH/$f_org_name/get_GTF_info.[o/e])
 
-	time Rscript --vanilla --verbose $(echo $(dirname $0))/extract_gtf_info.R $TEMP_PATH/$f_org_name/ $f_org_name $OUT_PATH/$f_org_name/gtf_stats.csv $param_file #1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
+	time Rscript --vanilla --verbose $(echo $(dirname $0))/extract_gtf_info.R $TEMP_PATH/$f_org_name/ $f_org_name $OUT_PATH/genes/$f_org_name/gtf_stats.csv $param_file #1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
 	r_exit_code="$?"
-	sed 1d $OUT_PATH/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > $OUT_PATH/$f_org_name/final.list
+	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/final.list
 
-	if [[ ! -s $OUT_PATH/$f_org_name/gtf_stats.csv || ! -s $OUT_PATH/$f_org_name/final.list || $r_exit_code != 0 ]] ; then
+	if [[ ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || ! -s $OUT_PATH/genes/$f_org_name/final.list || $r_exit_code != 0 ]] ; then
 	  >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed..."
 	  #>&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
-	  >&2 color_FG_Bold $Red "3. (Possible Fix) : Remove $TEMP_PATH/$f_org_name/ & $OUT_PATH/$f_org_name/gtf_stats.csv and re-run the pipeline"
+	  >&2 color_FG_Bold $Red "3. (Possible Fix) : Remove $TEMP_PATH/$f_org_name/ & $OUT_PATH/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
 	  exit 1
 	fi
 
-	if [[ -s $OUT_PATH/$f_org_name/gtf_stats.csv && -s $OUT_PATH/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
-	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/$f_org_name/gtf_stats.csv")
+	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
+	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/gtf_stats.csv")
 	else
 	  echo $(color_FG_BG_Bold $Red $BG_White "3. Error : Step 3 Failed") #| tee >(cat >&2)
 	  exit 1
@@ -953,7 +955,7 @@ function extract_genomic_regions(){
 
 	#######################################################################################################
 
-	local gene_list=($(cat $OUT_PATH/$f_org_name/final.list | awk 'NF' ))
+	local gene_list=($(cat $OUT_PATH/genes/$f_org_name/final.list | awk 'NF' ))
 	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo ${gene_list[@]})))
 
 	if [[ ! -z $genome_index_proc ]]; then
@@ -975,32 +977,34 @@ function extract_genomic_regions(){
 
 	#############################################################################################################
 
-	#if [[ $LABEL_SEQS ==  "TRUE" && -s $OUT_PATH/$f_org_name/odb.final_map ]] ; then
+	#if [[ $LABEL_SEQS ==  "TRUE" && -s $OUT_PATH/genes/$f_org_name/odb.final_map ]] ; then
 	  >&1 color_FG_BG_Bold $Black $BG_Yellow "4.1 Labelling sequences..."
 	  local tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
-	  time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/$f_org_name/odb.final_map" 
+	  time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/genes/$f_org_name/odb.final_map" 
 	#fi
 
 	#######################################################################################################
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "5. Generating Metadata and Cleaning up..."
 
-	sed 1d $OUT_PATH/$f_org_name/gtf_stats.csv | awk -F',' '{print $1}' | sort | uniq >  $OUT_PATH/$f_org_name/AVAILABLE_GENES 
-	grep -v -i -f $OUT_PATH/$f_org_name/AVAILABLE_GENES $GENE_LIST | sort | uniq > $OUT_PATH/$f_org_name/MISSING_GENES
+	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1}' | sort | uniq >  $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES 
+	grep -v -i -f $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES $GENE_LIST | sort | uniq > $OUT_PATH/genes/$f_org_name/MISSING_GENES
 
 	find $FASTA_PATH/$f_org_name/ -type f -name "*.fai" -exec rm -f {} +
 
-	if [[ ${GENOME_FILE##*.} == "gz" && ! -z $gfile_name ]]; then
+	if [[ ${GENOME_FILE##*.} == "gz" ]]; then #&& ! -z $gfile_name
 	  rm -f $gfile_name
 	fi
 
 	if [[ ! -s $GENOMES_PATH/$f_org_name.fa.gz ]]; then
 	     zcat -f $GENOME_FILE | gzip -c > $GENOMES_PATH/$f_org_name.fa.gz
 	     >&1 echo $(color_FG $Green "Genome saved to : ")$(color_FG_BG_Bold $White $BG_Purple "$GENOMES_PATH/$f_org_name.fa.gz")
+	     rm -f $GENOME_FILE
 	fi
 	if [[ ! -s $ANNOS_PATH/$f_org_name.gtf.gz ]]; then
 	     zcat -f $ANNO_FILE | gzip -c > $ANNOS_PATH/$f_org_name.gtf.gz
 	     >&1 echo $(color_FG $Green "Annotation saved to : ")$(color_FG_BG_Bold $White $BG_Purple "$ANNOS_PATH/$f_org_name.gtf.gz")
+	     rm -f $ANNO_FILE
 	fi
 
 	rm -rf $TEMP_PATH/$f_org_name/
@@ -1082,8 +1086,12 @@ function check_OrthoDB(){
 	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
 
+	if [[ -z $n_threads || $n_threads == 0 || $n_threads == " " ]]; then
+		n_threads=$(nproc)
+	fi
+
 	local MODE=""
-	if [[ $GENE_SEARCH_MODE=="HARD" ]]; then
+	if [[ $GENE_SEARCH_MODE=="HARD" || -z $GENE_SEARCH_MODE || $GENE_SEARCH_MODE == " " ]]; then
 	  local MODE="-w"
 	fi
 
@@ -1103,7 +1111,7 @@ function check_OrthoDB(){
 	    local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
 	    >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
 	  fi
-	  >&2 color_FG_Bold $Red "2. Error in ODB files! Rerun merge_OG2genes_OrthoDB.sh $ORTHODB_PATH_PREFIX $CLEAN_EXTRACT $n_threads ${script_args[1]}"
+	  >&2 color_FG_Bold $Red "2. Error in ODB files! Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
 	  exit -1
 	else
 	  local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
@@ -1113,7 +1121,7 @@ function check_OrthoDB(){
 	readarray refs < $REF_ORGS
 
 	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo "${gene_list[@]}")))
-	local genes_strip=($(awk -F'_' '{print $(echo '$1')}' <(echo "${s_names[@]}")))
+	local genes_strip=($(awk -F'_' '{print $1;}' <(echo "${s_names[@]}")))
 	local lookup_genes=($(echo "${genes_strip[@]}" "${gene_list[@]}" | sort | uniq | awk 'NF' ))
 	local org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;' | awk -F" " '{print $1" "$2}')
 
@@ -1152,9 +1160,9 @@ function check_OrthoDB(){
 	fi
 
 	#Save selected clusters and the participating genes(delimiter=",") in odb.final_map
-	zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat ${script_args[1]} $out_gene_list | grep -v -w -i "gene") | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $out_gene_clusters #> $OUT_PATH/$f_org_name/odb.final_map
+	zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat ${script_args[1]} $out_gene_list | grep -v -w -i "gene") | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $out_gene_clusters #> $OUT_PATH/genes/$f_org_name/odb.final_map
 
-	if [[ -s $out_gene_clusters ]]; then #$OUT_PATH/$f_org_name/odb.final_map
+	if [[ -s $out_gene_clusters ]]; then #$OUT_PATH/genes/$f_org_name/odb.final_map
 	  >&1 echo $(color_FG $Green "2. DONE: Mapped gene names to clusters : ")$(color_FG_BG_Bold $White $BG_Purple "$out_gene_clusters")
 	else
 	  >&2 echo $(color_FG $Red "2. Error: OG Cluster to gene mappings couldn't be saved to $out_gene_clusters")

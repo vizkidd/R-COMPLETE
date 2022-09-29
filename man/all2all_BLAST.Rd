@@ -11,7 +11,8 @@ all2all_BLAST(
   blast_program,
   output_dir = "./",
   blast_options = "",
-  input_prefix_path = NULL
+  input_prefix_path = NULL,
+  params_list = NULL
 )
 }
 \arguments{
@@ -28,7 +29,16 @@ all2all_BLAST(
 \item{blast_options}{Extra Options to be passed to the BLAST program}
 
 \item{input_prefix_path}{If input lists/vectors are filenames, then provide input folder to prefix path}
+
+\item{params_list}{Output of load_params() (Optional)}
 }
 \description{
-Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir. ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir.
+}
+\note{
+ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+}
+\examples{
+ all2all_BLAST(first_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F), second_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F),blast_DB_dir = "files/blastdb",blast_program = "tblastx",output_dir = "files/all2all",blast_options = "-strand plus",input_prefix_path = NULL,params_list=NULL)
+
 }

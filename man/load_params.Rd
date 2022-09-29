@@ -10,11 +10,15 @@ load_params(param_file)
 \item{param_file}{parameter file name}
 }
 \value{
-param_vector named parameter vector
+Named list of parameters
 }
 \description{
 The function loads parameters from the param file into Global R variables and returns a named parameter table. The parameters are checked and an error is output if there are any missing parameters
 }
-\details{
-NOTE : Parameters are case sensitive and are de-limited with '=='
+\note{
+Parameters are case sensitive and are de-limited with '=='.
+}
+\examples{
+    params_list <- load_params(param_file)
+
 }

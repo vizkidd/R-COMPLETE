@@ -23,5 +23,12 @@ convert_BLAST_format(
 \item{cols}{BLAST Columns to output. Check BLAST Output formats for more details}
 }
 \description{
-Convert between formats using the blast_formatter program (Must be present in $PATH and be accessible with Sys.which("blast_formatter"))
+Convert between formats using the blast_formatter program
+}
+\note{
+blast_formatter must be present in $PATH and be accessible with Sys.which("blast_formatter"). (Optional) Input file must be of the BLAST format 11 to convert it between formats
+}
+\examples{
+    convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+
 }
