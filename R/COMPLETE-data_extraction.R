@@ -87,6 +87,10 @@ check_mart_dataset <- function(org){
   #   COMPLETE$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE$using.mart))
   # }
 
+  if(is.null(COMPLETE$org.meta.list)){
+    stop("Reload R-COMPLETE, error in initialization")
+  }
+
   split_org <- stringi::stri_split(gsub(pattern = "[[:punct:]]|[[:space:]]",x = org, replacement = "_"),fixed="_",simplify = T)
   if(stringi::stri_isempty(split_org[2])){
     stop(paste(org,"name not in proper format, eg danio_rerio\n"))
@@ -259,7 +263,7 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     COMPLETE$process_list[sapply(COMPLETE$process_list, is.null)] <<- NULL
   }, error = function(){
     if(is.null(COMPLETE$process_list)){
-      COMPLETE$process_list <<- c()
+      COMPLETE$process_list <- c()
     }
   })
   if (verbose) {
@@ -571,7 +575,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 
       if(length(unavailable_transcripts)>0){
         flank_stats <- flank_stats[!is.na(match(flank_stats$transcript_id,unavailable_transcripts)),]
-        message(paste("(Some) Data missing for : ",org,":",paste(unique(unavailable_transcripts),sep=",",collapse=",")))
+        #message(paste("(Some) Data missing for : ",org,":",paste(unique(unavailable_transcripts),sep=",",collapse=","),". Maybe CDS or all regions are missing for the transcripts."))
       }
       if(length(transcripts_with_data)>0){
         flank_stats <- flank_stats[!is.na(match(flank_stats$transcript_id,transcripts_with_data)),]
@@ -581,7 +585,10 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
       }
     }
   }
-
+  #print("here1") #DEBUG
+  #tmp1 <<- bm_df #DEBUG
+  #tmp2 <<- bm_seqs #DEBUG
+  #tmp3 <<- gtf_stats #DEBUG
   if(!is.null(bm_df)){
     if(nrow(bm_seqs)>0 && nrow(bm_df)>0){
       bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join,by = c("5utr", "ensembl_transcript_id", "coding", "3utr","flanking_5utr","flanking_3utr"))
@@ -599,10 +606,33 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   }
   names(bm_df)[grep(pattern="ensembl_transcript_id",names(bm_df))] <- "transcript_id"
   names(bm_df)[grep(pattern="coding",names(bm_df))] <- "cds"
-
+  #print("here2") #DEBUG
   bm_df <- inner_join(gtf_stats[,c("gene_name","safe_gene_name","transcript_id","strand")],bm_df, by = "transcript_id")
   bm_df <- unique(bm_df)
+
+  final_unavailable_transcripts <- unique( unlist(apply(bm_df,MARGIN = 1, FUN = function(x){
+    row_check <- grepl("unavailable",x=x,ignore.case = T)
+    names(row_check) <- colnames(bm_df)
+    #print(row_check)
+    if(all(row_check[params_list$TRANSCRIPT_REGIONS]) || row_check["cds"]==T){ #Removing transcripts which do not have any regions or CDS
+      return(as.character(x["transcript_id"]))
+    }
+  })) )
+
+  final_unavailable_transcripts <- unique( c(unavailable_transcripts, final_unavailable_transcripts) )
+  if(length(final_unavailable_transcripts)>0){
+    bm_df <- bm_df[which(is.na(match(bm_df$transcript_id,final_unavailable_transcripts))),]
+    message(paste("(Some) Data missing for : ",org,": Stored in :",paste(params_list$OUT_PATH,"/genes/",org,"/non_coding.csv",sep=""),". Maybe CDS or all regions are missing for the transcripts. This could happen for non-protein coding transcripts or retained introns"))
+
+    non_coding_data <- unique(tmp_gtf[which(!is.na(match(tmp_gtf$transcript_id,tmp_missing))),c("gene_name","transcript_id")])
+    write.table(non_coding_data,file = paste(params_list$OUT_PATH,"/genes/",org,"/non_coding.csv",sep=""),quote = F,row.names = F,col.names = T,sep = ",")
+  }
+
   #print(head(bm_df))
+  #tmp4 <<- bm_df #DEBUG
+  #tmp_gtf <<- gtf_stats #DEBUG
+  #tmp_missing <<- final_unavailable_transcripts #DEBUG
+
   parallel::mclapply(base::split(bm_df[,c("transcript_id","gene_name","safe_gene_name",params_list$TRANSCRIPT_REGIONS,"flanking_5utr","flanking_3utr","strand")],as.factor(bm_df$gene_name)), function(x){
     lapply(params_list$TRANSCRIPT_REGIONS, function(y){
       if (grepl("3utr|5utr",y,ignore.case = T)) { ##Adding "_FLANK" for transcripts with UTR Flanks
@@ -615,7 +645,13 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
         seq_names <- paste(as.character(x_unique[,"transcript_id"]), y,sep = params_list$TRANSCRIPT_ID_DELIM)
       }
       seq_names <- paste(seq_names,"(",x_unique[,"strand"],")",sep = "")
-      write.fasta(as.list(x_unique[,y]), seq_names,file.out=paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep="") )
+      fasta_as_c <- as.character(x_unique[,y])
+      names(fasta_as_c) <- seq_names
+      fasta_to_write <- DNAStringSet(x = fasta_as_c, use.names = T)
+      #tmp5 <<- fasta_to_write #DEBUG
+      #seqinr::write.fasta(as.list(x_unique[,y]), seq_names,file.out=paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep="") )
+      Biostrings::writeXStringSet(x = fasta_to_write,filepath = paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep=""), append = T,format = "fasta")
+
     })
   },mc.cores = params_list$numWorkers, mc.silent = F)
 
@@ -1194,7 +1230,7 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 
 }
 
-#' (1) - Extracts Data
+#' (1) - Extracts Sequences for Protein Coding Transcripts from Organisms
 #'
 #' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE").
 #'
@@ -1211,10 +1247,6 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=F){
   set.seed(123)
 
-  if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
-    stop("Pipeline only supports Linux (and bash) :(")
-  }
-
   if( only.user.data && is.null(user_data) ){
     stop("only.user.data=TRUE but user_data is not provided!")
   }
@@ -1223,7 +1255,9 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     #print("Missing samtools/bedtools in $PATH...User data will not be processed!")
     warning("Missing samtools/bedtools in $PATH...User data & biomartr genomes will not be processed! (because the shell scripts depend on these programs)")
     message("Missing samtools/bedtools in $PATH...User data & biomartr genomes will not be processed! (because the shell scripts depend on these programs)")
-    COMPLETE$SKIP_USER_DATA <<- TRUE
+    COMPLETE$SKIP_USER_DATA <- TRUE
+  }else{
+    COMPLETE$SKIP_USER_DATA <- FALSE
   }
 
   options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
@@ -1438,6 +1472,9 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   sessionInfo()
 }
 
+if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
+  stop("Pipeline only supports Linux (and bash) :(")
+}
 
 COMPLETE <<- new.env(parent=emptyenv())
 COMPLETE$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
@@ -1456,3 +1493,53 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
   stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
 }
 COMPLETE$SKIP_USER_DATA <- FALSE
+
+#' Design of R-COMPLETE
+#' @author Vishvesh Karthik (MDC-Berlin)
+#' @usage NULL
+#'
+#' The pipeline uses R and BASH. BASH functions are invoked through R.
+#' BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
+#'
+#' * REQUIRES/DEPENDANCIES :
+#'      * Referenced R packages
+#'      * Linux with BASH ($SHELL must be set or /bin/bash must exist)
+#'      * Parameters File (system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'      * GNU parallel (in $PATH - BASH functions)
+#'      * Samtools (in $PATH - BASH functions)
+#'      * Bedtools (in $PATH - BASH functions)
+#'      * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is meant to work with v10.1) (https://www.orthodb.org/?page=filelist)
+#'          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)
+#'          # odb10v1_genes.tab.gz  -Ortho DB genes with some info (https://v101.orthodb.org/download/odb10v1_genes.tab.gz)
+#'          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence (https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz)
+#'          (OR)
+#'          # odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
+#'          # odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
+#'
+#' * PARAMETERS :
+#'     The pipeline takes a single parameter file. This design was chosen
+#'          1) To expose as many options as possible to the end-user.
+#'          2) The pipeline uses BASH to perform some operations (which is significantly faster than R)
+#'          and the parameter file is shared between R and BASH.
+#'     The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE
+#'     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
+#'     system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE")
+#'
+#' * FLOW :
+#'     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
+#'     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
+#'     and BASH function extract_genomic_regions() for user provided data
+#'          * ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
+#'          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
+#'          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
+#'          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
+#'          * Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter set in parameters, "::" in this context )
+#'               >$transcript_id $seqID_delimiter $gene_name $seqID_delimiter $f_org_name $seqID_delimiter $ortho_cluster
+#'               >SOME_TRANSCRIPT||cds(+)::RANDOMGENE::SOMEORG::ORTHOLOG_CLUSTERS
+#'               >ENSDART00000193157||cds(+)::sulf1::danio_rerio::18335at7898,51668at7742,360590at33208
+#'          * Sequences are grouped into files of ORTHOLOG_CLUSTERS
+#'     2) FIND_ORTHOLOGS() -
+#' @seealso [COMPLETE::EXTRACT_DATA()], [COMPLETE::FIND_ORTHOLOGS()]
+#' @md
+COMPLETE_PIPELINE_DESIGN <- function(){
+}

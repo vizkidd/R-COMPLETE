@@ -9,7 +9,8 @@ Description: R package for extracting motifs of localization elements using a co
     * Groups the transcripts into ortholog/gene clusters and finds transcript level orthologs of genes/clusters with iterative BLAST approach (iBLAST). Ungrouped transcripts are optionally grouped during iBLAST
     * Constructs Multiple Sequence Alignments (MSA) for clusters/genes
     * Folds the MSAs and takes advantage of the evolutionary information to predict motifs which enable localization
-    Pipeline is split into multiple parts. The functions named in uppercase denote the functions which perform end-end execution of respective parts of the pipeline.
+    Pipeline is split into multiple parts. The functions named in uppercase denote the functions which perform end-end execution of respective parts of the pipeline. 
+    Check ?PIPELINE_DESIGN for more information
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
@@ -39,7 +40,7 @@ Imports:
     stringi (>= 1.7.6),
     data.table (>= 1.14.2),
     stringr (>= 1.4.0),
-    seqinr (>= 4.2),
+    Biostrings (>= 2.60.2),
     GenomicRanges (>= 1.44.0),
     tictoc (>= 1.1),
     graph (>= 1.70.0),
