@@ -352,6 +352,14 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
      # cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes),"\n"))
      # message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)))
      # }
+
+      if(length(available_genes)==0 && length(missing_genes)==0){
+        if(verbose){
+          message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check FAILED!"))
+        }
+        return(FALSE)
+      }
+
       if((all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) && all(which(is.na(match(missing_genes, files_in_dir))))){
         if(verbose){
           cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check PASSED!\n"))
@@ -628,7 +636,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
     bm_df <- bm_df[which(is.na(match(bm_df$transcript_id,final_unavailable_transcripts))),]
     message(paste("(Some) Data missing for : ",org,": Stored in :",paste(params_list$OUT_PATH,"/genes/",org,"/non_coding.csv",sep=""),". Maybe CDS or all regions are missing for the transcripts. This could happen for non-protein coding transcripts or retained introns"))
 
-    non_coding_data <- unique(tmp_gtf[which(!is.na(match(tmp_gtf$transcript_id,tmp_missing))),c("gene_name","transcript_id")])
+    non_coding_data <- unique(gtf_stats[which(!is.na(match(gtf_stats$transcript_id,final_unavailable_transcripts))),c("gene_name","transcript_id")])
     write.table(non_coding_data,file = paste(params_list$OUT_PATH,"/genes/",org,"/non_coding_biomart.csv",sep=""),quote = F,row.names = F,col.names = T,sep = ",")
   }
 
