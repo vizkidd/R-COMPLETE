@@ -422,7 +422,7 @@ get_gtf_mart <- function(org, gene_list){
     stop(paste("GTF Attributes were not available for :",org,"\n"))
   }
 
-  if (is.character(gene_list)) {
+  if (length(gene_list) == 1 && file.exists(gene_list)) {
     genes <- factor(scan(gene_list, character(), quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
@@ -709,14 +709,14 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list){
       stop(paste("Organism not available :", org,"\n"))
     }
 
-    if(!is.character(gene_list)){
+    if(length(gene_list) == 1 && file.exists(gene_list)){
+      genes <- invisible(factor(scan(gene_list, character(), quiet = T))) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
+      genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
+    }else{
       genes <- as.vector(gene_list)
       tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
       write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
       gene_list <- tmp_gene_list
-    }else{
-      genes <- invisible(factor(scan(gene_list, character(), quiet = T))) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
-      genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
     }
 
       if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = F, params_list = params_list))){
@@ -760,7 +760,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list) {
   tictoc::tic(msg=paste("Processed:",org))
   org_fasta_path <- file.path(params_list$FASTA_OUT_PATH,org)
 
-  if (is.character(gene_list)) {
+  if (length(gene_list) == 1 && file.exists(gene_list)) {
     genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
@@ -899,13 +899,13 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
   gtf <- data["gtf"]
   org <- data["org"]
 
-  if(!is.character(gene_list)){
+  if(length(gene_list) == 1 && file.exists(gene_list)){
+    genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
+    genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
+  }else{
     genes <- as.vector(gene_list)
     write.table(x = gene_list,file = paste(params_list$TEMP_PATH,"/gene_list.txt",sep = ""),quote = F,row.names = F,col.names = F)
     gene_list <- paste(params_list$TEMP_PATH,"/gene_list.txt",sep = "")
-  }else{
-    genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
-    genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }
 
   if(genome == "-" || gtf == "-" || genome == " " || gtf == " " || stringi::stri_isempty(genome) || stringi::stri_isempty(gtf)){
@@ -1052,7 +1052,7 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
       #local ortho_cluster=$(grep -w $gene_name $odb_clusters | awk -F'\t' '{if (length(c) == 0){c=$1;}else{c=c","$1;}}END{print c}')
     }
   }
-  if (is.character(gene_list)) {
+  if (length(gene_list) == 1 && file.exists(gene_list)) {
     genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
@@ -1179,7 +1179,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     COMPLETE$org.meta <- COMPLETE$org.meta[which(is.na(match(COMPLETE$org.meta$name,user_data$org))),]
   }
 
-  if (is.character(gene_list)) {
+  if (length(gene_list) == 1 && file.exists(gene_list)) {
     genes <- factor(scan(gene_list, character(), quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{

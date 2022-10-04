@@ -178,7 +178,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
 
   utr_len_list <- extract_info(gtf_data,strandedness = STRAND)
 
-  if(length(tmp) == 0){
+  if(length(utr_len_list) == 0){
     return()
   }
   #save(file = "utr_len_list.RData",list="utr_len_list")

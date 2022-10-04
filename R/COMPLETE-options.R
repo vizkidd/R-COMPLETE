@@ -178,7 +178,6 @@ COMPLETE$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl"
 COMPLETE$curl_handle <- RCurl::getCurlMultiHandle()
 COMPLETE$process_list <- c()
 COMPLETE$SKIP_USER_DATA <- FALSE
-COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
 
 if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
@@ -193,6 +192,8 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
 }else{
   stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
 }
+
+COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
 
 if (!curl::has_internet()) {
   warning("Check if there is an internet connection")
