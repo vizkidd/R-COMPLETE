@@ -119,7 +119,7 @@ check_mart_dataset <- function(org){
 #' @param MART_FUN Fuction to be called
 #' @param args Named list of arguments to be used by the function
 #' @return Name of the dataset in biomaRt
-mart_connect <- function(MART_FUN=NULL,args=c(),verbose=T){
+mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
   if (!is.null(MART_FUN)) {
     #print(args)
     time_out <- 0
@@ -256,20 +256,22 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     COMPLETE$process_list <- c()
   }
 
-  COMPLETE$process_list[sapply(COMPLETE$process_list, function(x){
-    return(!x$is_alive())
-  })] <<- NULL
-  tryCatch(expr = function(){
-    COMPLETE$process_list[sapply(COMPLETE$process_list, is.null)] <<- NULL
-  }, error = function(){
-    if(is.null(COMPLETE$process_list)){
-      COMPLETE$process_list <- c()
-    }
-  })
+  if(length(COMPLETE$process_list) > 0){
+    COMPLETE$process_list[sapply(COMPLETE$process_list, function(x){
+      return(!x$is_alive())
+    })] <- NULL
+    tryCatch(expr = function(){
+      COMPLETE$process_list[sapply(COMPLETE$process_list, is.null)] <- NULL
+    }, error = function(){
+      if(is.null(COMPLETE$process_list)){
+        COMPLETE$process_list <- c()
+      }
+    })
+  }
   if (verbose) {
     cat(paste("Adding process to list...(",length(COMPLETE$process_list),")\n",sep=""))
   }
-  if(length(COMPLETE$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= 250){
+  if(length(COMPLETE$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE$max_file_handles-1){ #250
     #for (p_id in seq_along(COMPLETE$process_list)) {
     #  if(COMPLETE$process_list[[p_id]]$is_alive()){
     #    print(paste("Process Q Full...Waiting for a process to end(",length(COMPLETE$process_list),")",sep=""))
@@ -301,9 +303,9 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     #  }
     #})
 
-    if (length(dead_procs)>0) {
+    if (length(dead_procs)>0 && length(COMPLETE$process_list)>0) {
       dead_procs <- unique(dead_procs)
-      COMPLETE$process_list[[dead_procs]] <<- NULL
+      COMPLETE$process_list[[dead_procs]] <- NULL
     }
     # if(COMPLETE$process_list[[1]]$is_alive()){ ## check and wait for the earliest job to complete
     #   COMPLETE$process_list[[1]]$wait(timeout=-1)
@@ -335,7 +337,7 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
   #   return(FALSE)
   # }
   return(tryCatch({
-    if(dir.exists(fasta_path) && length(dir(fasta_path,all.files = F)) > 0 && length(grep(list.files(path=fasta_path), pattern="tmp", invert=T, value=TRUE)) > 0){
+    if(dir.exists(fasta_path) && length(dir(fasta_path,all.files = F)) > 0){ # && length(grep(list.files(path=fasta_path), pattern="tmp", invert=T, value=TRUE)) > 0
       missing_genes <- c()
       available_genes <- c()
       if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","MISSING_GENES",sep=""))){
@@ -350,7 +352,7 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
      # cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes),"\n"))
      # message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)))
      # }
-      if((all(!is.na(match(files_in_dir,available_genes))) && all(!is.na(match(available_genes,files_in_dir)))) && all(is.na(match(missing_genes, files_in_dir)))){
+      if((all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) && all(which(is.na(match(missing_genes, files_in_dir))))){
         if(verbose){
           cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check PASSED!\n"))
           }
@@ -424,7 +426,7 @@ get_gtf_mart <- function(org, gene_list){
     genes <- factor(scan(gene_list, character(), quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
-    genes <- gene_list
+    genes <- as.vector(gene_list)
   }
 
   ##Splitting genes to the recomended number of queries for biomart through biomaRt
@@ -444,6 +446,8 @@ get_gtf_mart <- function(org, gene_list){
 #' Get FASTA data from BIOMART (using biomaRt)
 #'
 #' This function downloads FASTA data from BIOMART using biomaRt. The Data Frame from calculate_stats() is required.
+#'
+#' @note Columns required from biomaRt "gene_name","gene_id","transcript_id" (or) "seqnames","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand"
 #'
 #' @examples
 #'     gtf_data <- get_gtf_mart(org, genes)
@@ -625,7 +629,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
     message(paste("(Some) Data missing for : ",org,": Stored in :",paste(params_list$OUT_PATH,"/genes/",org,"/non_coding.csv",sep=""),". Maybe CDS or all regions are missing for the transcripts. This could happen for non-protein coding transcripts or retained introns"))
 
     non_coding_data <- unique(tmp_gtf[which(!is.na(match(tmp_gtf$transcript_id,tmp_missing))),c("gene_name","transcript_id")])
-    write.table(non_coding_data,file = paste(params_list$OUT_PATH,"/genes/",org,"/non_coding.csv",sep=""),quote = F,row.names = F,col.names = T,sep = ",")
+    write.table(non_coding_data,file = paste(params_list$OUT_PATH,"/genes/",org,"/non_coding_biomart.csv",sep=""),quote = F,row.names = F,col.names = T,sep = ",")
   }
 
   #print(head(bm_df))
@@ -645,17 +649,17 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
         seq_names <- paste(as.character(x_unique[,"transcript_id"]), y,sep = params_list$TRANSCRIPT_ID_DELIM)
       }
       seq_names <- paste(seq_names,"(",x_unique[,"strand"],")",sep = "")
+      #tmp5 <<- x_unique[,y] #DEBUG
       fasta_as_c <- as.character(x_unique[,y])
       names(fasta_as_c) <- seq_names
-      fasta_to_write <- DNAStringSet(x = fasta_as_c, use.names = T)
-      #tmp5 <<- fasta_to_write #DEBUG
+      fasta_to_write <- Biostrings::DNAStringSet(x = fasta_as_c, use.names = T)
+      #tmp6 <<- fasta_to_write #DEBUG
+      #message(fasta_path)
       #seqinr::write.fasta(as.list(x_unique[,y]), seq_names,file.out=paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep="") )
-      Biostrings::writeXStringSet(x = fasta_to_write,filepath = paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,".tmp",sep=""), append = T,format = "fasta")
+      Biostrings::writeXStringSet(x = fasta_to_write,filepath = paste(fasta_path,"/",unique(x_unique[,"safe_gene_name"]),".",y,sep=""), append = F,format = "fasta")
 
     })
   },mc.cores = params_list$numWorkers, mc.silent = F)
-
-
 
   return(gtf_stats[!is.na(match(gtf_stats$transcript_id,bm_df$transcript_id)),])
 }
@@ -706,7 +710,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list){
     }
 
     if(!is.character(gene_list)){
-      genes <- gene_list
+      genes <- as.vector(gene_list)
       tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
       write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
       gene_list <- tmp_gene_list
@@ -754,13 +758,13 @@ fetch_FASTA <- function(org_row, params_list, gene_list) {
 
   org <- org_row["name"]
   tictoc::tic(msg=paste("Processed:",org))
-  org_fasta_path <- file.path(params_list$FASTA_OUT_PATH ,org)
+  org_fasta_path <- file.path(params_list$FASTA_OUT_PATH,org)
 
   if (is.character(gene_list)) {
     genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
-    genes <- gene_list
+    genes <- as.vector(gene_list)
     tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
     write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
     gene_list <- tmp_gene_list
@@ -828,7 +832,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list) {
     return()
   }
 
-  gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path, params_list)
+  gtf_stats <- fetch_FASTA_mart(org = org,gtf_stats = gtf_stats,fasta_path = org_fasta_path, params_list = params_list)
 
   if(nrow(gtf_stats)==0){
     message(paste("Error fetching FASTA for : ",org))
@@ -836,23 +840,26 @@ fetch_FASTA <- function(org_row, params_list, gene_list) {
     return()
   }
 
-  local_procs <- c()
-  local_procs <- unlist(parallel::mclapply(base::split(gtf_stats,as.factor(gtf_stats$gene_name)), function(x){
-    gene <- unique(x[,"gene_name"])
-    safe_name <- unique(x[,"safe_gene_name"])
-    return(unlist(lapply(params_list$TRANSCRIPT_REGIONS, function(y){
-      output_fasta <- paste(org_fasta_path,"/",safe_name,".",y,sep="")
-      input_fasta <- paste(org_fasta_path,"/",safe_name,".",y,".tmp",sep="")
-      proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("label_sequenceIDs",org,gene, output_fasta,input_fasta,params_list$param_file, odb_gene_map), verbose=F, params_list=params_list))
-      return(proc)
-    })))
-  }, mc.cores = params_list$numWorkers,mc.silent = T))
-  invisible(parallel::mclapply(local_procs, function(x){
-    #print(x)
-    if(x$is_alive()){
-      x$wait(timeout=-1)
-    }
-  }, mc.cores = params_list$numWorkers))
+  # local_procs <- c()
+  # local_procs <- unlist(parallel::mclapply(base::split(gtf_stats,as.factor(gtf_stats$gene_name)), function(x){
+  #   gene <- unique(x[,"gene_name"])
+  #   safe_name <- unique(x[,"safe_gene_name"])
+  #   return(unlist(lapply(params_list$TRANSCRIPT_REGIONS, function(y){
+  #     output_fasta <- paste(org_fasta_path,"/",safe_name,".",y,sep="")
+  #     input_fasta <- paste(org_fasta_path,"/",safe_name,".",y,".tmp",sep="")
+  #     proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("label_sequenceIDs",org,gene, output_fasta,input_fasta,params_list$param_file, odb_gene_map), verbose=F, params_list=params_list))
+  #     return(proc)
+  #   })))
+  # }, mc.cores = params_list$numWorkers,mc.silent = T))
+  # invisible(parallel::mclapply(local_procs, function(x){
+  #   #print(x)
+  #   if(x$is_alive()){
+  #     x$wait(timeout=-1)
+  #   }
+  #   x$kill(close_connections = TRUE)
+  # }, mc.cores = params_list$numWorkers))
+
+  label_sequenceIDs(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list)
 
   names(gtf_stats)[grep(pattern="transcript_length",names(gtf_stats))] <- "transcript_length.annotated"
   gtf_stats <- gtf_stats %>% mutate(org=org)
@@ -893,7 +900,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
   org <- data["org"]
 
   if(!is.character(gene_list)){
-    genes <- gene_list
+    genes <- as.vector(gene_list)
     write.table(x = gene_list,file = paste(params_list$TEMP_PATH,"/gene_list.txt",sep = ""),quote = F,row.names = F,col.names = F)
     gene_list <- paste(params_list$TEMP_PATH,"/gene_list.txt",sep = "")
   }else{
@@ -916,7 +923,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
 
   if(grepl("://|http|ftp|www",genome)){
     if(!file.exists(genome_path) || !file.info(genome_path)$size > 20 || params_list$CLEAN_EXTRACT){
-      curl_fetch_disk(genome, paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
+      curl::curl_fetch_disk(genome, paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
       #genome_path <- paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep="")
       file.rename(paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""),genome_path)
     } # else{
@@ -928,7 +935,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
     #         try(file.remove(x, showWarnings=F))
     #       }
     #     })
-    #     curl_fetch_disk(genome, basename(URLdecode(genome)))
+    #     curl::curl_fetch_disk(genome, basename(URLdecode(genome)))
     #     genome_path <- paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep="") #basename(URLdecode(genome))
     #   }
     # }
@@ -945,7 +952,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
 
   if(grepl("://|http|ftp|www",gtf)){
     if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 20 || params_list$CLEAN_EXTRACT){
-      curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+      curl::curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
       #gtf_path <- paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
 
       #zcat -f $ANNO_FILE | gffread - -T -O -E -o - | gzip -c > $params_list$ANNOS_PATH/"$f_org_name".gtf.gz
@@ -962,7 +969,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
     #         try(file.remove(x, showWarnings=F))
     #       }
     #     })
-    #     curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+    #     curl::curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
     #     gtf_path <- paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
     #   }
     # }
@@ -1013,163 +1020,6 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
   }
 }
 
-#' Checks for parameter and return the value
-#'
-#' If a parameter ID does not exist or if the value is empty and if the parameter is NOT optional then the execution is stopped
-#'
-#' @param param_table parameter table or parameter file name
-#' @param param_id ID of the paramter to be extracted from parameter file
-#' @param gene_list File with a list of genes to extract data for(check the github repo for an example)
-check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,create_dir=F){
-  if(is.character(param_table)){
-    param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T) #Convert multibyte seperator to one byte sep
-  }
-  param_index <- which(param_table==param_id)
-  if(is.null(param_index) || is.na(param_index)){
-    stop(paste("Parameter :",param_id,"is missing!"))
-  }
-  param_value <- param_table[param_index,c(2)]
-  #print(CAST_FUN(param_value))
-  if(create_dir){
-    dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
-  }
-  if(!stringi::stri_isempty(param_value) || optional){
-    return(CAST_FUN(param_value))
-  }else{
-    stop(paste("Parameter :",param_id,"is empty and is not optional!"))
-  }
-}
-
-#' Loads the parameters from param file
-#'
-#' The function loads parameters from the param file into Global R variables and returns a named parameter table. The parameters are checked and an error is output if there are any missing parameters
-#'
-#' @examples
-#'     params_list <- load_params(param_file)
-#'
-#' @note Parameters are case sensitive and are de-limited with '=='.
-#'
-#' @param param_file parameter file name
-#' @return Named list of parameters
-#' @export
-load_params <- function(param_file){
-  if(!is.character(param_file)){
-    message("Give the file name of the parameters")
-    return(NULL)
-  }
-
-  # if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
-  #   SHELL <<- Sys.getenv("SHELL")
-  #   print(paste("SHELL :",SHELL))
-  # }else if(file.exists("/bin/bash")){
-  #   SHELL <<- "/bin/bash"
-  #   print(paste("SHELL :",SHELL))
-  # }else{
-  #   stop(paste("SHELL (",SHELL,") : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
-  # }
-
-  #param_file <<- param_file
-  param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T) #Convert multibyte seperator to one byte sep
-
-  GENOMES_PATH <- tools::file_path_as_absolute(check_param(param_table,"genomes_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="genomes_path"),c(2)]
-  ANNOS_PATH <- tools::file_path_as_absolute(check_param(param_table,"annos_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="annos_path"),c(2)]
-  TEMP_PATH <- tools::file_path_as_absolute(check_param(param_table,"temp_path",optional=T,CAST_FUN=as.character,create_dir=T)) #param_table[which(param_table=="temp_path"),c(2)]
-  if(stringi::stri_isempty(TEMP_PATH)){
-    TEMP_PATH <- tempdir()
-  }
-  GROUPS_PATH <- tools::file_path_as_absolute(check_param(param_table,"groups_path",optional=F,CAST_FUN=as.character,create_dir=T)) #param_table[which(param_table=="groups_path"),c(2)]
-  FASTA_OUT_PATH <- tools::file_path_as_absolute(check_param(param_table,"fasta_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="fasta_path"),c(2)]
-  OUT_PATH <- tools::file_path_as_absolute(check_param(param_table,"out_path",optional=F,CAST_FUN=as.character,create_dir=T))
-  # if(stringi::stri_isempty(OUT_PATH)){
-  #   OUT_PATH <<- "."
-  # }
-  CLEAN_EXTRACT <- check_param(param_table,"clean_extract",optional=F,CAST_FUN=as.logical) #as.logical(param_table[which(param_table=="clean_extract"),c(2)])
-  TRANSCRIPT_ID_DELIM <- check_param(param_table,"transcript_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="transcript_delimiter"),c(2)]
-  SEQUENCE_ID_DELIM <- check_param(param_table,"seqID_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="seqID_delimiter"),c(2)]
-  # DATA_SOURCE <- check_param(param_table,"data_source",optional=F,CAST_FUN=as.character) #tolower(param_table[which(param_table=="data_source"),c(2)])
-  # if(grepl(pattern="both|user",DATA_SOURCE,ignore.case = T)){
-  #   USER_GENOMES <-  tools::file_path_as_absolute(check_param(param_table,"user_genomes",optional=F,CAST_FUN=as.character)) #as.character(param_table[which(param_table=="user_genomes"),c(2)])
-  # }else{
-  #   USER_GENOMES <- ""
-  # }
-  TRANSCRIPT_REGIONS <- tolower(gsub("[[:space:]]","",x = unlist(stringi::stri_split( check_param(param_table,"transcript_regions",optional=F,CAST_FUN=as.character) ,fixed = ",")))) #param_table[which(param_table=="transcript_regions"),c(2)]
-  STRAND <-  check_param(param_table,"strand",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="strand"),c(2)]
-  max_concurrent_jobs <- check_param(param_table,"max_concurrent_jobs",optional=T,CAST_FUN=as.numeric) #as.numeric(param_table[which(param_table=="max_concurrent_jobs"),c(2)])
-  if(is.na(max_concurrent_jobs) || length(max_concurrent_jobs) == 0){
-    max_concurrent_jobs <- parallel::detectCores(all.tests = T, logical = T)
-  }
-  tryCatch(numWorkers <- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <- 2})
-  if(is.na(numWorkers) || numWorkers > max_concurrent_jobs){
-    numWorkers <- max_concurrent_jobs
-  }
-
-  GENE_SEARCH_MODE <- check_param(param_table,"gene_search_mode",optional=T,CAST_FUN=as.character)
-  if(is.na(GENE_SEARCH_MODE) || length(GENE_SEARCH_MODE) == 0){
-    GENE_SEARCH_MODE <- "HARD"
-  }
-  E_VALUE_THRESH <- check_param(param_table,"e_value_thresh",optional=F,CAST_FUN=as.double)
-  MIN_IDENT_THRESH  <- check_param(param_table,"minIdent_thresh",optional=F,CAST_FUN=as.double)
-  BLAST_OPTIONS  <- check_param(param_table,"blast_options",optional=F,CAST_FUN=as.character)
-  TRANSCRIPT_REGIONS_DELIMITER <- check_param(param_table,"transcript_regions_delimiter",optional=F,CAST_FUN=as.character)
-  BLAST_DB_PATH <- tools::file_path_as_absolute(check_param(param_table,"blastdb_path",optional=F,CAST_FUN=as.character,create_dir=T))
-  REF_ORGS_FILE <- tools::file_path_as_absolute(check_param(param_table,"ref_orgs",optional=F,CAST_FUN=as.character))
-  #CLUSTER_OPTIONS  <- check_param(param_table,"cluster_options",optional=T,CAST_FUN=as.character)
-  BED_PATH <- tools::file_path_as_absolute(check_param(param_table,"bed_path",optional=F,CAST_FUN=as.character,create_dir=T))
-  PLOT_PATH <- tools::file_path_as_absolute(check_param(param_table,"plot_path",optional=F,CAST_FUN=as.character,create_dir=T))
-  GENE_DROP_THRESHOLD <- check_param(param_table,"gene_drop_thresh",optional=F,CAST_FUN=as.double)
-  ORTHODB_PREFIX <- check_param(param_table,"orthodb_path_prefix",optional=F,CAST_FUN=as.character)
-  MACSE_PATH <- tools::file_path_as_absolute(check_param(param_table,"macse_path",optional=F,CAST_FUN=as.character))
-  MAFFT_PATH <- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
-  TRANSAT_PATH <- tools::file_path_as_absolute(check_param(param_table,"transat_path",optional=F,CAST_FUN=as.character))
-  RNADECODER_PATH <- tools::file_path_as_absolute(check_param(param_table,"rnadecoder_path",optional=F,CAST_FUN=as.character))
-  #python3_path  <- check_param(param_table,"python3_path",optional=F,CAST_FUN=as.character)
-  FASTTREE_PATH <- tools::file_path_as_absolute(check_param(param_table,"fasttree_path",optional=F,CAST_FUN=as.character))
-  ALIGNMENTS_PATH <- tools::file_path_as_absolute(check_param(param_table,"alignments_path",optional=F,CAST_FUN=as.character,create_dir=T))
-  ALIGNMENT_GAP_THRESHOLD  <- check_param(param_table,"aln_gap_thres",optional=F,CAST_FUN=as.double)
-  MIN_COVERAGE_THRESHOLD <- check_param(param_table,"min_coverage_thres",optional=F,CAST_FUN=as.double)
-
-  #COMPLETE <- new.env(parent=emptyenv())
-  #COMPLETE$PARAMS <-
-  param_list <- list(param_file=param_file,
-                           GENOMES_PATH=GENOMES_PATH,
-                           ANNOS_PATH=ANNOS_PATH,
-                           TEMP_PATH=TEMP_PATH,
-                           GROUPS_PATH=GROUPS_PATH,
-                           FASTA_OUT_PATH=FASTA_OUT_PATH,
-                           OUT_PATH=OUT_PATH,
-                           #USER_GENOMES=USER_GENOMES,
-                           CLEAN_EXTRACT=CLEAN_EXTRACT,
-                           TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM,
-                           SEQUENCE_ID_DELIM=SEQUENCE_ID_DELIM,
-                           #DATA_SOURCE=DATA_SOURCE,
-                           TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS,
-                           STRAND=STRAND,
-                           max_concurrent_jobs=max_concurrent_jobs,
-                           numWorkers=numWorkers,
-                           GENE_SEARCH_MODE=GENE_SEARCH_MODE,
-                           E_VALUE_THRESH=E_VALUE_THRESH,
-                           MIN_IDENT_THRESH=MIN_IDENT_THRESH,
-                           BLAST_OPTIONS=BLAST_OPTIONS,
-                           TRANSCRIPT_REGIONS_DELIMITER=TRANSCRIPT_REGIONS_DELIMITER,
-                           BLAST_DB_PATH=BLAST_DB_PATH,
-                           REF_ORGS_FILE=REF_ORGS_FILE,
-                           BED_PATH=BED_PATH,
-                           PLOT_PATH=PLOT_PATH,
-                           GENE_DROP_THRESHOLD=GENE_DROP_THRESHOLD,
-                           ORTHODB_PREFIX=ORTHODB_PREFIX,
-                           MACSE_PATH=MACSE_PATH,
-                           MAFFT_PATH=MAFFT_PATH,
-                           TRANSAT_PATH=TRANSAT_PATH,RNADECODER_PATH=RNADECODER_PATH,
-                           FASTTREE_PATH=FASTTREE_PATH,
-                           ALIGNMENTS_PATH=ALIGNMENTS_PATH,
-                           ALIGNMENT_GAP_THRESHOLD=ALIGNMENT_GAP_THRESHOLD,
-                           MIN_COVERAGE_THRESHOLD=MIN_COVERAGE_THRESHOLD,
-                           PARAMETERS_LOADED=TRUE)
-
-  #return(COMPLETE$PARAMS)
-  return(param_list)
-}
-
 #' Index FASTA IDs
 #'
 #' Convert longer FASTA IDs into short indices. Indices are generated recursively for fasta fasta files within subfolders of the path provided.
@@ -1185,15 +1035,46 @@ index_FASTA_IDs <- function(path, index_out){
   }
 }
 
-#' Internal Function - Check and Install GNU parallel
+#' Label Sequence IDs in FASTA Files
 #'
-#' Install GNU parallel if not available
+#' Convert short sequence IDs into longer COMPLETE format IDs
 #'
-install_parallel <- function(){
-  install_status <- processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
-  if(install_status$status>0){
-    stop("Problem installing GNU parallel. Is $SHELL set? check permissions in $HOME directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
+#' @param fasta_path Path of FASTA Files
+#' @param org Name of the organism
+#' @param gene_list Filename of gene list or Vector of gene names
+#' @param odb_gene_map Filename of OrthoDB Ortholog Clusters mapped to gene names  (Optional). If not provided, sequences cluster ID/name "ungrouped" is used
+#' @param params_list Output of load_params()
+#' @export
+label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list){
+  if(!is.null(odb_gene_map)){
+    if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
+      odb_gene_map <- read.table(file = odb_gene_map,header = F,quote = "",sep = "\t")
+      #local ortho_cluster=$(grep -w $gene_name $odb_clusters | awk -F'\t' '{if (length(c) == 0){c=$1;}else{c=c","$1;}}END{print c}')
+    }
   }
+  if (is.character(gene_list)) {
+    genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
+    genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
+  }else{
+    genes <- as.vector(gene_list)
+  }
+
+  parallel::mclapply(genes, function(x){
+    safe_gene <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(x))
+    file_path <- paste(fasta_path,safe_gene,sep="")
+    if(!is.null(odb_gene_map)){
+      odb_clusters <- paste(odb_gene_map[grep(pattern = x,x = odb_gene_map[,2],ignore.case = T,value = F),1],collapse = ",")
+    }else{
+      odb_clusters <- "ungrouped"
+    }
+    lapply(list.files(path = fasta_path,pattern = safe_gene,full.names = T), function(y){
+      seq_set <- Biostrings::readDNAStringSet(filepath = y,format = "fasta",use.names = T)
+      names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
+      Biostrings::writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
+    })
+
+  }, mc.cores = params_list$numWorkers,mc.silent = T)
+
 }
 
 #' Internal Function - Group FASTA Sequences into Cluster Files
@@ -1214,7 +1095,7 @@ group_FASTA_clusters <- function(fasta_path, params_list){
 #' @note Required Flat files from OrthoDB are \*_OG2genes.tab.gz,\*_genes.tab.gz and \*_species.tab.gz. Output files are stored in paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="") and paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep="")
 #'
 #' @param odb_prefix Prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz)
-#' @param quick.check Only check if files exist? (TRUE/FALSE)
+#' @param quick.check Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes
 #' @param n_threads Number of threads
 #' @param gene_list File name of gene list
 #' @return TRUE if output files exist, FALSE otherwise
@@ -1260,12 +1141,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     COMPLETE$SKIP_USER_DATA <- FALSE
   }
 
-  options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
-  #options(download.file.method="curl")
-  #connection_options <<- curlOptions(ssl.verifyhost=0, ssl.verifypeer=0,timeout=200,maxconnects=200,connecttimeout=200))
-
-  #process_list <<- c()
-
   if(is.character(params_list)){
     if(!file.exists(params_list) || file.info(params_list)$size < 0){
       stop("ERROR: Parameters file is missing and is required\n")
@@ -1277,11 +1152,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   print(loaded_PARAMS)
 
   install_parallel()
-
-  #gene_list <<- args[1] #"files/genelist.txt"
-  #gene_list <<- gene_list
-  #genes <<- factor(scan(gene_list, character())) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
-  #genes <<- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
 
   print(paste("MAX PROCESSES:",loaded_PARAMS$numWorkers))
 
@@ -1309,21 +1179,17 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     COMPLETE$org.meta <- COMPLETE$org.meta[which(is.na(match(COMPLETE$org.meta$name,user_data$org))),]
   }
 
-  cat("Transforming ODB Files...\n")
-
-  ##ODB_proc <- do.call(add_to_process,list(p_cmd = c("./merge_OG2genes_OrthoDB.sh"), p_args = c(gene_list)))
-  #ODB_proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "./merge_OG2genes_OrthoDB.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,gene_list)))
-  #ODB_proc$wait(timeout=-1)
-
   if (is.character(gene_list)) {
     genes <- factor(scan(gene_list, character(), quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
-    genes <- gene_list
+    genes <- as.vector(gene_list)
     tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
     write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
     gene_list <- tmp_gene_list
   }
+
+  cat("Transforming ODB Files...\n")
 
   if(!merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
     merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
@@ -1472,28 +1338,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   sessionInfo()
 }
 
-if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
-  stop("Pipeline only supports Linux (and bash) :(")
-}
-
-COMPLETE <<- new.env(parent=emptyenv())
-COMPLETE$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
-COMPLETE$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE$ENSEMBL_MART)) #For biomaRt
-COMPLETE$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE$using.mart)) #For biomaRt
-COMPLETE$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
-COMPLETE$curl_handle <- RCurl::getCurlMultiHandle()
-COMPLETE$process_list <- c()
-if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
-  COMPLETE$SHELL <- Sys.getenv("SHELL")
-  cat(paste("SHELL :",COMPLETE$SHELL,"\n"))
-}else if(file.exists("/bin/bash")){
-  COMPLETE$SHELL <- "/bin/bash"
-  cat(paste("SHELL :",COMPLETE$SHELL,"\n"))
-}else{
-  stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
-}
-COMPLETE$SKIP_USER_DATA <- FALSE
-
 #' Design of R-COMPLETE
 #' @author Vishvesh Karthik (MDC-Berlin)
 #' @usage NULL
@@ -1502,6 +1346,7 @@ COMPLETE$SKIP_USER_DATA <- FALSE
 #' BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
 #'
 #' * REQUIRES/DEPENDANCIES :
+#'      * Internet Connection
 #'      * Referenced R packages
 #'      * Linux with BASH ($SHELL must be set or /bin/bash must exist)
 #'      * Parameters File (system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
@@ -1528,7 +1373,7 @@ COMPLETE$SKIP_USER_DATA <- FALSE
 #' * FLOW :
 #'     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
 #'     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
-#'     and BASH function extract_genomic_regions() for user provided data
+#'     and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
 #'          * ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
 #'          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
 #'          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
@@ -1538,6 +1383,7 @@ COMPLETE$SKIP_USER_DATA <- FALSE
 #'               >SOME_TRANSCRIPT||cds(+)::RANDOMGENE::SOMEORG::ORTHOLOG_CLUSTERS
 #'               >ENSDART00000193157||cds(+)::sulf1::danio_rerio::18335at7898,51668at7742,360590at33208
 #'          * Sequences are grouped into files of ORTHOLOG_CLUSTERS
+#'
 #'     2) FIND_ORTHOLOGS() -
 #' @seealso [COMPLETE::EXTRACT_DATA()], [COMPLETE::FIND_ORTHOLOGS()]
 #' @md

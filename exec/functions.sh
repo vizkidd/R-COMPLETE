@@ -340,7 +340,7 @@ function get_pairwise_pid() {
 	done;
 }
 
-function get_fasta() {
+function get_FASTA() {
 	#1 - gene name
 	#2 - transcript region (cds/5utr/3utr/exons/noncodingexons)
 	#3 - basename for bedfiles
@@ -405,7 +405,7 @@ function get_fasta() {
 
 	  if [[ -s $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed || -L $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed ]]; then
 	    #if [[ $LABEL_FASTA ==  "TRUE" ]] ; then
-	      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg.tmp" #NOTUSING name+ because it also gives coordinates
+	      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
 	    #else
 	    #  bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
 	    #fi
@@ -967,7 +967,7 @@ function extract_genomic_regions(){
 
 	if [[ -s $gfile_name ]]; then
 
-	  time parallel --max-procs $n_threads "get_fasta {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $OUT_PATH ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+	  time parallel --max-procs $n_threads "get_FASTA {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $OUT_PATH ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
 
 	  >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
 	else
@@ -979,8 +979,9 @@ function extract_genomic_regions(){
 
 	#if [[ $LABEL_SEQS ==  "TRUE" && -s $OUT_PATH/genes/$f_org_name/odb.final_map ]] ; then
 	  >&1 color_FG_BG_Bold $Black $BG_Yellow "4.1 Labelling sequences..."
-	  local tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
-	  time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/genes/$f_org_name/odb.final_map" 
+	  #local tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
+	  #time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/genes/$f_org_name/odb.final_map" 
+	  time Rscript --vanilla --verbose $(echo $(dirname $0))/label_sequenceIDs.R $FASTA_PATH/$f_org_name/ $f_org_name $OUT_PATH/genes/$f_org_name/final.list $param_file $OUT_PATH/genes/$f_org_name/odb.final_map
 	#fi
 
 	#######################################################################################################
@@ -1011,55 +1012,6 @@ function extract_genomic_regions(){
 	rm -f $bed_prefix/"$f_org_name"_*
 
 	>&1 color_FG_BG_Bold $Purple $BG_White "Extraction DONE for organism : $f_org_name"
-}
-
-function label_sequenceIDs(){
-	#1 - org name
-	#2 - gene name
-	#3 - Output FASTA file
-	#4 - Input File
-	#5 - Path to parameters file
-	#6 - OPTIONAL Ortholog Clusters from OrthoDB(eg, $OUT_PATH/xenopus_tropicalis/odb.final_map)
-
-	local script_args=($(echo $@))
-	local f_org_name=${script_args[0]}  #$1
-	local gene_name=${script_args[1]} #$2
-	local out_fasta=$(realpath ${script_args[2]}) #$3
-	local in_fasta=$(realpath ${script_args[3]}) #$4 #$5 - is the parameters file
-	local param_file=$(realpath ${script_args[4]})
-	local odb_clusters=$(realpath ${script_args[5]}) #$6
-
-	rm -f $out_fasta
-
-	local transcript_delimiter=$(grep -i  -w "transcript_delimiter" $param_file | check_param)
-	local seqID_delimiter=$(grep -i -w "seqID_delimiter" $param_file | check_param)
-
-	local transcript_id=""
-	local seq=""
-	local all_seqs=()
-
-	IFS=">" read -ra all_rec <<< $(cat $in_fasta)
-
-	for rec in "${all_rec[@]}"; do
-		read -r transcript_id seq <<< $(echo "$rec")
-		local transcript=$(echo $transcript_id | awk -F"[$(echo $transcript_delimiter)]" '{print $1}' | sed 's/>//g')
-
-		if [[ -s $odb_clusters && ! -z $odb_clusters ]] ; then
-			local ortho_cluster=$(grep -w $gene_name $odb_clusters | awk -F'\t' '{if (length(c) == 0){c=$1;}else{c=c","$1;}}END{print c}')
-		fi
-		if [[ -z "$ortho_cluster" ]]; then
-			local ortho_cluster="ungrouped"
-		fi
-
-		if [[ ! -z "$seq" && ! -z "$transcript_id" ]] ; then
-			seq_ID=$(printf "%s%s%s%s%s%s%s" $transcript_id $seqID_delimiter $gene_name $seqID_delimiter $f_org_name $seqID_delimiter $ortho_cluster )
-			printf ">%s\n%s\n" $seq_ID $seq >> $out_fasta
-			#printf "%s\t%s\t%s\n" $1 $2 $seq_ID >> $OUT_PATH/$1/transcripts.metadata
-		fi
-
-	done
-
-	rm -f $in_fasta
 }
 
 function check_OrthoDB(){
@@ -1234,14 +1186,14 @@ export -f delete_empty_orgs
 export -f count_genes4orgs
 export -f count_seqs4genes
 #export -f index_genome
-export -f get_fasta
+export -f get_FASTA
 export -f get_length_dist
 export -f get_count_dist
 export -f check_param
 export -f merge_OG2genes_OrthoDB
 export -f extract_genomic_regions
 export -f check_OrthoDB
-export -f label_sequenceIDs
+#export -f label_sequenceIDs
 #export -f test_print
 
 export -f fID_to_num_parallel

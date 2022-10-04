@@ -245,6 +245,25 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
   }
 }
 
+check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,create_dir=F){
+  if(is.character(param_table)){
+    param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T) #Convert multibyte seperator to one byte sep
+  }
+  param_index <- which(param_table==param_id)
+  if(is.null(param_index) || is.na(param_index)){
+    stop(paste("Parameter :",param_id,"is missing!"))
+  }
+  param_value <- param_table[param_index,c(2)]
+  #print(CAST_FUN(param_value))
+  if(create_dir){
+    dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
+  }
+  if(!stringi::stri_isempty(param_value) || optional){
+    return(CAST_FUN(param_value))
+  }else{
+    stop(paste("Parameter :",param_id,"is empty and is not optional!"))
+  }
+}
 ##ENTRYPOINT
 
 set.seed(123)
@@ -252,7 +271,7 @@ set.seed(123)
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
-  stop("Give the (1) GTF_Slice files path (2) Org_name (3) Output File (is in csv,NOT Gzipped)", call.=FALSE)
+  stop("Give the (1) GTF_Slice files path (2) Org_name (3) Output File (is in csv,NOT Gzipped) (4) Parameter file", call.=FALSE)
 }
 
 slice_file_path <- args[1]
@@ -266,12 +285,15 @@ if(!file.exists(param_file) || file.info(param_file)$size <= 4){
 
 param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T) #Convert multibyte seperator to one byte sep #read.table(param_file,sep="==")
 
-max_concurrent_jobs <<- as.numeric(param_table[which(param_table=="max_concurrent_jobs"),c(2)])
-BED_PATH <<- param_table[which(param_table=="bed_path"),c(2)]
-TRANSCRIPT_ID_DELIM <<- param_table[which(param_table=="transcript_delimiter"),c(2)]
-TRANSCRIPT_REGIONS <<- tolower(gsub("[[:space:]]","",x = unlist(stri_split(param_table[which(param_table=="transcript_regions"),c(2)],fixed = ","))))
-CLEAN_EXTRACT <<- as.logical(param_table[which(param_table=="clean_extract"),c(2)])
-STRAND <<- param_table[which(param_table=="strand"),c(2)]
+max_concurrent_jobs <<- check_param(param_table,"max_concurrent_jobs",optional=T,CAST_FUN=as.numeric)
+if(is.na(max_concurrent_jobs) || length(max_concurrent_jobs) == 0){
+  max_concurrent_jobs <- parallel::detectCores(all.tests = T, logical = T)
+}
+BED_PATH <<- tools::file_path_as_absolute(check_param(param_table,"bed_path",optional=F,CAST_FUN=as.character,create_dir=T))
+TRANSCRIPT_ID_DELIM <<-  check_param(param_table,"transcript_delimiter",optional=F,CAST_FUN=as.character)
+TRANSCRIPT_REGIONS <<- tolower(gsub("[[:space:]]","",x = unlist(stringi::stri_split( check_param(param_table,"transcript_regions",optional=F,CAST_FUN=as.character) ,fixed = ","))))
+CLEAN_EXTRACT <<- check_param(param_table,"clean_extract",optional=F,CAST_FUN=as.logical)
+STRAND <<- check_param(param_table,"strand",optional=F,CAST_FUN=as.character)
 n_cores <<- detectCores(all.tests = TRUE, logical = TRUE)
 if(is.na(n_cores) || n_cores > max_concurrent_jobs){
   n_cores <<- max_concurrent_jobs
