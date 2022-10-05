@@ -42,10 +42,10 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
-         * Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter set in parameters, "::" in this context )
-              >$transcript_id $seqID_delimiter $gene_name $seqID_delimiter $f_org_name $seqID_delimiter $ortho_cluster
-              >SOME_TRANSCRIPT||cds(+)::RANDOMGENE::SOMEORG::ORTHOLOG_CLUSTERS
-              >ENSDART00000193157||cds(+)::sulf1::danio_rerio::18335at7898,51668at7742,360590at33208
+         * Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+              >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
+              >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
+              >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
          * Sequences are grouped into files of ORTHOLOG_CLUSTERS
 
     2) FIND_ORTHOLOGS() -
@@ -57,5 +57,5 @@ Design of R-COMPLETE
 \code{\link[=EXTRACT_DATA]{EXTRACT_DATA()}}, \code{\link[=FIND_ORTHOLOGS]{FIND_ORTHOLOGS()}}
 }
 \author{
-Vishvesh Karthik (MDC-Berlin)
+Vishvesh Karthik (MDC-Berlin), \link{vishvesh.karthik@mdc-berlin.de}
 }

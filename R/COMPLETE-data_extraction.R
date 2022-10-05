@@ -353,12 +353,12 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
      # message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)))
      # }
 
-      if(length(available_genes)==0 && length(missing_genes)==0){
-        if(verbose){
-          message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check FAILED!"))
-        }
-        return(FALSE)
-      }
+      # if(length(available_genes)==0 && length(missing_genes)==0){
+      #   if(verbose){
+      #     message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check FAILED!"))
+      #   }
+      #   return(FALSE)
+      # }
 
       if((all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) && all(which(is.na(match(missing_genes, files_in_dir))))){
         if(verbose){
@@ -366,16 +366,15 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
           }
         return(TRUE)
       }
-
+    }
       if(verbose){
         message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check FAILED!"))
       }
       return(FALSE)
-    }
     #if(verbose){
     #  message(paste("Org:",org,", ",fasta_path," : Check FAILED!"))
     #  }
-    return(FALSE)
+    #return(FALSE)
   }, error=function(cond){
     message(cond)
     return(FALSE)
@@ -694,6 +693,8 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
   #   COMPLETE$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
   # }
 
+  tictoc::tic(msg=paste("Processed:",org))
+
   if(any(!is.na(match(COMPLETE$org.meta$name,org)))){
     org <- COMPLETE$org.meta[which(!is.na(match(COMPLETE$org.meta$name,org))),]
     org_name <- org$name
@@ -728,15 +729,16 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
       gene_list <- tmp_gene_list
     }
 
-      if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list))){
+      if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list)){
         if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE$SKIP_USER_DATA) {
           ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
           #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
           do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list ))
           ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
-          cat(print_toc(tictoc::toc(quiet = T)))
+          cat(print_toc(tictoc::toc(quiet = T, log = T)))
           return(org_row)
         }else{
+          message(print_toc(tictoc::toc(quiet = T, log = T)))
           return(NULL)
         }
       }else{
@@ -783,14 +785,14 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   #print(check_files(fasta_path = org_fasta_path,org = org,genes = genes,params_list = params_list))
 
   if(!params_list$CLEAN_EXTRACT && check_files(fasta_path = org_fasta_path,org = org,genes = genes,params_list = params_list, verbose = verbose)){
-    cat(print_toc(tictoc::toc(quiet = T)))
+    cat(print_toc(tictoc::toc(quiet = T, log = T)))
     return(org_row)
   }
 
   invisible( tryCatch(check_mart_dataset(org),error=function(cond){
     #return(
       tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
-      cat(print_toc(tictoc::toc(quiet = T)))
+      #cat(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond)
     }) #)
     stop()
@@ -809,12 +811,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 
   dir.create(paste(params_list$OUT_PATH,"/genes/",org, sep=""),showWarnings = F,recursive = T)
 
-  gtf_data <- tryCatch(get_gtf_mart(org, genes),error=function(cond){
-    message(cond)
-    cat(print_toc(tictoc::toc(quiet = T)))
-    return(NULL)
-  })
-
+  odb_list_genes <- c()
   if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
     #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
     proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file), params_list=params_list))
@@ -823,11 +820,17 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   if(file.exists(odb_list) && file.info(odb_list)$size > 0){
     odb_list_genes <- factor(scan(odb_list, character(), quiet = T))
     odb_list_genes <- odb_list_genes[grep("gene",tolower(odb_list_genes), invert = T, fixed = T)]
-    odb_list_data <- get_gtf_mart(org, odb_list_genes)
-    gtf_data <- unique(merge(odb_list_data,gtf_data))
+    #odb_list_data <- get_gtf_mart(org, odb_list_genes)
+    #gtf_data <- unique(merge(odb_list_data,gtf_data))
   }else{
     message(paste("ODB gene list could not be found for : ",org))
   }
+
+  gtf_data <- tryCatch(get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes))),error=function(cond){
+    message(cond)
+    message(print_toc(tictoc::toc(quiet = T, log = T)))
+    return(NULL)
+  })
 
   gtf_stats <- calculate_stats(gtf_data,allow_strand = params_list$STRAND, n_threads = params_list$numWorkers)
   gtf_stats <- dplyr::bind_rows(gtf_stats)
@@ -838,7 +841,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 
   if(nrow(gtf_stats)==0){
     message(paste("No genes passed filters for : ",org))
-    cat(print_toc(tictoc::toc(quiet = T)))
+    message(print_toc(tictoc::toc(quiet = T, log = T)))
     return()
   }
 
@@ -846,7 +849,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 
   if(nrow(gtf_stats)==0){
     message(paste("Error fetching FASTA for : ",org))
-    cat(print_toc(tictoc::toc(quiet = T)))
+    message(print_toc(tictoc::toc(quiet = T, log = T)))
     return()
   }
 
@@ -880,8 +883,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   write.table(x= unique(tolower(gtf_stats$gene_name)),file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F )
   write.table(x= unique(genes[is.na(match( tolower(genes),tolower(unique(gtf_stats$gene_name)) ))]) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/MISSING_GENES",sep=""),quote=F,row.names=F,col.names=F )
 
-  cat(paste("DONE :", org,"\n"))
-  cat(print_toc(tictoc::toc(quiet = T)))
+  cat(print_toc(tictoc::toc(quiet = T, log = T)))
   return(org_row)
 }
 
@@ -956,7 +958,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
       genome_path <- genome
     }else{
       message(paste("User Genome not found :",org,"-",genome))
-      cat(print_toc(tictoc::toc(quiet = T)))
+      message(print_toc(tictoc::toc(quiet = T, log = T)))
       return(NULL)
     }
   }
@@ -990,7 +992,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
       gtf_path <- gtf
     }else{
       message(paste("User GTF not found :",org,"-",gtf))
-      cat(print_toc(tictoc::toc(quiet = T)))
+      message(print_toc(tictoc::toc(quiet = T, log = T)))
       return(NULL)
     }
   }
@@ -1014,19 +1016,20 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 
   #print(paste(genome_path,gtf_path,org))
 
-  if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose))){
+  if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
     if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE$SKIP_USER_DATA) {
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
       do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list ))
       ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
-      cat(print_toc(tictoc::toc(quiet = T)))
+      cat(print_toc(tictoc::toc(quiet = T, log = T)))
       return(data)
     }else{
+      message(print_toc(tictoc::toc(quiet = T, log = T)))
       return(NULL)
     }
   }else{
-    cat(print_toc(tictoc::toc(quiet = T)))
+    cat(print_toc(tictoc::toc(quiet = T, log = T)))
     return(data)
   }
 }
@@ -1221,7 +1224,10 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
         #user_proc <- fetch_FASTA_user(x)
         #user_proc$wait()
         tictoc::tic.clear();
-        return( tryCatch(fetch_FASTA_user(data = x,params_list = loaded_PARAMS, gene_list = genes),error=function(cond){
+        return( tryCatch({
+                          fetch_FASTA_user(data = x,params_list = loaded_PARAMS, gene_list = genes);
+                          #cat(paste("DONE :", x["org"],"\n"));
+                        },error=function(cond){
           message(cond)
           return(NULL)
         })
@@ -1236,7 +1242,10 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     #lapply(org.meta$name, FUN = function(x){
     saved_meta <- list( saved_meta, apply(COMPLETE$org.meta, MARGIN = 1, FUN = function(x){
       #tictoc::tic.clear();
-      return( tryCatch(fetch_FASTA(org_row = x, params_list = loaded_PARAMS, gene_list = genes),error=function(cond){
+      return( tryCatch({
+                        fetch_FASTA(org_row = x, params_list = loaded_PARAMS, gene_list = genes);
+                        #cat(paste("DONE :", x["name"],"\n"));
+                      },error=function(cond){
         message(cond)
         return(NULL)
       })
@@ -1272,7 +1281,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   #saved_meta[sapply(saved_meta, is.null)] <- NULL
   #saved_meta <- dplyr::bind_rows(saved_meta)
 
-  cat(print_toc(tictoc::toc(quiet = T)))
+  cat(print_toc(tictoc::toc(quiet = T, log = T)))
 
   #saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
 
@@ -1346,11 +1355,13 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   # rm $TEMP_PATH/*
   # Rscript gene_stats.R >> files/stats.txt
 
+  cat(paste(tictoc::tic.log(),collapse = "\n"))
+
   sessionInfo()
 }
 
 #' Design of R-COMPLETE
-#' @author Vishvesh Karthik (MDC-Berlin)
+#' @author Vishvesh Karthik (MDC-Berlin), [vishvesh.karthik@mdc-berlin.de]
 #' @usage NULL
 #'
 #' The pipeline uses R and BASH. BASH functions are invoked through R.
@@ -1364,7 +1375,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'      * GNU parallel (in $PATH - BASH functions)
 #'      * Samtools (in $PATH - BASH functions)
 #'      * Bedtools (in $PATH - BASH functions)
-#'      * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is meant to work with v10.1) (https://www.orthodb.org/?page=filelist)
+#'      * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1) (https://www.orthodb.org/?page=filelist)
 #'          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)
 #'          # odb10v1_genes.tab.gz  -Ortho DB genes with some info (https://v101.orthodb.org/download/odb10v1_genes.tab.gz)
 #'          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence (https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz)
@@ -1382,6 +1393,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'     system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE")
 #'
 #' * FLOW :
+#'
 #'     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
 #'     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
 #'     and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
@@ -1389,10 +1401,12 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
 #'          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
 #'          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
-#'          * Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter set in parameters, "::" in this context )
-#'               >$transcript_id $seqID_delimiter $gene_name $seqID_delimiter $f_org_name $seqID_delimiter $ortho_cluster
-#'               >SOME_TRANSCRIPT||cds(+)::RANDOMGENE::SOMEORG::ORTHOLOG_CLUSTERS
-#'               >ENSDART00000193157||cds(+)::sulf1::danio_rerio::18335at7898,51668at7742,360590at33208
+#'          * Sequences are labelled with the following long ID format of R-COMPLETE
+#'          (specific to this pipeline and referred to as COMPLETE.format.ids)
+#'          (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+#'               >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
+#'               >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
+#'               >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
 #'          * Sequences are grouped into files of ORTHOLOG_CLUSTERS
 #'
 #'     2) FIND_ORTHOLOGS() -

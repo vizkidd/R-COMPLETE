@@ -189,11 +189,17 @@ function num_to_fID_parallel() {
 }
 
 function make_BLAST_db() {
+	# $1 - FASTA file
+	# $2 - path to BLAST bin
+	local script_args=($(echo $@))
+	local fasta_file=${script_args[0]}
+	local blast_bin=${script_args[1]}
 	#echo "$1"
-	if [[ ! -s $(blastdb_path -db "$1") ]]; then #if [ -s "$1" ]; then
-		makeblastdb -in "$1" -dbtype nucl  -hash_index || true # -parse_seqids -out $2
+	if [[ ! -s $("$blast_bin"/blastdb_path -db "$fasta_file") ]]; then #if [ -s "$1" ]; then
+		"$blast_bin"/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
 	else
-		echo "$1 empty..."
+		echo "$fasta_file empty..."
+		exit 255
 	fi
 }
 
@@ -521,25 +527,27 @@ function do_BLAST() {
 
 	#echo $1 $2 $3 $4 $5 $6 $7
 	local script_args=($(echo $@))
-	local run_name=${script_args[0]}
-	local query=${script_args[1]}
-	local DB=${script_args[2]}
-	local BLAST_output=${script_args[3]}
-	local prog=${script_args[4]}
-	local blast_options=$(echo "${script_args[@]: 5:${#script_args[@]}}")
+	local parallel_path=${script_args[0]}
+	local run_name=${script_args[1]}
+	local query=${script_args[2]}
+	local DB=${script_args[3]}
+	local BLAST_output=${script_args[4]}
+	local prog=${script_args[5]}
+	local prog_path=$(dirname $prog)
+	local blast_options=$(echo "${script_args[@]: 6:${#script_args[@]}}")
 
 		if [ -s "$BLAST_output" ]; then
 			rm $BLAST_output
 		fi
-		if [[ ! -s $(blastdb_path -db $DB) ]]; then
-			makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
+		if [[ ! -s $($prog_path/blastdb_path -db $DB) ]]; then
+			$prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
 		fi
 
 		>&2 echo "echo $run_name Started..."
 
 		if [[ -s "$query" && -s "$DB" ]]; then
  
-		parallel -j1 --joblog parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+		$parallel_path -j1 --joblog parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
 		
 		echo "$run_name is done"
 		else
@@ -812,7 +820,7 @@ function extract_genomic_regions(){
 	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
 	local CLEAN_EXTRACT=$(grep -i -w "clean_extract" $param_file | check_param) 
 	local TRANSCRIPT_REGIONS=($(grep -i -w "transcript_regions" $param_file | check_param | sed "s/,/\n/g" ))
-	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | check_param)
+	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file) # | check_param)
 	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
 	local REF_ORGS=$(realpath $(grep -i -w "ref_orgs" $param_file | check_param))
 	local seqID_delimiter=$(grep -i -w "seqID_delimiter" $param_file | check_param) 
@@ -1035,7 +1043,7 @@ function check_OrthoDB(){
 	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
 	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
 	local REF_ORGS=$(realpath $(grep -i -w "ref_orgs" $param_file | check_param))
-	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | check_param)
+	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file) #| check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
 
 	if [[ -z $n_threads || $n_threads == 0 || $n_threads == " " ]]; then
@@ -1142,7 +1150,7 @@ function convert_BLAST_format(){
 }
 
 function install_parallel(){
-	if [[ $(which parallel | awk '{print NR}') == 0 ]] ; then
+	if [[ -z $(which parallel) || $(which parallel | awk '{print NR}') == 0 ]] ; then
 		#(wget -O - pi.dk/3 || lynx -source pi.dk/3 || curl pi.dk/3/ || fetch -o - http://pi.dk/3 ) > $(dirname $0)/install.sh
 		if [[ ! -z $SHELL ]]; then
 			#$SHELL $(dirname $0)/install.sh
@@ -1221,5 +1229,5 @@ export -f color_FG_BG_Bold
 if [ $# -gt 0 ] ; then
 	script_args=($(echo $@))
 	#export -f "${script_args[0]}"
-	"${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})"
+	"${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" #time
 fi

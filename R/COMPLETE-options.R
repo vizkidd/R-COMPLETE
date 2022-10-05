@@ -3,10 +3,21 @@
 #'
 #' Install GNU parallel if not available
 #'
+#' @return Path to GNU parallel
 install_parallel <- function(){
-  install_status <- processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
-  if(install_status$status>0){
-    stop("Problem installing GNU parallel. Is $SHELL set? check permissions in $HOME directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
+  if (stringi::stri_isempty(Sys.which("parallel")) && !file.exists(paste(fs::path_home(),"/bin/parallel",sep=""))) {
+    install_status <- processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
+    if(install_status$status>0){
+      stop("Problem installing GNU parallel. Is $SHELL set? check permissions in $HOME directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
+    }else{
+      return(paste(fs::path_home(),"/bin/parallel",sep=""))
+    }
+  }else if(!stringi::stri_isempty(Sys.which("parallel"))){
+    return(Sys.which("parallel"))
+  }else if(file.exists(paste(fs::path_home(),"/bin/parallel",sep=""))){
+    return(paste(fs::path_home(),"/bin/parallel",sep=""))
+  }else{
+    stop("Problem with GNU parallel installation. Is $SHELL set? check permissions in $HOME/bin directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
   }
 }
 
@@ -187,6 +198,9 @@ COMPLETE$SKIP_USER_DATA <- FALSE
 if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
 }
+
+COMPLETE$user_home <- fs::path_home()
+COMPLETE$parallel <- install_parallel()
 
 if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
   COMPLETE$SHELL <- Sys.getenv("SHELL")

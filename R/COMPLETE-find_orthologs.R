@@ -467,7 +467,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
     stop("blast_formatter not found in $PATH..cannot continue!")
   }
 
-  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"convert_BLAST_format",infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = "",stderr = "")
+  processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"convert_BLAST_format",infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = "",stderr = "")
 
 }
 
@@ -475,7 +475,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
 #'
 #' BLAST between two organisms/genes/clusters.
 #'
-#' @note ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+#' @note ASSUMES Nucleotide FASTA sequences. Not checking/Not working for Protein/Peptide sequences and FASTQ files.
 #'
 #' @examples
 #'     run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", blast_out = "blast.out", run_name = "blast_positive",blast_options = "-strand plus")
@@ -484,28 +484,38 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
 #' @param subject_path Path to Subject FASTA
 #' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
 #' @param blast_out Path to BLAST output file, Default BLAST FORMAT is 11
+#' @param blast_program Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH
 #' @param run_name Name of the BLAST run
 #' @param blast_options Extra Options to be passed to the BLAST program
 #' @export
 run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, blast_program, run_name="BLAST",blast_options=""){
 
-  install_parallel()
+  #install_parallel()
+
+  if (stringi::stri_isempty(COMPLETE$parallel)) {
+    stop("Problem with GNU parallel installation. Reload R-COMPLETE")
+  }
 
   if (!is.null(blast_DB_dir)) {
     dir.create(blast_DB_dir,showWarnings = F,recursive = T)
-    query_DB <- paste(blast_DB_dir,"/",query_path)
-    subject_DB <- paste(blast_DB_dir,"/",subject_path)
-    file.copy(query_path,query_DB,overwrite = T)
-    file.copy(subject_path,subject_DB,overwrite = T)
+    query_DB <- paste(blast_DB_dir,"/",basename(query_path),sep="")
+    subject_DB <- paste(blast_DB_dir,"/",basename(subject_path),sep="")
+    if(!stringi::stri_cmp_eq(query_path,query_DB)){
+      file.copy(query_path,query_DB,overwrite = T)
+    }
+    if(!stringi::stri_cmp_eq(subject_path,subject_DB)){
+      file.copy(subject_path,subject_DB,overwrite = T)
+    }
     query_path <- query_DB
     subject_path <- subject_DB
   }
 
   #MAKE BLAST DB of FASTA files
-  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",query_path) ,spinner = T,stdout = "",stderr = "")
-  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",subject_path) ,spinner = T,stdout = "",stderr = "")
+  #Only subject fasta files needs to be a BLAST DB
+  #processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
+  processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",subject_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
 
-  processx::run( command = SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"do_BLAST",run_name,query_path,subject_path,blast_out,blast_program,blast_options) ,spinner = T,stdout = "",stderr = "")
+  processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"do_BLAST",COMPLETE$parallel,run_name,query_path,subject_path,blast_out,blast_program,blast_options) ,spinner = T,stdout = "",stderr = "")
 
 }
 
