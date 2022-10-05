@@ -10,13 +10,14 @@ The pipeline uses R and BASH. BASH functions are invoked through R.
 BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
 
 * REQUIRES/DEPENDANCIES :
+     * Internet Connection
      * Referenced R packages
      * Linux with BASH ($SHELL must be set or /bin/bash must exist)
      * Parameters File (system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
      * GNU parallel (in $PATH - BASH functions)
      * Samtools (in $PATH - BASH functions)
      * Bedtools (in $PATH - BASH functions)
-     * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is meant to work with v10.1) (url)[https://www.orthodb.org/?page=filelist]
+     * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is meant to work with v10.1) (https://www.orthodb.org/?page=filelist)
          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)
          # odb10v1_genes.tab.gz  -Ortho DB genes with some info (https://v101.orthodb.org/download/odb10v1_genes.tab.gz)
          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence (https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz)
@@ -34,9 +35,9 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
     system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE")
 
 * FLOW :
-    1) EXTRACT_DATA() - Extracts the transcript regions (provided in parameters, pipeline requires cds,5utr,3utr)
+    1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
-    and BASH function extract_genomic_regions() for user provided data
+    and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
          * ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
@@ -46,6 +47,7 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
               >SOME_TRANSCRIPT||cds(+)::RANDOMGENE::SOMEORG::ORTHOLOG_CLUSTERS
               >ENSDART00000193157||cds(+)::sulf1::danio_rerio::18335at7898,51668at7742,360590at33208
          * Sequences are grouped into files of ORTHOLOG_CLUSTERS
+
     2) FIND_ORTHOLOGS() -
 }
 \description{

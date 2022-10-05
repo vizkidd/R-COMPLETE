@@ -1,5 +1,8 @@
-##FUNCTIONS
+suppressMessages(require(parallel))
+suppressMessages(require(Biostrings))
+suppressMessages(require(stringi))
 
+##FUNCTIONS
 label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list){
   if(!is.null(odb_gene_map)){
     if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
@@ -14,7 +17,7 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     genes <- as.vector(gene_list)
   }
 
-  parallel::mclapply(genes, function(x){
+  invisible(mclapply(genes, function(x){
     safe_gene <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(x))
     file_path <- paste(fasta_path,safe_gene,sep="")
     if(!is.null(odb_gene_map)){
@@ -23,12 +26,12 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
       odb_clusters <- "ungrouped"
     }
     lapply(list.files(path = fasta_path,pattern = safe_gene,full.names = T), function(y){
-      seq_set <- Biostrings::readDNAStringSet(filepath = y,format = "fasta",use.names = T)
+      seq_set <- readDNAStringSet(filepath = y,format = "fasta",use.names = T)
       names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
-      Biostrings::writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
+      writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
     })
 
-  }, mc.cores = params_list$numWorkers,mc.silent = T)
+  }, mc.cores = params_list$numWorkers,mc.silent = T))
 
 }
 
@@ -45,7 +48,7 @@ check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,cr
   if(create_dir){
     dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
   }
-  if(!stringi::stri_isempty(param_value) || optional){
+  if(!stri_isempty(param_value) || optional){
     return(CAST_FUN(param_value))
   }else{
     stop(paste("Parameter :",param_id,"is empty and is not optional!"))
@@ -76,9 +79,11 @@ if(!file.exists(param_file) || file.info(param_file)$size <= 4){
 
 param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T) #Convert multibyte seperator to one byte sep #read.table(param_file,sep="==")
 
+params_list <- c()
+
 params_list$max_concurrent_jobs <- check_param(param_table,"max_concurrent_jobs",optional=T,CAST_FUN=as.numeric)
 if(is.na(params_list$max_concurrent_jobs) || length(params_list$max_concurrent_jobs) == 0){
-  params_list$max_concurrent_jobs <- parallel::detectCores(all.tests = T, logical = T)
+  params_list$max_concurrent_jobs <- detectCores(all.tests = T, logical = T)
 }
 params_list$TRANSCRIPT_ID_DELIM <- check_param(param_table,"transcript_delimiter",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="transcript_delimiter"),c(2)]
 params_list$SEQUENCE_ID_DELIM <- check_param(param_table,"seqID_delimiter",optional=F,CAST_FUN=as.character)

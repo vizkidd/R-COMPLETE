@@ -17,7 +17,7 @@ merge_OG2genes_OrthoDB(
 \arguments{
 \item{odb_prefix}{Prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz)}
 
-\item{quick.check}{Only check if files exist? (TRUE/FALSE)}
+\item{quick.check}{Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes}
 
 \item{n_threads}{Number of threads}
 

@@ -926,7 +926,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
 
   tictoc::tic(msg = paste("Processed:",org))
   genome_path<-paste(params_list$GENOMES_PATH, "/",org,".fa.gz",sep = "")
-  gtf_path<-paste(params_list$ANNOS_PATH, "/",org,tools::file_ext(basename(URLdecode(gtf))),sep = "")  #".gtf.gz"
+  gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(basename(URLdecode(gtf))),sep = "")  #".gtf.gz"
   org_fasta_path <- file.path(params_list$FASTA_OUT_PATH ,org)
 
   if(grepl("://|http|ftp|www",genome)){
@@ -1271,7 +1271,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   cat(print_toc(tictoc::toc(quiet = T)))
 
-  saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
+  #saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
 
   write.table(x = saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F)
 

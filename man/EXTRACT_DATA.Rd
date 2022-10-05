@@ -2,7 +2,7 @@
 % Please edit documentation in R/COMPLETE-data_extraction.R
 \name{EXTRACT_DATA}
 \alias{EXTRACT_DATA}
-\title{(1) - Extracts Data}
+\title{(1) - Extracts Sequences for Protein Coding Transcripts from Organisms}
 \usage{
 EXTRACT_DATA(params_list, gene_list, user_data = NULL, only.user.data = F)
 }

@@ -21,6 +21,9 @@ Data Frame with transcripts for which FASTA was obtained
 \description{
 This function downloads FASTA data from BIOMART using biomaRt. The Data Frame from calculate_stats() is required.
 }
+\note{
+Columns required from biomaRt "gene_name","gene_id","transcript_id" (or) "seqnames","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand"
+}
 \examples{
     gtf_data <- get_gtf_mart(org, genes)
     gtf_stats <- calculate_stats(gtf_data)

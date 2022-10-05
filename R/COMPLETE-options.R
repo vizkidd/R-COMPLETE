@@ -171,6 +171,11 @@ options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxc
 #options(download.file.method="curl")
 
 COMPLETE <<- new.env(parent=emptyenv())
+
+if (!curl::has_internet()) {
+  stop("Check if there is an internet connection")
+}
+
 COMPLETE$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
 COMPLETE$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE$ENSEMBL_MART)) #For biomaRt
 COMPLETE$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE$using.mart)) #For biomaRt
@@ -194,7 +199,3 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
 }
 
 COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
-
-if (!curl::has_internet()) {
-  warning("Check if there is an internet connection")
-}
