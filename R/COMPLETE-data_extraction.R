@@ -684,8 +684,9 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
 #' @param gene_list Vector or File containing list of genes
+#' @param verbose Print Messages?
 #' @return Named Vector of the organism details
-fetch_FASTA_biomartr <- function(org_row, params_list, gene_list){
+fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
   org <- org_row["name"]
 
   # if (is.null(COMPLETE$org.meta)) {
@@ -727,7 +728,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list){
       gene_list <- tmp_gene_list
     }
 
-      if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = F, params_list = params_list))){
+      if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list))){
         if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE$SKIP_USER_DATA) {
           ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
           #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
@@ -760,9 +761,10 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list){
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
 #' @param gene_list Vector or File containing list of genes
+#' @param verbose Print Messages?
 #' @return Named Vector of the organism details
 #' @export
-fetch_FASTA <- function(org_row, params_list, gene_list) {
+fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 
   org <- org_row["name"]
   tictoc::tic(msg=paste("Processed:",org))
@@ -780,14 +782,14 @@ fetch_FASTA <- function(org_row, params_list, gene_list) {
 
   #print(check_files(fasta_path = org_fasta_path,org = org,genes = genes,params_list = params_list))
 
-  if(!params_list$CLEAN_EXTRACT && check_files(fasta_path = org_fasta_path,org = org,genes = genes,params_list = params_list)){
+  if(!params_list$CLEAN_EXTRACT && check_files(fasta_path = org_fasta_path,org = org,genes = genes,params_list = params_list, verbose = verbose)){
     cat(print_toc(tictoc::toc(quiet = T)))
     return(org_row)
   }
 
   invisible( tryCatch(check_mart_dataset(org),error=function(cond){
     #return(
-      tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes), error=function(cond){
+      tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
       cat(print_toc(tictoc::toc(quiet = T)))
       stop(cond)
     }) #)
@@ -897,8 +899,9 @@ fetch_FASTA <- function(org_row, params_list, gene_list) {
 #' @param data Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").
 #' @param params_list Output of load_params()
 #' @param gene_list Filename with the list of genes
+#' @param verbose Print Messages?
 #' @return Named Vector of the organism details
-fetch_FASTA_user <- function(data, params_list, gene_list){
+fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 
   genome_path <- c()
   gtf_path <- c()
@@ -917,7 +920,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
   }
 
   if(genome == "-" || gtf == "-" || genome == " " || gtf == " " || stringi::stri_isempty(genome) || stringi::stri_isempty(gtf)){
-    return( tryCatch(fetch_FASTA(org_row = c(name=as.character(org),genome="-",gtf="-"), params_list = params_list, gene_list = genes),error=function(cond){
+    return( tryCatch(fetch_FASTA(org_row = c(name=as.character(org),genome="-",gtf="-"), params_list = params_list, gene_list = genes, verbose = F),error=function(cond){
       message(cond)
       return(NULL)
     }) )
@@ -1011,7 +1014,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list){
 
   #print(paste(genome_path,gtf_path,org))
 
-  if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list))){
+  if(params_list$CLEAN_EXTRACT || !try(check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose))){
     if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE$SKIP_USER_DATA) {
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))

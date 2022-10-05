@@ -4,7 +4,7 @@
 \alias{fetch_FASTA_user}
 \title{Get FASTA for User data}
 \usage{
-fetch_FASTA_user(data, params_list, gene_list)
+fetch_FASTA_user(data, params_list, gene_list, verbose = T)
 }
 \arguments{
 \item{data}{Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").}
@@ -12,6 +12,8 @@ fetch_FASTA_user(data, params_list, gene_list)
 \item{params_list}{Output of load_params()}
 
 \item{gene_list}{Filename with the list of genes}
+
+\item{verbose}{Print Messages?}
 }
 \value{
 Named Vector of the organism details
