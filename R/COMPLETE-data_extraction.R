@@ -366,15 +366,16 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
           }
         return(TRUE)
       }
-    }
       if(verbose){
         message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check FAILED!"))
       }
       return(FALSE)
-    #if(verbose){
-    #  message(paste("Org:",org,", ",fasta_path," : Check FAILED!"))
-    #  }
-    #return(FALSE)
+    }
+
+    if(verbose){
+      message(paste("Org:",org,", ",fasta_path," : Check FAILED!"))
+    }
+    return(FALSE)
   }, error=function(cond){
     message(cond)
     return(FALSE)

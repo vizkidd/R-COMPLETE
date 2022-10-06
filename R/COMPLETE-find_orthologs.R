@@ -54,8 +54,13 @@ LoadBLASTHits <- function(infile, transcript_ID_metadata=NULL, col.names=NULL){
 #' @note WARNING : Do not index it more than once (although you may do index it as much as you like)
 #'
 #' @examples
-#' in1_data <- index_BLAST_table(in1_data,1,offset = 0)
-#' in1_data <- index_BLAST_table(in1_data,2,offset = nrow(in1_data))
+#' in1_data <- index_BLAST_table(in1_data,"sseqid",offset = 0)
+#' in1_data <- index_BLAST_table(in1_data,"qseqid",offset = length(levels(factor( in1_data[,"qseqid"] ))))
+#' #TO INDEX TWO TABLES
+#' in1_data <- index_BLAST_table(in1_data,"sseqid",offset = 0)
+#' in1_data <- index_BLAST_table(in1_data,"qseqid",offset = length(levels(factor( in2_data[,"qseqid"] ))) + length(levels(factor( in1_data[,"sseqid"] ))))
+#' in2_data <- index_BLAST_table(in2_data,"sseqid",offset = length(levels(factor( in1_data[,"qseqid"] ))) + length(levels(factor( in2_data[,"sseqid"] ))))
+#' in2_data <- index_BLAST_table(in2_data,"qseqid",offset = length(levels(factor( in2_data[,"qseqid"] ))) + length(levels(factor( in1_data[,"sseqid"] ))))
 #'
 #' @param blast_table BLAST table
 #' @param index_col Column index of BLAST table to index (shorten IDs)
@@ -66,10 +71,17 @@ index_BLAST_table <- function(blast_table, index_col, offset=0){
   old_name = colnames(blast_table)[index_col]
   blast_table <- dplyr::mutate(blast_table, blast_table[,index_col])
 
-  blast_table[,index_col] <- paste("i",seq(1:nrow(blast_table))+offset,sep="")
+  seq_ids <- levels(factor(blast_table[,index_col]))
+  indexed_ids <- data.frame(index=paste("i",seq(1:length(seq_ids))+offset,sep=""))
+  rownames(indexed_ids) <- seq_ids
+  #blast_table[,index_col] <- paste("i",seq(1:length(seq_ids))+offset,sep="")
+  blast_table[,index_col] <- sapply(blast_table[,index_col], function(x){
+    return(indexed_ids[x,"index"])
+  })
 
   colnames(blast_table)[index_col] <- paste("indexed",old_name,sep="_")
   colnames(blast_table)[ncol(blast_table)] <- old_name
+  #print(blast_table)
   return(blast_table)
 }
 
@@ -716,7 +728,7 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
        in1 <- paste(all2all_out,query,"-",subject,".wis_out",sep="")
        in2 <- paste(all2all_out,subject,"-",query,".wis_out",sep="")
        if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
-          RBH(in1 = in1, in2 = in2, index.tables = T, weight.col = "Hsp_score",col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
+          RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = c(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
        }
      }, mc.cores =numWorkers )
    })
@@ -820,18 +832,18 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
 #'    wis2 <- run_WISARD(blast_hits = blast_GO2,score_col = "Hsp_score",COMPLETE.format.ids = T) #score_col=16
 #'    wis1 <- melt_wisard_list(wis1)
 #'    wis2 <- melt_wisard_list(wis2)
-#'    RBH(in1 = wis1, in2 = wis2, index.tables = T, weight.col = "Hsp_score",col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
+#'    RBH(in1 = wis1, in2 = wis2, index.tables = T, col.indices = c(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
 #'
 #' @param in1 Input (query->subject) BLAST/WISARD hits table/filename
 #' @param in2 Input (query<-subject) BLAST/WISARD hits table/filename
 #' @param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
 #' @param col.names Columns names for the BLAST/WISARD tables/files
-#' @param weight.col Column index/name which must be used as edge weight (eg, "Hsp_score"/"qcovhsp")
+#' @param col.indices A Named Vector with indices/names of columns Query sequence ID (qseqid), Subject sequence ID (sseqid), and column to be used as edge weights (eg, "Hsp_score"/"qcovhsp"). Eg col.indices=c(qseqid=1,sseqid=2,weight.col=16)
 #' @param sum.hit.weights Should the Weights be summed for each Query->Subject Hit? (TRUE/FALSE)
 #' @param index.tables Should the IDs in the tables be indexed?
 #' @return Named Vector of the organism details
 #' @export
-RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=F,weight.col, sum.hit.weights=T){
+RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=F,col.indices, sum.hit.weights=T){
 
   if(!is.null(transcript_ID_metadata) && is.character(transcript_ID_metadata)){
     transcript_ID_metadata <- read.table(file = transcript_ID_metadata,header = F,sep="\t",quote = "")
@@ -859,37 +871,40 @@ RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tabl
   }
 
     if(index.tables){
-      in1_data <- index_BLAST_table(in1_data,1,offset = 0)
-      in1_data <- index_BLAST_table(in1_data,2,offset = nrow(in1_data))
-      in2_data <- index_BLAST_table(in2_data,1,offset = nrow(in2_data))
-      in2_data <- index_BLAST_table(in2_data,2,offset = 0)
+      in1_data <- index_BLAST_table(in1_data,col.indices["sseqid"],offset = 0)
+      in1_data <- index_BLAST_table(in1_data,col.indices["qseqid"],offset = length(levels(factor( in2_data[,col.indices["qseqid"]] ))) + length(levels(factor( in1_data[,col.indices["sseqid"]] ))))
+      in2_data <- index_BLAST_table(in2_data,col.indices["sseqid"],offset = length(levels(factor( in1_data[,col.indices["qseqid"]] ))) + length(levels(factor( in2_data[,col.indices["sseqid"]] ))))
+      in2_data <- index_BLAST_table(in2_data,col.indices["qseqid"],offset = length(levels(factor( in2_data[,col.indices["qseqid"]] ))) + length(levels(factor( in1_data[,col.indices["sseqid"]] ))))
     }
 
-  in1_edge_list <- unlist(lapply(weight.col, function(x){
-    in1_g <- data.frame(from=in1_data[,1], to=in1_data[,2], weight=in1_data[,x], stringsAsFactors = T)
-    in1_g <- in1_g[apply(in1_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-    tmp <- list(in1_g)
-    names(tmp) <- colnames(in1_data)[x]
-    return(tmp)
-  }),recursive = F,use.names = T)
+  in1_g <- data.frame(from=in1_data[,col.indices["sseqid"]], to=in1_data[,col.indices["qseqid"]], weight=in1_data[,col.indices["weight.col"]], stringsAsFactors = T)
+  in1_g <- in1_g[apply(in1_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
+  # in1_edge_list <- unlist(lapply(weight.col, function(x){
+  #   #in1_g <- data.frame(from=in1_data[,1], to=in1_data[,2], weight=in1_data[,x], stringsAsFactors = T)
+  #   #in1_g <- in1_g[apply(in1_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
+  #   tmp <- list(in1_g)
+  #   names(tmp) <- colnames(in1_data)[x]
+  #   return(tmp)
+  # }),recursive = F,use.names = T)
 
-  in2_g <- data.frame(from=in2_data[,1], to=in2_data[,2], weight=in2_data[,weight.col], stringsAsFactors = T)
-
-
+  in2_g <- data.frame(from=in2_data[,col.indices["qseqid"]], to=in2_data[,col.indices["sseqid"]], weight=in2_data[,col.indices["weight.col"]], stringsAsFactors = T)
   in2_g <- in2_g[apply(in2_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-
-  in2_edge_list <- unlist(lapply(weight.col, function(x){
-    in2_g <- data.frame(from=in2_data[,1], to=in2_data[,2], weight=in2_data[,x], stringsAsFactors = T)
-    in2_g <- in2_g[apply(in2_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-    tmp <- list(in2_g)
-    names(tmp) <- colnames(in2_data)[x]
-    return(tmp)
-  }),recursive = F,use.names = T)
+  # in2_edge_list <- unlist(lapply(weight.col, function(x){
+  #   #in2_g <- data.frame(from=in2_data[,1], to=in2_data[,2], weight=in2_data[,x], stringsAsFactors = T)
+  #   #in2_g <- in2_g[apply(in2_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
+  #   tmp <- list(in2_g)
+  #   names(tmp) <- colnames(in2_data)[x]
+  #   return(tmp)
+  # }),recursive = F,use.names = T)
 
   #in1_valid_hits_from <- purrr::reduce(list(in1_g$from,in2_g$to), intersect)
   #in2_valid_hits_from <-purrr::reduce(list(in2_g$from,in1_g$to), intersect)
   #in1_valid_hits_to <- purrr::reduce(list(in1_g$to,in2_g$from), intersect)
   #in2_valid_hits_to <-purrr::reduce(list(in2_g$to,in1_g$from), intersect)
+  print(in1_g)
+  print(in2_g)
+
+  return(list(in1_g,in2_g))
 
   in1_valid_hits <- unique(intersect(in1_g$from,in2_g$to),intersect(in1_g$to,in2_g$from)) #purrr::reduce(list(in1_g$from,in2_g$to), intersect)
   in2_valid_hits <- unique(intersect(in2_g$from,in1_g$to),intersect(in2_g$to,in1_g$from)) #purrr::reduce(list(in2_g$from,in1_g$to), intersect)
@@ -905,6 +920,7 @@ RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tabl
   in2_g <- in2_g[which(!is.na(match(in2_g$to,in1_valid_hits))),]
 
   in_g <- graph::MultiGraph(list(in1_g=in1_g,in2_g=in2_g), ignore_dup_edges = T)
+  return(in_g)
   in_g <- graph::graphIntersect(in_g,in_g)
 
   in_g_list <- graph::extractGraphAM(in_g)
