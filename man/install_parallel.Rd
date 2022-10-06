@@ -6,6 +6,9 @@
 \usage{
 install_parallel()
 }
+\value{
+Path to GNU parallel
+}
 \description{
 Install GNU parallel if not available
 }

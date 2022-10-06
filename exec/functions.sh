@@ -197,9 +197,12 @@ function make_BLAST_db() {
 	#echo "$1"
 	if [[ ! -s $("$blast_bin"/blastdb_path -db "$fasta_file") ]]; then #if [ -s "$1" ]; then
 		"$blast_bin"/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
-	else
+	elif [[ ! -s $fasta_file ]]; then
 		echo "$fasta_file empty..."
 		exit 255
+	else
+		echo "BLAST DB for $fasta_file exists!"
+		exit 0
 	fi
 }
 
@@ -543,11 +546,15 @@ function do_BLAST() {
 			$prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
 		fi
 
-		>&2 echo "echo $run_name Started..."
+		#if [[ -z $parallel_path ]]; then
+		#	local parallel_path=$(which parallel)
+		#fi
+
+		>&2 echo "$run_name Started..."
 
 		if [[ -s "$query" && -s "$DB" ]]; then
  
-		$parallel_path -j1 --joblog parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+		$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
 		
 		echo "$run_name is done"
 		else
@@ -1139,13 +1146,14 @@ function check_OrthoDB(){
 
 function convert_BLAST_format(){
 	local script_args=($(echo $@))
-	local blast_archive=${script_args[0]}  #$1
-	local out_file=${script_args[1]}  #$2
-	local out_fmt=${script_args[2]}  #$3
-	local blast_cols=$(echo "${script_args[@]: 3:${#script_args[@]}}")
+	local blast_formatter_path=${script_args[0]}
+	local blast_archive=${script_args[1]}  
+	local out_file=${script_args[2]} 
+	local out_fmt=${script_args[3]}  
+	local blast_cols=$(echo "${script_args[@]: 4:${#script_args[@]}}")
 
-	if [[ -s $blast_archive ]]; then
-		blast_formatter -archive $blast_archive -outfmt "$out_fmt $blast_cols" -out $out_file #&> /dev/null
+	if [[ -s $blast_archive && -s $blast_formatter_path ]]; then
+		$blast_formatter_path -archive $blast_archive -outfmt "$out_fmt $blast_cols" -out $out_file #&> /dev/null
 	fi
 }
 

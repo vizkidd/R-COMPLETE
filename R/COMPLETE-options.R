@@ -50,7 +50,7 @@ check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,cr
 
 #' Loads the parameters from param file
 #'
-#' The function loads parameters from the param file into Global R variables and returns a named parameter table. The parameters are checked and an error is output if there are any missing parameters
+#' The function loads parameters from the param file into Global R variables and returns a named parameter table. The parameters are checked and an error is output if there are any missing parameters or if the folders are not accesible
 #'
 #' @examples
 #'     params_list <- load_params(param_file)
@@ -213,3 +213,4 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
 }
 
 COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
+COMPLETE$BLAST_BIN <- dirname(Sys.which("tblastx"))

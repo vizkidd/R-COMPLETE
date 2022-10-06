@@ -12,7 +12,9 @@ all2all_BLAST(
   output_dir = "./",
   blast_options = "",
   input_prefix_path = NULL,
-  params_list = NULL
+  params_list = NULL,
+  COMPLETE.format.ids = F,
+  keep.output.files = T
 )
 }
 \arguments{
@@ -31,6 +33,10 @@ all2all_BLAST(
 \item{input_prefix_path}{If input lists/vectors are filenames, then provide input folder to prefix path}
 
 \item{params_list}{Output of load_params() (Optional)}
+
+\item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)}
+
+\item{keep.output.files}{TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)}
 }
 \description{
 Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir.

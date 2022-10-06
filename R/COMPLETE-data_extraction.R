@@ -724,7 +724,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
       genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
     }else{
       genes <- as.vector(gene_list)
-      tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
+      tmp_gene_list <- tempfile(pattern="genelist",tmpdir = params_list$TEMP_PATH)
       write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
       gene_list <- tmp_gene_list
     }
@@ -777,7 +777,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
     genes <- as.vector(gene_list)
-    tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
+    tmp_gene_list <- tempfile(pattern="genelist",tmpdir = params_list$TEMP_PATH)
     write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
     gene_list <- tmp_gene_list
   }
@@ -827,8 +827,12 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   }
 
   gtf_data <- tryCatch(get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes))),error=function(cond){
-    message(cond)
-    message(print_toc(tictoc::toc(quiet = T, log = T)))
+    #message(cond)
+    #message(print_toc(tictoc::toc(quiet = T, log = T)))
+    tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
+      #cat(print_toc(tictoc::toc(quiet = T, log = T)))
+      stop(cond)
+    })
     return(NULL)
   })
 
@@ -1198,7 +1202,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
   }else{
     genes <- as.vector(gene_list)
-    tmp_gene_list <- tempfile(tmpdir = params_list$TEMP_PATH)
+    tmp_gene_list <- tempfile(pattern="genelist",tmpdir = params_list$TEMP_PATH)
     write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
     gene_list <- tmp_gene_list
   }

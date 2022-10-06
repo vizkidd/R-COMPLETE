@@ -10,7 +10,8 @@ convert_BLAST_format(
   outformat = 6,
   cols = c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart",
     "qend", "sstart", "send", "evalue", "bitscore", "score", "gaps", "frames", "qcovhsp",
-    "sstrand", "qlen", "slen", "qseq", "sseq", "nident", "positive")
+    "sstrand", "qlen", "slen", "qseq", "sseq", "nident", "positive"),
+  conversion_prg = Sys.which("blast_formatter")
 )
 }
 \arguments{
@@ -21,6 +22,8 @@ convert_BLAST_format(
 \item{outformat}{Format to convert to (Default 6)}
 
 \item{cols}{BLAST Columns to output. Check BLAST Output formats for more details}
+
+\item{conversion_prg}{Path to blast_formatter if not found in $PATH}
 }
 \description{
 Convert between formats using the blast_formatter program

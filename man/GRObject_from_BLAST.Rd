@@ -6,7 +6,6 @@
 \usage{
 GRObject_from_BLAST(
   blast_input,
-  col.names = NULL,
   COMPLETE.format.ids = F,
   col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9,
     send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident =
@@ -16,8 +15,6 @@ GRObject_from_BLAST(
 }
 \arguments{
 \item{blast_input}{Filename with BLAST hits or a BLAST table}
-
-\item{col.names}{Columns which for the BLAST tables/files}
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN)}
 
@@ -29,12 +26,14 @@ GRObject_from_BLAST(
 A GRanges object of BLAST hits
 }
 \description{
-Functions accepts a filename or a BLAST table and converts it into a GenomicRanges::GRanges object (which can be used by R-WISARD). Give col.names when passing BLAST filenames. The accepted BLAST format is 6 and can be formatted from BLAST format 11 using convert_BLAST_format (shown below). Columns indices can provided with the col.indices option. length(col.names) and ncol(blast_input) are assumed to be the same. BLAST table/file must be non-indexed (IDs not shortened) if COMPLETE.format.ids=T
+Functions accepts a filename or a BLAST table and converts it into a GenomicRanges::GRanges object (which can be used by R-WISARD). The accepted BLAST format is 6 and can be formatted from BLAST format 11 using convert_BLAST_format (shown below). Columns indices can provided with the col.indices option. BLAST table/file must be non-indexed (IDs not shortened) if COMPLETE.format.ids=T
 }
 \note{
-Convert to compatible BLAST format with convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")) (in_file must be of BLAST format 11)
+* Output GRanges Object uses column names different from BLAST column names
+* Require column indices of "qseqid","sseqid","pident","length","qstart","qend","sstart","send","evalue","bitscore","gaps","frames","qcovhsp","sstrand","qlen","slen"
+* Convert to compatible BLAST format with convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")) (in_file must be of BLAST format 11)
 }
 \examples{
-    GRObject_from_BLAST(blast_input = in_file,col.names = c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"), COMPLETE.format.ids = F, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL)
+    GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = F, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL)
 
 }

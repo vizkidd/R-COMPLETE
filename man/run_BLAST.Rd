@@ -9,9 +9,12 @@ run_BLAST(
   subject_path,
   blast_DB_dir = NULL,
   blast_out,
-  blast_program,
+  blast_program = COMPLETE$BLAST_BIN,
   run_name = "BLAST",
-  blast_options = ""
+  blast_options = "",
+  COMPLETE.format.ids = F,
+  params_list = NULL,
+  keep.output.files = T
 )
 }
 \arguments{
@@ -21,19 +24,30 @@ run_BLAST(
 
 \item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed}
 
-\item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11}
+\item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object}
 
-\item{run_name}{Name of the BLAST run}
+\item{blast_program}{Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH}
+
+\item{run_name}{Name of the BLAST run. Only for logging (Optional)}
 
 \item{blast_options}{Extra Options to be passed to the BLAST program}
+
+\item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)}
+
+\item{params_list}{Output from load_params() (Optional)}
+
+\item{keep.output.files}{TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)}
+}
+\value{
+BLAST Hits as GRanges Object
 }
 \description{
-BLAST between two organisms/genes/clusters.
+BLAST between two FASTA files. BLAST output is saved temporarily in BLAST format 11, internally converted to format 6 with convert_BLAST_format() and BLAST Hits are returned as a GRanges Object. If blast_out is provided then the intermediate BLAST Format 11 output can be found in the same directory with the same name and *.blast11 extension. If blast_DB_dir is provided then the Subject FASTA is copied into this directory and then BLASTed.
 }
 \note{
-ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+ASSUMES Nucleotide FASTA sequences. Not checking/Not working for Protein/Peptide sequences and FASTQ files. Columns of GRanges BLAST 6 output are c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")
 }
 \examples{
-    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", blast_out = "blast.out", run_name = "blast_positive",blast_options = "-strand plus")
+    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", run_name = "blast_positive",blast_options = "-strand plus")
 
 }

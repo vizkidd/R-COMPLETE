@@ -17,7 +17,7 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
      * GNU parallel (in $PATH - BASH functions)
      * Samtools (in $PATH - BASH functions)
      * Bedtools (in $PATH - BASH functions)
-     * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is meant to work with v10.1) (https://www.orthodb.org/?page=filelist)
+     * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1) (https://www.orthodb.org/?page=filelist)
          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)
          # odb10v1_genes.tab.gz  -Ortho DB genes with some info (https://v101.orthodb.org/download/odb10v1_genes.tab.gz)
          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence (https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz)
@@ -35,6 +35,7 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
     system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE")
 
 * FLOW :
+
     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
     and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
@@ -42,7 +43,9 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
-         * Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+         * Sequences are labelled with the following long ID format of R-COMPLETE
+         (specific to this pipeline and referred to as COMPLETE.format.ids)
+         (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
               >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
               >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
               >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
