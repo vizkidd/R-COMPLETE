@@ -821,7 +821,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
 #'
 #' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
 #'
-#' @note Both the input files are expected to have the same number of columns with matching column order (and names)
+#' @note Both the input files are expected to have the same number of columns with matching column order (and names). Give only indices for col.indices. Order of execution is unique.hit.weights followed by process.weights.func (if any/all these options are set), i.e Unique Weights are chosen for each hit (if unique.hit.weights=T) and then weights are processed using process.weights.func (if process.weights.func is set)
 #'
 #' @examples
 #'    convert_BLAST_format(in_file1,outfile = out_file1,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
@@ -832,18 +832,22 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
 #'    wis2 <- run_WISARD(blast_hits = blast_GO2,score_col = "Hsp_score",COMPLETE.format.ids = T) #score_col=16
 #'    wis1 <- melt_wisard_list(wis1)
 #'    wis2 <- melt_wisard_list(wis2)
-#'    RBH(in1 = wis1, in2 = wis2, index.tables = T, col.indices = c(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
+#'    RBH(in1 = wis1, in2 = wis2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=c(8,22)),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
 #'
 #' @param in1 Input (query->subject) BLAST/WISARD hits table/filename
 #' @param in2 Input (query<-subject) BLAST/WISARD hits table/filename
 #' @param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
 #' @param col.names Columns names for the BLAST/WISARD tables/files
-#' @param col.indices A Named Vector with indices/names of columns Query sequence ID (qseqid), Subject sequence ID (sseqid), and column to be used as edge weights (eg, "Hsp_score"/"qcovhsp"). Eg col.indices=c(qseqid=1,sseqid=2,weight.col=16)
-#' @param sum.hit.weights Should the Weights be summed for each Query->Subject Hit? (TRUE/FALSE)
-#' @param index.tables Should the IDs in the tables be indexed?
+#' @param col.indices A Named List with indices of columns Query sequence ID (qseqid), Subject sequence ID (sseqid), and columns to be used as edge weights (eg, "Hsp_score","max_score" etc). Eg col.indices=list(qseqid=1,sseqid=2,weight.col=c(8,22))
+#' @param unique.hit.weights Should only the unique Weights be taken for all Query->Subject Hits? (TRUE/FALSE (Default))
+#' @param process.weights.func Pass a function name to process the weights (eg, sum/max/min etc)
+#' @param index.tables Should the IDs in the tables be indexed? (TRUE (Default) if COMPLETE.format.ids/Long BLAST Sequence IDs are used)
+#' @param n_threads Number of Threads (Optional)
 #' @return Named Vector of the organism details
 #' @export
-RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=F,col.indices, sum.hit.weights=T){
+RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=T,col.indices, unique.hit.weights=F, process.weights.func=NULL, n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})){
+
+  #print(col.indices)
 
   if(!is.null(transcript_ID_metadata) && is.character(transcript_ID_metadata)){
     transcript_ID_metadata <- read.table(file = transcript_ID_metadata,header = F,sep="\t",quote = "")
@@ -866,64 +870,105 @@ RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tabl
     }
   }
 
-  if(sum.hit.weights){
-
-  }
-
     if(index.tables){
-      in1_data <- index_BLAST_table(in1_data,col.indices["sseqid"],offset = 0)
-      in1_data <- index_BLAST_table(in1_data,col.indices["qseqid"],offset = length(levels(factor( in2_data[,col.indices["qseqid"]] ))) + length(levels(factor( in1_data[,col.indices["sseqid"]] ))))
-      in2_data <- index_BLAST_table(in2_data,col.indices["sseqid"],offset = length(levels(factor( in1_data[,col.indices["qseqid"]] ))) + length(levels(factor( in2_data[,col.indices["sseqid"]] ))))
-      in2_data <- index_BLAST_table(in2_data,col.indices["qseqid"],offset = length(levels(factor( in2_data[,col.indices["qseqid"]] ))) + length(levels(factor( in1_data[,col.indices["sseqid"]] ))))
+      in1_data <- index_BLAST_table(in1_data,col.indices[["sseqid"]],offset = 0)
+      in1_data <- index_BLAST_table(in1_data,col.indices[["qseqid"]],offset = length(levels(factor( in2_data[,col.indices[["qseqid"]]] ))) + length(levels(factor( in1_data[,col.indices[["sseqid"]]] ))))
+      in2_data <- index_BLAST_table(in2_data,col.indices[["sseqid"]],offset = length(levels(factor( in1_data[,col.indices[["qseqid"]]] ))) + length(levels(factor( in2_data[,col.indices[["sseqid"]]] ))))
+      in2_data <- index_BLAST_table(in2_data,col.indices[["qseqid"]],offset = length(levels(factor( in2_data[,col.indices[["qseqid"]]] ))) + length(levels(factor( in1_data[,col.indices[["sseqid"]]] ))))
     }
 
-  in1_g <- data.frame(from=in1_data[,col.indices["sseqid"]], to=in1_data[,col.indices["qseqid"]], weight=in1_data[,col.indices["weight.col"]], stringsAsFactors = T)
+  # #Sanity checks for weight.col - Converted to numeric indices
+  if(!is.list(col.indices)){
+    stop("col.indices must be a Named List!")
+  }
+  if(!all(stringi::stri_cmp_eq(colnames(in1_data)[col.indices[["weight.col"]]],colnames(in2_data)[col.indices[["weight.col"]]]))){
+     stop("Column indices of weight.col and order of columns must match between data!")
+  }
+
+  in1_g <- data.frame(from=in1_data[,col.indices[["qseqid"]]], to=in1_data[,col.indices[["sseqid"]]], stringsAsFactors = T)
   in1_g <- in1_g[apply(in1_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-  # in1_edge_list <- unlist(lapply(weight.col, function(x){
-  #   #in1_g <- data.frame(from=in1_data[,1], to=in1_data[,2], weight=in1_data[,x], stringsAsFactors = T)
-  #   #in1_g <- in1_g[apply(in1_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-  #   tmp <- list(in1_g)
-  #   names(tmp) <- colnames(in1_data)[x]
-  #   return(tmp)
-  # }),recursive = F,use.names = T)
 
-  in2_g <- data.frame(from=in2_data[,col.indices["qseqid"]], to=in2_data[,col.indices["sseqid"]], weight=in2_data[,col.indices["weight.col"]], stringsAsFactors = T)
+  in2_g <- data.frame(from=in2_data[,col.indices[["sseqid"]]], to=in2_data[,col.indices[["qseqid"]]], stringsAsFactors = T)
   in2_g <- in2_g[apply(in2_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-  # in2_edge_list <- unlist(lapply(weight.col, function(x){
-  #   #in2_g <- data.frame(from=in2_data[,1], to=in2_data[,2], weight=in2_data[,x], stringsAsFactors = T)
-  #   #in2_g <- in2_g[apply(in2_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
-  #   tmp <- list(in2_g)
-  #   names(tmp) <- colnames(in2_data)[x]
-  #   return(tmp)
-  # }),recursive = F,use.names = T)
 
-  #in1_valid_hits_from <- purrr::reduce(list(in1_g$from,in2_g$to), intersect)
-  #in2_valid_hits_from <-purrr::reduce(list(in2_g$from,in1_g$to), intersect)
-  #in1_valid_hits_to <- purrr::reduce(list(in1_g$to,in2_g$from), intersect)
-  #in2_valid_hits_to <-purrr::reduce(list(in2_g$to,in1_g$from), intersect)
-  print(in1_g)
-  print(in2_g)
-
-  return(list(in1_g,in2_g))
+  #print(in1_g) #DEBUG
+  #print(in2_g) #DEBUG
 
   in1_valid_hits <- unique(intersect(in1_g$from,in2_g$to),intersect(in1_g$to,in2_g$from)) #purrr::reduce(list(in1_g$from,in2_g$to), intersect)
   in2_valid_hits <- unique(intersect(in2_g$from,in1_g$to),intersect(in2_g$to,in1_g$from)) #purrr::reduce(list(in2_g$from,in1_g$to), intersect)
 
-  #in1_g <- in1_g[which(!is.na(match(in1_g$from,intersect(in1_valid_hits_from,in2_valid_hits_to)))),]
-  #in2_g <- in2_g[which(!is.na(match(in2_g$from,intersect(in2_valid_hits_from,in1_valid_hits_to)))),]
-  #in1_g <- in1_g[which(!is.na(match(in1_g$to,intersect(in1_valid_hits_to,in2_valid_hits_from)))),]
-  #in2_g <- in2_g[which(!is.na(match(in2_g$to,intersect(in2_valid_hits_to,in1_valid_hits_from)))),]
+  # in1_g <- in1_g[which(!is.na(match(in1_g$from,in1_valid_hits))),]
+  # in2_g <- in2_g[which(!is.na(match(in2_g$from,in2_valid_hits))),]
+  # in1_g <- in1_g[which(!is.na(match(in1_g$to,in2_valid_hits))),]
+  # in2_g <- in2_g[which(!is.na(match(in2_g$to,in1_valid_hits))),]
 
-  in1_g <- in1_g[which(!is.na(match(in1_g$from,in1_valid_hits))),]
-  in2_g <- in2_g[which(!is.na(match(in2_g$from,in2_valid_hits))),]
-  in1_g <- in1_g[which(!is.na(match(in1_g$to,in2_valid_hits))),]
-  in2_g <- in2_g[which(!is.na(match(in2_g$to,in1_valid_hits))),]
+  #MAKE ADJACENCY MATRIX for the graph
+  if(length(in1_valid_hits) >  0 && length(in2_valid_hits) > 0){
+    #adj_mat <- matrix(rep(list(), (length(in1_valid_hits) + length(in2_valid_hits)) ^ 2 ), byrow=TRUE, ncol=length(in1_valid_hits) + length(in2_valid_hits))
+    adj_mat <- array(rep(list(), (length(in1_valid_hits) + length(in2_valid_hits)) ^ 2 ), dim = c(length(in1_valid_hits) + length(in2_valid_hits),length(in1_valid_hits) + length(in2_valid_hits)), dimnames = list(c(in1_valid_hits,in2_valid_hits),c(in1_valid_hits,in2_valid_hits)))
+  }else{
+    stop("No hits are reciprocal")
+  }
+  #rownames(adj_mat) <- c(in1_valid_hits,in2_valid_hits)
+  #colnames(adj_mat) <- c(in1_valid_hits,in2_valid_hits)
 
-  in_g <- graph::MultiGraph(list(in1_g=in1_g,in2_g=in2_g), ignore_dup_edges = T)
+  adj_mat[in1_valid_hits,in1_valid_hits] <- 0
+  adj_mat[in2_valid_hits,in2_valid_hits] <- 0
+
+  #print(c(in1_valid_hits,in2_valid_hits))
+  #print(adj_mat)
+  weight_mats <- unlist(parallel::mclapply(col.indices[["weight.col"]], function(idx){
+
+    return(purrr::map2(in1_valid_hits,in2_valid_hits, function(x,y){
+      weight_mat <- adj_mat
+      df1_rows <- intersect(which(!is.na(match(in1_data[,col.indices[["qseqid"]]], x))), which(!is.na(match(in1_data[,col.indices[["sseqid"]]], y))))
+      df2_rows <- intersect(which(!is.na(match(in2_data[,col.indices[["sseqid"]]], y))), which(!is.na(match(in2_data[,col.indices[["qseqid"]]], x))))
+
+      in1_weights <- in1_data[df1_rows,idx]
+      in2_weights <- in2_data[df2_rows,idx]
+      if(unique.hit.weights){
+        in1_weights <- unique(in1_weights)
+        in2_weights <- unique(in2_weights)
+      }
+      if(!is.null(process.weights.func)){
+        in1_weights <- process.weights.func(in1_weights)
+        in2_weights <- process.weights.func(in2_weights)
+      }
+
+      weight_mat[x,y] <- list(in1_weights)
+      weight_mat[y,x] <- list(in2_weights)
+      return(weight_mat)
+    }) )
+
+  } ,mc.cores = n_threads,mc.silent = T) ,recursive = F,use.names = T)
+  return(weight_mats)
+
+  # in_g <- graph::graphAM(adjMat=adj_mat,edgemode = "directed")
+  # #MAKE edgeSets for each weight column for the graph
+  # for (x in col.indices[["weight.col"]]) {
+  #   graph::edgeDataDefaults(in_g, colnames(in1_data)[x]) <- 0
+  #   graph::edgeDataDefaults(in_g, colnames(in2_data)[x]) <- 0
+  #   #print(graph::edgeDataDefaults(in_g))
+  #   in1_weights <- in1_data[,x]
+  #   in2_weights <- in2_data[,x]
+  #   if(as.logical(unique.hit.weights)){
+  #     in1_weights <- unique(in1_weights)
+  #     in2_weights <- unique(in2_weights)
+  #   }
+  #   if(!is.null(process.weights.func)){
+  #     in1_weights <- process.weights.func(in1_weights)
+  #     in2_weights <- process.weights.func(in2_weights)
+  #   }
+  #   graph::edgeData(in_g, from=in1_valid_hits, to=in2_valid_hits, attr=colnames(in1_data)[x]) <- list(in1_weights)
+  #   graph::edgeData(in_g, from=in2_valid_hits, to=in1_valid_hits, attr=colnames(in2_data)[x]) <- list(in2_weights)
+  # }
+
+
+
+
+  #in_g <- graph::MultiGraph(list(in1_g=in1_g,in2_g=in2_g), ignore_dup_edges = T)
+  #in_g <- graph::graphIntersect(in_g,in_g)
+  #in_g_list <- graph::extractGraphAM(in_g)
   return(in_g)
-  in_g <- graph::graphIntersect(in_g,in_g)
-
-  in_g_list <- graph::extractGraphAM(in_g)
-
 }
 

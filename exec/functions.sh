@@ -955,10 +955,10 @@ function extract_genomic_regions(){
 	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/final.list
 
 	if [[ ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || ! -s $OUT_PATH/genes/$f_org_name/final.list || $r_exit_code != 0 ]] ; then
-	  >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed..."
+	  >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed... Possibly no genes were found. Check if GTF file has gene_name attribute"
 	  #>&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
 	  >&2 color_FG_Bold $Red "3. (Possible Fix) : Remove $TEMP_PATH/$f_org_name/ & $OUT_PATH/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
-	  exit 1
+	  exit 255
 	fi
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
@@ -1238,4 +1238,5 @@ if [ $# -gt 0 ] ; then
 	script_args=($(echo $@))
 	#export -f "${script_args[0]}"
 	"${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" #time
+	exit 0
 fi

@@ -166,7 +166,7 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
 #' @param n_threads Number of Threads
 #' @return Transcript Statistics from GTF data
 #' @export
-calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(){return(2)})) {
+calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})) {
 
   #print(g_name)
   #print(paste(g_name, slice_file, output_file))
@@ -732,6 +732,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
 
       if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list)){
         if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE$SKIP_USER_DATA) {
+          dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
           ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
           #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
           do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list ))
@@ -1023,6 +1024,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 
   if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
     if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE$SKIP_USER_DATA) {
+      dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
       do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list ))
@@ -1118,7 +1120,7 @@ group_FASTA_clusters <- function(fasta_path, params_list){
 #' @param n_threads Number of threads
 #' @param gene_list File name of gene list
 #' @return TRUE if output files exist, FALSE otherwise
-merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(){return(2)}),gene_list){
+merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
   if(!quick.check){
    processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "",stderr = "")
   }
@@ -1288,7 +1290,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   cat(print_toc(tictoc::toc(quiet = T, log = T)))
 
-  #saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
+  saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
 
   write.table(x = saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F)
 

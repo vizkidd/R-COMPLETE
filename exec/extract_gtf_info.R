@@ -174,7 +174,10 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
     return(gtf)
   }, list.files(path=slice_file_path, pattern = "*.gtf_slice",full.names = T), USE.NAMES = F, mc.cores = n_cores, SIMPLIFY = F)
   gtf_data <- bind_rows(gtf_data)
-  #save(file = "gtf_data.RData",list="gtf_data")
+
+  if(nrow(gtf_data) == 0){
+    stop(paste("GTF data is empty : ",org_name, " - Possibly no genes were found. Check if GTF file has gene_name attribute"))
+  }
 
   utr_len_list <- extract_info(gtf_data,strandedness = STRAND)
 
