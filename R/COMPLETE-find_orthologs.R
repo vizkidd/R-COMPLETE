@@ -54,13 +54,14 @@ LoadBLASTHits <- function(infile, transcript_ID_metadata=NULL, col.names=NULL){
 #' @note WARNING : Do not index it more than once (although you may do index it as much as you like)
 #'
 #' @examples
-#' in1_data <- index_BLAST_table(in1_data,"sseqid",offset = 0)
-#' in1_data <- index_BLAST_table(in1_data,"qseqid",offset = length(levels(factor( in1_data[,"qseqid"] ))))
+#'  #Indexing columns 1 & 2
+#' in1_data <- index_BLAST_table(in1_data,2,offset = 0)
+#' in1_data <- index_BLAST_table(in1_data,1,offset = length(levels(factor( in1_data[,1] ))))
 #' #TO INDEX TWO TABLES
-#' in1_data <- index_BLAST_table(in1_data,"sseqid",offset = 0)
-#' in1_data <- index_BLAST_table(in1_data,"qseqid",offset = length(levels(factor( in2_data[,"qseqid"] ))) + length(levels(factor( in1_data[,"sseqid"] ))))
-#' in2_data <- index_BLAST_table(in2_data,"sseqid",offset = length(levels(factor( in1_data[,"qseqid"] ))) + length(levels(factor( in2_data[,"sseqid"] ))))
-#' in2_data <- index_BLAST_table(in2_data,"qseqid",offset = length(levels(factor( in2_data[,"qseqid"] ))) + length(levels(factor( in1_data[,"sseqid"] ))))
+#' in1_data <- index_BLAST_table(in1_data,2,offset = 0)
+#' in1_data <- index_BLAST_table(in1_data,1,offset = length(levels(factor( in2_data[,1] ))) + length(levels(factor( in1_data[,2] ))))
+#' in2_data <- index_BLAST_table(in2_data,2,offset = length(levels(factor( in1_data[,1] ))) + length(levels(factor( in2_data[,2] ))))
+#' in2_data <- index_BLAST_table(in2_data,1,offset = length(levels(factor( in2_data[,1] ))) + length(levels(factor( in1_data[,2] ))))
 #'
 #' @param blast_table BLAST table
 #' @param index_col Column index of BLAST table to index (shorten IDs)
@@ -82,6 +83,35 @@ index_BLAST_table <- function(blast_table, index_col, offset=0){
   colnames(blast_table)[index_col] <- paste("indexed",old_name,sep="_")
   colnames(blast_table)[ncol(blast_table)] <- old_name
   #print(blast_table)
+  return(blast_table)
+}
+
+#' De-Index BLAST Table Column
+#'
+#' Convert indexed FASTA IDs into original IDs. The indexed ID column is removed and replaced with original ID column
+#'
+#' @note Indexed Column name must be prefixed with "indexed_" followed by original column name, eg "indexed_query"
+#'
+#' @examples
+#' in1_data <- index_BLAST_table(in1_data,"sseqid",offset = 0)
+#' in1_data <- index_BLAST_table(in1_data,"qseqid",offset = length(levels(factor( in1_data[,"qseqid"] ))))
+#' #TO INDEX TWO TABLES
+#' in1_data <- index_BLAST_table(in1_data,"sseqid",offset = 0)
+#' in1_data <- index_BLAST_table(in1_data,"qseqid",offset = length(levels(factor( in2_data[,"qseqid"] ))) + length(levels(factor( in1_data[,"sseqid"] ))))
+#' in2_data <- index_BLAST_table(in2_data,"sseqid",offset = length(levels(factor( in1_data[,"qseqid"] ))) + length(levels(factor( in2_data[,"sseqid"] ))))
+#' in2_data <- index_BLAST_table(in2_data,"qseqid",offset = length(levels(factor( in2_data[,"qseqid"] ))) + length(levels(factor( in1_data[,"sseqid"] ))))
+#'
+#' @param blast_table BLAST table
+#' @param index_col Column index of BLAST table to de-index
+#' @return BLAST table with original IDs from index_col (index_col is removed from the table and replaced with original column)
+#' @export
+deindex_BLAST_table <- function(blast_table, index_col){
+  old_name = colnames(blast_table)[index_col]
+  new_name = stringi::stri_split_fixed(old_name, pattern = "_", n=2,simplify = T)[2]
+
+  blast_table[,old_name] <- blast_table[,new_name]
+  blast_table[,new_name] <- NULL
+  colnames(blast_table)[which(!is.na(match(colnames(blast_table), old_name)))] <- new_name
   return(blast_table)
 }
 
@@ -659,6 +689,21 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=NULL,blast_program
 
 }
 
+#' Calculate HSP Coverage
+#'
+#' This function calculates the coverage of HSPs (sum(HSP Alignment lengths)/mRNA CDS Length) between each Query->Subject Hits. Hits are filtered based on the minimum coverage filter value.
+#'
+#' @param blast_table BLAST Table with Query->Subject Hits
+#' @param col.indices A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid). Eg col.indices=list(qseqid=1,sseqid=2)
+#' @param min_coverage_filter Minimum HSP Coverage value to filter out Hits
+#' @param params_list Output of load_params()
+#' @export
+calculate_HSP_coverage <- function(blast_table,col.indices,min_coverage_filter=0.5,params_list){
+  purrr::map2(blast_table[,col.indices["qseqid"]], blast_table[,col.indices["sseqid"]], function(x,y){
+
+  })
+}
+
 #' Internal Function - Transcript Ortholog Extraction Function for R-COMPLETE pipeline
 #'
 #' This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables.
@@ -702,6 +747,7 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
     group_FASTA_clusters(params_list$FASTA_OUT_PATH)
   }
 
+  ##Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
   #all2allblast and then wisard and then RBH for grouping ungrouped clusters
   all2all_BLAST(first_list = "ungrouped", second_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T),blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir =all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PATH, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #paste(params_list$TEMP_PATH,"/","all2all/",sep="")
   all2all_BLAST(first_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T), second_list = "ungrouped",blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PAT, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #paste(params_list$TEMP_PATH,"/","all2all/",sep="")
@@ -728,7 +774,12 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
        in1 <- paste(all2all_out,query,"-",subject,".wis_out",sep="")
        in2 <- paste(all2all_out,subject,"-",query,".wis_out",sep="")
        if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
-          RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = c(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
+          #RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = c(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
+         RBH_out <- RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=c(22,8) ), unique.hit.weights = T, process.weights.func = max)
+         out1 <- paste(all2all_out,query,"-",subject,".rbh_out",sep="")
+         out2 <- paste(all2all_out,subject,"-",query,".rbh_out",sep="")
+         write.table(x = RBH_out$in1,file = out1,quote = F,col.names = T,row.names = F)
+         write.table(x = RBH_out$in2,file = out2,quote = F,col.names = T,row.names = F)
        }
      }, mc.cores =numWorkers )
    })
@@ -736,9 +787,9 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
   #calculate gene conservation - calculate_gene_conservation.R - probably not needed
    ##Maybe write one for cluster conservation/coverage across organisms
 
-  #create organism sets
 
-  ##Place ungrouped sequences into groups (oneway BLAST ungrouped cluster againts all genes)
+
+  #create organism sets
 
   #calculate cluster occupancy - number of genes per cluster && number of organisms per cluster
 
@@ -821,7 +872,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
 #'
 #' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
 #'
-#' @note Both the input files are expected to have the same number of columns with matching column order (and names). Give only indices for col.indices. Order of execution is unique.hit.weights followed by process.weights.func (if any/all these options are set), i.e Unique Weights are chosen for each hit (if unique.hit.weights=T) and then weights are processed using process.weights.func (if process.weights.func is set)
+#' @note Both the input files are expected to have a header, the same number of columns with matching column order (and names). Give only indices for col.indices. Order of execution is unique.hit.weights followed by process.weights.func (if any/all these options are set), i.e Unique Weights are chosen for each hit (if unique.hit.weights=T) and then weights are processed using process.weights.func (if process.weights.func is set)
 #'
 #' @examples
 #'    convert_BLAST_format(in_file1,outfile = out_file1,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
@@ -840,12 +891,12 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
 #' @param col.names Columns names for the BLAST/WISARD tables/files
 #' @param col.indices A Named List with indices of columns Query sequence ID (qseqid), Subject sequence ID (sseqid), and columns to be used as edge weights (eg, "Hsp_score","max_score" etc). Eg col.indices=list(qseqid=1,sseqid=2,weight.col=c(8,22))
 #' @param unique.hit.weights Should only the unique Weights be taken for all Query->Subject Hits? (TRUE/FALSE (Default))
-#' @param process.weights.func Pass a function name to process the weights (eg, sum/max/min etc)
+#' @param process.weights.func Pass a function name to process the weights (eg, sum/max/min etc) (Default - max)
 #' @param index.tables Should the IDs in the tables be indexed? (TRUE (Default) if COMPLETE.format.ids/Long BLAST Sequence IDs are used)
 #' @param n_threads Number of Threads (Optional)
-#' @return Named Vector of the organism details
+#' @return Named List list(in1,in2) with the selected Hits which are RBHs between in1 and in2 data
 #' @export
-RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=T,col.indices, unique.hit.weights=F, process.weights.func=NULL, n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})){
+RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tables=T,col.indices, unique.hit.weights=F, process.weights.func=max, n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})){
 
   #print(col.indices)
 
@@ -923,7 +974,8 @@ RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tabl
       weight_mat <- adj_mat
       df1_rows <- intersect(which(!is.na(match(in1_data[,col.indices[["qseqid"]]], x))), which(!is.na(match(in1_data[,col.indices[["sseqid"]]], y))))
       df2_rows <- intersect(which(!is.na(match(in2_data[,col.indices[["sseqid"]]], y))), which(!is.na(match(in2_data[,col.indices[["qseqid"]]], x))))
-
+      #print(df1_rows)
+      #print(df2_rows)
       in1_weights <- in1_data[df1_rows,idx]
       in2_weights <- in2_data[df2_rows,idx]
       if(unique.hit.weights){
@@ -941,34 +993,45 @@ RBH <- function(in1,in2, transcript_ID_metadata=NULL, col.names=NULL, index.tabl
     }) )
 
   } ,mc.cores = n_threads,mc.silent = T) ,recursive = F,use.names = T)
-  return(weight_mats)
 
-  # in_g <- graph::graphAM(adjMat=adj_mat,edgemode = "directed")
-  # #MAKE edgeSets for each weight column for the graph
-  # for (x in col.indices[["weight.col"]]) {
-  #   graph::edgeDataDefaults(in_g, colnames(in1_data)[x]) <- 0
-  #   graph::edgeDataDefaults(in_g, colnames(in2_data)[x]) <- 0
-  #   #print(graph::edgeDataDefaults(in_g))
-  #   in1_weights <- in1_data[,x]
-  #   in2_weights <- in2_data[,x]
-  #   if(as.logical(unique.hit.weights)){
-  #     in1_weights <- unique(in1_weights)
-  #     in2_weights <- unique(in2_weights)
-  #   }
-  #   if(!is.null(process.weights.func)){
-  #     in1_weights <- process.weights.func(in1_weights)
-  #     in2_weights <- process.weights.func(in2_weights)
-  #   }
-  #   graph::edgeData(in_g, from=in1_valid_hits, to=in2_valid_hits, attr=colnames(in1_data)[x]) <- list(in1_weights)
-  #   graph::edgeData(in_g, from=in2_valid_hits, to=in1_valid_hits, attr=colnames(in2_data)[x]) <- list(in2_weights)
-  # }
+  RBH_list <- parallel::mclapply(weight_mats, function(weight_mat){
+    RBH_hits <- lapply(c(in1_valid_hits,in2_valid_hits), function(q_hit){
+      print(q_hit)
+      s_hit <- names(which.max(weight_mat[q_hit,]))
+      back_q_hit <- names(which.max(weight_mat[s_hit,]))
+      if(all(stringi::stri_cmp_eq(back_q_hit,q_hit))){
+        return(data.frame(q_hit=q_hit,s_hit=s_hit))
+      }
+    })
+    return(dplyr::bind_rows(RBH_hits))
+  } ,mc.cores = n_threads,mc.silent = T)
 
+  if(length(weight_mats) > 1){
+    if(purrr::reduce(RBH_list,all_equal, ignore_row_order = TRUE)){
+      RBH_final_list <- RBH_list
+    }else{
+        print("take only identical rows. write code") ##use identical()
+    }
+  }else{
+    RBH_final_list <- RBH_list
+  }
 
+  RBH_final_df <- unique(dplyr::bind_rows(RBH_final_list))
 
+  #which(!is.na(match(in1_data[,col.indices[["qseqid"]]], RBH_final_df$q_hit)))
+  in1_RBH_rows <- which(!is.na( match(in1_data[,col.indices[["sseqid"]]], RBH_final_df$s_hit) )) #c(RBH_final_df$q_hit, RBH_final_df$s_hit) #unique( which(!is.na( match(in1_data[,col.indices[["qseqid"]]], c(RBH_final_df$q_hit, RBH_final_df$s_hit)) )), which(!is.na( match(in1_data[,col.indices[["sseqid"]]], c(RBH_final_df$q_hit, RBH_final_df$s_hit)) )) )
+  in2_RBH_rows <- which(!is.na( match(in2_data[,col.indices[["qseqid"]]], RBH_final_df$q_hit) )) #c(RBH_final_df$q_hit, RBH_final_df$s_hit) #unique( which(!is.na( match(in2_data[,col.indices[["qseqid"]]], c(RBH_final_df$q_hit, RBH_final_df$s_hit)) )), which(!is.na( match(in2_data[,col.indices[["sseqid"]]], c(RBH_final_df$q_hit, RBH_final_df$s_hit)) )) )
+  #print(RBH_final_df)
+  #print(in1_RBH_rows)
+  #print(in2_RBH_rows)
 
-  #in_g <- graph::MultiGraph(list(in1_g=in1_g,in2_g=in2_g), ignore_dup_edges = T)
-  #in_g <- graph::graphIntersect(in_g,in_g)
-  #in_g_list <- graph::extractGraphAM(in_g)
-  return(in_g)
+  if(index.tables){
+    in1_data <- deindex_BLAST_table(in1_data, col.indices[["qseqid"]])
+    in1_data <- deindex_BLAST_table(in1_data, col.indices[["sseqid"]])
+    in2_data <- deindex_BLAST_table(in2_data, col.indices[["qseqid"]])
+    in2_data <- deindex_BLAST_table(in2_data, col.indices[["sseqid"]])
+  }
+
+  return(list(in1=in1_data[in1_RBH_rows,],in2=in2_data[in2_RBH_rows,]))
 }
 

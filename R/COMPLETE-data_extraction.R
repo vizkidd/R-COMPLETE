@@ -162,7 +162,7 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
 #'     names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
 #'
 #' @param gtf_data GTF data obtained from biomaRt for an organism
-#' @param allow_strand Only allow the specified strand. ("+","-",Default - ""/" ")
+#' @param allow_strand Only allow the specified strand. ("+","-",Default - "" (or) " " (or) "*")
 #' @param n_threads Number of Threads
 #' @return Transcript Statistics from GTF data
 #' @export
@@ -171,6 +171,18 @@ calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parall
   #print(g_name)
   #print(paste(g_name, slice_file, output_file))
   strandedness=allow_strand
+
+  req_columns <- c("external_gene_name",
+                   "ensembl_gene_id",
+                   "ensembl_transcript_id",
+                   "strand"
+                   "transcript_start",
+                   "transcript_end")
+
+  if (any(is.na(match(req_columns, names(gtf_data))))) {
+    stop(paste("Missing columns, Require :",paste(req_columns,collapse = ",")))
+  }
+
   gtf_split <- base::split(gtf_data, as.factor(gtf_data$external_gene_name))
   return(parallel::mclapply(gtf_split, function(gtf_x){
     g_name <- unique(gtf_x$external_gene_name)
@@ -792,12 +804,13 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   }
 
   invisible( tryCatch(check_mart_dataset(org),error=function(cond){
-    #return(
+    #message(cond)
+     #return(
       tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
       #cat(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond)
     }) #)
-    stop()
+    stop(cond)
   }) )
 
   odb_list <- paste(params_list$OUT_PATH,"/genes/",org,"/odb.list",sep = "")
@@ -828,15 +841,15 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     message(paste("ODB gene list could not be found for : ",org))
   }
 
-  gtf_data <- tryCatch(get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes))),error=function(cond){
-    #message(cond)
+  gtf_data <- invisible( tryCatch(get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes))),error=function(cond){
+    message(cond)
     #message(print_toc(tictoc::toc(quiet = T, log = T)))
     tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
       #cat(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond)
     })
-    return(NULL)
-  })
+    stop(cond)
+  }) )
 
   gtf_stats <- calculate_stats(gtf_data,allow_strand = params_list$STRAND, n_threads = params_list$numWorkers)
   gtf_stats <- dplyr::bind_rows(gtf_stats)
