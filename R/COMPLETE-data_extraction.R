@@ -34,7 +34,7 @@
 #' @param clk output of function tictoc::toc()
 #' @return A formatted string to print to stdout/console
 print_toc <- function(clk){
-  return(paste(tictoc::toc.outmsg(clk$tic,clk$toc,clk$msg),"\n", sep = ""))
+  return(paste(tictoc::toc.outmsg(clk$tic,clk$toc,clk$msg),"\n\n", sep = ""))
 }
 
 # toc_log_msg <- function(tic, toc, msg, info){
@@ -97,7 +97,7 @@ check_mart_dataset <- function(org){
   }
   mart.dataset <- grep(x = COMPLETE$org.meta.list$dataset, pattern=stringr::regex(split_org[2],ignore_case = T),fixed=F, value = T)
   if(length(mart.dataset)==0){
-    stop(paste("\nDataset not found in BIOMART for :",org,"\nYou can provide the organism in user data\n"))
+    stop(paste("Dataset not found in BIOMART for :",org,"\nYou can provide the organism in user data\n\n"))
   }else if (length(unique(mart.dataset))==1) {
       return(unique(mart.dataset))
     }else{
@@ -134,7 +134,7 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
                                 }
                                 Sys.sleep(time_out)
                               })
-      if(!any(grepl(pattern = "error|exception|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
+      if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
         #print("Done!")
         return(catch_value)
       }
@@ -175,7 +175,7 @@ calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parall
   req_columns <- c("external_gene_name",
                    "ensembl_gene_id",
                    "ensembl_transcript_id",
-                   "strand"
+                   "strand",
                    "transcript_start",
                    "transcript_end")
 
@@ -260,7 +260,7 @@ calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parall
 #' @param logfile Redirect output (stdout & stderr) to this file
 #' @param params_list Output of load_params()
 #' @return Process ID from processx::new() which can be used for further monitoring of the process
-add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_list){
+add_to_process <- function(p_cmd,p_args=list(),verbose=T, logfile=NULL, params_list){
   if (is.null(logfile)) {
     logfile=""
   }
@@ -281,7 +281,7 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     })
   }
   if (verbose) {
-    cat(paste("Adding process to list...(",length(COMPLETE$process_list),")\n",sep=""))
+    cat(paste("\nAdding process to list...(",length(COMPLETE$process_list),")\n",sep=""))
   }
   if(length(COMPLETE$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE$max_file_handles-1){ #250
     #for (p_id in seq_along(COMPLETE$process_list)) {
@@ -294,17 +294,24 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     #  }
     if (verbose) {
       cat(paste("Process Q Full...Waiting for a process to end(",length(COMPLETE$process_list),")\n",sep=""))
+      lapply(COMPLETE$process_list, function(x){ print(paste(paste(x$get_cmdline(), collapse = " "),sep="")) }) #DEBUG
     }
     #save(COMPLETE$process_list, file="proces_list.RData")
     dead_procs <- c()
-    for (x in seq_along(COMPLETE$process_list)) {
-      if(COMPLETE$process_list[[x]]$is_alive()){
-        COMPLETE$process_list[[x]]$wait(timeout=-1)
-        break;
-      }else{
-        dead_procs <- c(dead_procs,x)
+    # for (x in seq_along(COMPLETE$process_list)) {
+    #   if(COMPLETE$process_list[[x]]$is_alive()){
+    #     COMPLETE$process_list[[x]]$wait(timeout=-1)
+    #     break;
+    #   }else{
+    #     dead_procs <- c(dead_procs,x)
+    #   }
+    # }
+
+    dead_procs <- unlist(lapply(COMPLETE$process_list, function(x){
+      if(!x$is_alive()){
+        return(x)
       }
-    }
+    }))
 
     #lapply(seq_along(COMPLETE$process_list), function(x){
     #  if(COMPLETE$process_list[[x]]$is_alive()){
@@ -315,9 +322,12 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     #  }
     #})
 
-    if (length(dead_procs)>0 && length(COMPLETE$process_list)>0) {
+    if (length(dead_procs)>0 && length(COMPLETE$process_list)>0){
       dead_procs <- unique(dead_procs)
       COMPLETE$process_list[[dead_procs]] <- NULL
+    }
+    if (length(COMPLETE$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE$max_file_handles-1){
+      COMPLETE$process_list[[1]]$wait(timeout=-1)
     }
     # if(COMPLETE$process_list[[1]]$is_alive()){ ## check and wait for the earliest job to complete
     #   COMPLETE$process_list[[1]]$wait(timeout=-1)
@@ -515,6 +525,10 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   mart.dataset <- check_mart_dataset(org)
   using.mart.data <- mart_connect(biomaRt::useMart,args = list(COMPLETE$ENSEMBL_MART, mart.dataset))
 
+  if(!all(!is.na(match(seq_attributes, biomaRt::listAttributes(using.mart.data)[,c("name")])))){
+    stop(paste("Atrributes :",paste(seq_attributes,collapse = ","), ": not availabe for :", org,"\n"))
+  }
+
   check_rows_idx <- unlist(sapply(seq_along(1:nrow(gtf_stats)), FUN=function(x){
     #print(gtf_stats[x,]<=3)
     if(any(na.omit(gtf_stats[x,c("five_len","three_len","five_flank","three_flank")]<=3))){ #any(is.na(gtf_stats[x,])) , not checking for CDS==NA because I was able to obtain coding sequences even when cds_len==NA
@@ -529,7 +543,8 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   if(length(valid_transcripts) > 0){
     bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts, curl=COMPLETE$curl_handle)))},mc.cores = params_list$numWorkers)
 
-    bm_df <- bm_seq %>% purrr::reduce(full_join, by = "ensembl_transcript_id")
+    print(bm_seq) #DEBUG
+    bm_df <- purrr::reduce(bm_seq, dplyr::full_join, by = "ensembl_transcript_id")
     unavailable_transcripts <- unique( unlist(apply(bm_df,MARGIN = 1, FUN = function(x){
       row_check <- grepl("unavailable",x=x,ignore.case = T)
       if(all(row_check) || row_check[2]==T){ #Removing transcripts which do not have any regions or CDS
@@ -747,6 +762,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
           dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
           ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
           #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
+          cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org_name,".log",sep=""))
           do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list ))
           ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
           cat(print_toc(tictoc::toc(quiet = T, log = T)))
@@ -842,7 +858,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   }
 
   gtf_data <- invisible( tryCatch(get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes))),error=function(cond){
-    message(cond)
+    #message(cond)
     #message(print_toc(tictoc::toc(quiet = T, log = T)))
     tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
       #cat(print_toc(tictoc::toc(quiet = T, log = T)))
@@ -864,7 +880,15 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     return()
   }
 
-  gtf_stats <- fetch_FASTA_mart(org = org,gtf_stats = gtf_stats,fasta_path = org_fasta_path, params_list = params_list)
+  gtf_stats <- invisible( tryCatch(fetch_FASTA_mart(org = org,gtf_stats = gtf_stats,fasta_path = org_fasta_path, params_list = params_list),error=function(cond){
+    message(cond)
+    ##message(print_toc(tictoc::toc(quiet = T, log = T)))
+    tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
+      #cat(print_toc(tictoc::toc(quiet = T, log = T)))
+      stop(cond)
+    })
+    stop()
+  }) )
 
   if(nrow(gtf_stats)==0){
     message(paste("Error fetching FASTA for : ",org))
@@ -1040,6 +1064,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
       dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
+      cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org,".log\n",sep=""))
       do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list ))
       ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
@@ -1272,8 +1297,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       ) } ) )
   }
 
-  #save("saved_meta", file="saved_meta.RData")
-
   # print(process_list)
   # for(proc in process_list){
   #   if(proc$is_alive()){
@@ -1298,14 +1321,14 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     }
   }, mc.cores =  loaded_PARAMS$numWorkers))
 
-  #saved_meta[sapply(saved_meta, is.null)] <- NULL
-  #saved_meta <- dplyr::bind_rows(saved_meta)
-
   cat(print_toc(tictoc::toc(quiet = T, log = T)))
 
-  saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
+ # save("saved_meta", file="saved_meta.RData")
+  ##saved_meta[sapply(saved_meta, is.null)] <- NULL
+  #saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
 
-  write.table(x = saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F)
+  write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F)
+  write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,append = T)
 
   lapply(list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=TRUE), function(x) {
     fi <- file.info(x)

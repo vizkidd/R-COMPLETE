@@ -827,7 +827,7 @@ function extract_genomic_regions(){
 	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
 	local CLEAN_EXTRACT=$(grep -i -w "clean_extract" $param_file | check_param) 
 	local TRANSCRIPT_REGIONS=($(grep -i -w "transcript_regions" $param_file | check_param | sed "s/,/\n/g" ))
-	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file) # | check_param)
+	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}') # | check_param)
 	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
 	local REF_ORGS=$(realpath $(grep -i -w "ref_orgs" $param_file | check_param))
 	local seqID_delimiter=$(grep -i -w "seqID_delimiter" $param_file | check_param) 
@@ -885,6 +885,11 @@ function extract_genomic_regions(){
 	local genome_index_proc=$(echo $!)
 
 	>&1 color_FG $Yellow "Genome : $gfile_name\nAnnotation : $ANNO_FILE"
+
+	if [[ -z $(zgrep -m 1 -hPo 'gene_name "\K[^"]+' $ANNO_FILE) ]] ; then
+		echo $(color_FG_BG_Bold $Red $BG_White "Error : GTF does not contain gene_name attribute") #| tee >(cat >&2)
+		exit 1
+	fi
 
 	###################################################################################################
 
@@ -1027,6 +1032,8 @@ function extract_genomic_regions(){
 	rm -f $bed_prefix/"$f_org_name"_*
 
 	>&1 color_FG_BG_Bold $Purple $BG_White "Extraction DONE for organism : $f_org_name"
+
+	exit 0
 }
 
 function check_OrthoDB(){
@@ -1050,7 +1057,7 @@ function check_OrthoDB(){
 	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
 	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
 	local REF_ORGS=$(realpath $(grep -i -w "ref_orgs" $param_file | check_param))
-	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file) #| check_param)
+	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}' ) #| check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
 
 	if [[ -z $n_threads || $n_threads == 0 || $n_threads == " " ]]; then
@@ -1142,6 +1149,8 @@ function check_OrthoDB(){
 	else
 	  >&2 color_FG_Bold $Red "2. $org_name not found in OrthoDB files"
 	fi
+
+	exit 0
 }
 
 function convert_BLAST_format(){
