@@ -34,6 +34,9 @@ BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,p
     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
     system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE")
 
+* USER DATA :
+    Columns Org, genome, gtf
+
 * FLOW :
 
     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)

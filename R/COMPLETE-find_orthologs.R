@@ -204,13 +204,13 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   tmp_df <- mutate(tmp_df, Hsp_bit.score = blast_input[,col.indices[["bitscore"]]])
   tmp_df <- mutate(tmp_df, Hsp_score = blast_input[,col.indices[["qcovhsp"]]])
   tmp_df <- mutate(tmp_df, Hsp_evalue = blast_input[,col.indices[["evalue"]]])
-  tmp_df <- mutate(tmp_df, Hsp_query.from = blast_input[,col.indices[["qstart"]]])
-  tmp_df <- mutate(tmp_df, Hsp_query.to = blast_input[,col.indices[["qend"]]])
+  tmp_df <- mutate(tmp_df, subject_HSP_from = blast_input[,col.indices[["sstart"]]])
+  tmp_df <- mutate(tmp_df, subject_HSP_to = blast_input[,col.indices[["send"]]])
   tmp_df <- mutate(tmp_df, query_id = blast_input[,col.indices[["qseqid"]]])
   tmp_df <- mutate(tmp_df, query_len = blast_input[,col.indices[["qlen"]]])
   tmp_df <- mutate(tmp_df, subject_len = blast_input[,col.indices[["slen"]]])
-  tmp_df <- mutate(tmp_df, Hsp_hit.from = blast_input[,col.indices[["sstart"]]])
-  tmp_df <- mutate(tmp_df, Hsp_hit.to = blast_input[,col.indices[["send"]]])
+  tmp_df <- mutate(tmp_df, query_HSP_from = blast_input[,col.indices[["qstart"]]])
+  tmp_df <- mutate(tmp_df, query_HSP_to = blast_input[,col.indices[["qend"]]])
   tmp_df <- mutate(tmp_df, Hsp_query.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
     frames <- as.integer(unlist(stringi::stri_split_fixed(x,pattern = "/")))
     return(frames[1])
@@ -241,7 +241,7 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
     tmp_df <- mutate(tmp_df, query_gene =  blast_input[,c("query_gene")])
   }
 
-  tmp_gr <- GenomicRanges::makeGRangesFromDataFrame(df = tmp_df,seqnames.field = "seq_names", start.field = "sstart",end.field = "send",strand.field = "sstrand" ,keep.extra.columns = T,ignore.strand = F)
+  tmp_gr <- GenomicRanges::makeGRangesFromDataFrame(df = tmp_df,seqnames.field = "seq_names",start.field = "sstart",end.field = "send",strand.field = "sstrand" ,keep.extra.columns = T,ignore.strand = F)
 
   return(tmp_gr)
 }
@@ -694,25 +694,63 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=NULL,blast_program
 #' This function calculates the coverage of HSPs (sum(HSP Alignment lengths)/mRNA CDS Length) between each Query->Subject Hits. Hits are filtered based on the minimum coverage filter value.
 #'
 #' @param blast_table BLAST Table with Query->Subject Hits
-#' @param transript_region_lengths A data.frame (with one column for regional lengths and BLAST/Transcript IDs/Transcript Names as row.names) or a Named Vector or a Named List.
-#' @param col.indices A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid). Eg col.indices=list(qseqid=1,sseqid=2)
-#' @param min_coverage_filter Minimum HSP Coverage value to filter out Hits
+#' @param transcript_region_lengths A data.frame (with one column for regional lengths and BLAST/Transcript IDs/Transcript Names as row.names) or a Named Vector or a Named List. Assumed to have short IDs
+#' @param col.indices A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid). Eg col.indices=list(qseqid=1,sseqid=2,qstart=10,qend=11,sstart=15,send=16)
+#' @param min_coverage_filter Minimum HSP Coverage value to filter out Hits (Default - 0.5)
+#' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, Default - FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (ONLY FOR blast_table,transcript_region_lengths are assumed to have short IDs)
 #' @param params_list Output of load_params()
+#' @return BLAST table with Hits which pass min_coverage_filter
 #' @export
-calculate_HSP_coverage <- function(blast_table, transript_region_lengths,col.indices,min_coverage_filter=0.5,params_list){
+calculate_HSP_coverage <- function(blast_table, transcript_region_lengths,col.indices,min_coverage_filter=0.5, COMPLETE.format.ids=F,params_list){
 
-  if(is.vector(transript_region_lengths)){
-    region_lengths <- as.data.frame(x=transript_region_lengths,row.names = names(transript_region_lengths)) #vector
-  }else if(is.list(transript_region_lengths)){
-    region_lengths <- as.data.frame(x=unlist(transript_region_lengths,use.names = T,recursive = T),row.names = names(transript_region_lengths)) # list
-  }else if(is.data.frame(transript_region_lengths) && ncol(transript_region_lengths) == 1){
-    region_lengths <- transript_region_lengths
+  if(is.vector(transcript_region_lengths)){
+    region_lengths <- as.data.frame(x=transcript_region_lengths,row.names = names(transcript_region_lengths)) #vector
+  }else if(inherits(transcript_region_lengths, "list")){ #is.list(transcript_region_lengths)
+    region_lengths <- as.data.frame(x=unlist(transcript_region_lengths,use.names = T,recursive = T),row.names = names(transcript_region_lengths)) # list
+  }else if(inherits(transcript_region_lengths, "data.frame") && ncol(transcript_region_lengths) == 1){ #is.data.frame(transcript_region_lengths)
+    region_lengths <- transcript_region_lengths
   }else{
-    stop("transript_region_lengths must be a Data.Frame (with one column for lengths and BLAST/Transcript IDs/Transcript Names as row.names) or a Named Vector or a Named List")
+    stop("transcript_region_lengths must be a Data.Frame (with one column for (CDS/UTR) lengths and BLAST IDs/Transcript IDs as row.names) or a Named Vector or a Named List")
   }
 
-    purrr::map2(blast_table[,col.indices[["qseqid"]]], blast_table[,col.indices[["sseqid"]]], function(x,y){
+  query_ids <- unique(blast_table[,col.indices[["qseqid"]]])
+  subject_ids <- unique(blast_table[,col.indices[["sseqid"]]])
 
+  #print(region_lengths) #DEBUG
+  #print(paste(query_ids,collapse = ",")) #DEBUG
+  #print(paste(subject_ids,collapse = ",")) #DEBUG
+
+  purrr::map2(query_ids, subject_ids, function(x,y){
+      if(COMPLETE.format.ids){
+        x_short <- stringi::stri_split(str = stringi::stri_split(str = x,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[1]
+        y_short <- stringi::stri_split(str = stringi::stri_split(str = y,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[1]
+      }else{
+        x_short <- x
+        y_short <- y
+      }
+
+      q_length <- as.numeric(region_lengths[x_short,])
+      s_length <- as.numeric(region_lengths[y_short,])
+
+      print(paste(c(x,x_short,q_length,y,y_short,s_length),collapse = ":"))
+
+      query_hits <- blast_table[which(!is.na(match(blast_table[,col.indices[["qseqid"]]],x))),]
+      subject_hits <- blast_table[which(!is.na(match(blast_table[,col.indices[["sseqid"]]],y))),]
+
+      s_align_length <- sum(subject_hits[,col.indices[["send"]]] - subject_hits[,col.indices[["sstart"]]])
+      q_align_length <- sum(query_hits[,col.indices[["qend"]]] - query_hits[,col.indices[["qstart"]]])
+
+      #s_overlaps <- dissolve_GR_Overlaps(subject_result)
+      cov_q <- q_align_length/q_length
+      cov_s <- s_align_length/s_length
+
+      print(paste(paste(x,"(",cov_q,")",sep = ""),paste(y,"(",cov_s,")",sep = ""),sep="->"),)
+      print(paste(x,"[","q_align_len/q_CDS_length:",q_align_length,"/",q_length,"]",sep=""))
+      print(paste(y,"[","s_align_len/s_CDS_length:",s_align_length,"/",s_length,"]",sep=""))
+
+      if(cov_q >= min_coverage_filter && cov_s >= min_coverage_filter){
+        return(data.frame(query=x,subject=y))
+      }
   })
 }
 
@@ -755,14 +793,18 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
     return(odb_map[grep(pattern=gene,x = odb_map$genes,ignore.case = T), c("cluster")])
   })))
 
+  if(length(available_clusters)==0){
+    available_clusters <- "ungrouped"
+  }
+
   if(length(dir(params_list$GROUPS_PATH)==0)){
     group_FASTA_clusters(params_list$FASTA_OUT_PATH)
   }
 
   ##Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
   #all2allblast and then wisard and then RBH for grouping ungrouped clusters
-  all2all_BLAST(first_list = "ungrouped", second_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T),blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir =all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PATH, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #paste(params_list$TEMP_PATH,"/","all2all/",sep="")
-  all2all_BLAST(first_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T), second_list = "ungrouped",blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PAT, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #paste(params_list$TEMP_PATH,"/","all2all/",sep="")
+  all2all_BLAST(first_list = "ungrouped", second_list = available_clusters,blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir =all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PATH, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #second_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T)
+  all2all_BLAST(first_list = available_clusters, second_list = "ungrouped",blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PAT, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #first_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T)
 
   mclapply(list.files(path = all2all_out,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
     out_file <- paste(all2all_out,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
@@ -780,9 +822,12 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
   #save("wisard_results", file="files/all2all/wisard_results.RData")
   #load("files/all2all/wisard_results.RData")
 
+   unique_lengths <- unique(all_gtf_stats[,c("transcript_id","total_cds_len")])
+   tx_CDS_lengths <- data.frame(length=unique_lengths$total_cds_len, row.names = unique_lengths$transcript_id)
+
    ##RUN RBH
    lapply("ungrouped", function(query){
-     mclapply(grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T),function(subject){
+     mclapply(available_clusters,function(subject){ #grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T)
        in1 <- paste(all2all_out,query,"-",subject,".wis_out",sep="")
        in2 <- paste(all2all_out,subject,"-",query,".wis_out",sep="")
        if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
@@ -790,6 +835,10 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
          RBH_out <- RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=c(22,8) ), unique.hit.weights = T, process.weights.func = max)
          out1 <- paste(all2all_out,query,"-",subject,".rbh_out",sep="")
          out2 <- paste(all2all_out,subject,"-",query,".rbh_out",sep="")
+
+         calculate_HSP_coverage(RBH_out$in1,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
+         calculate_HSP_coverage(RBH_out$in2,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
+
          write.table(x = RBH_out$in1,file = out1,quote = F,col.names = T,row.names = F)
          write.table(x = RBH_out$in2,file = out2,quote = F,col.names = T,row.names = F)
        }

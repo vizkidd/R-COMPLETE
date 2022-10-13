@@ -507,16 +507,17 @@ function index_genome(){
 
 function group_FASTA_clusters(){
 	local script_args=($(echo $@))
-	local FASTA_PATH=$(realpath ${script_args[0]}) #$1
-	local GROUPS_PATH=$(realpath ${script_args[1]}) #$2
-	local seqID_delimiter=${script_args[2]} #$3
-	local n_threads=${script_args[3]} #$4
-	local OUT_PATH=${script_args[4]} #$5
+	local PARALLEL_PATH=$(realpath ${script_args[0]}) 
+	local FASTA_PATH=$(realpath ${script_args[1]}) 
+	local GROUPS_PATH=$(realpath ${script_args[2]}) 
+	local seqID_delimiter=${script_args[3]} 
+	local n_threads=${script_args[4]} 
+	local OUT_PATH=${script_args[5]} 
 
 	for f_org in $FASTA_PATH/*; do 
 	f_org_name=$(basename $f_org)
 		grep -r -h ">" $f_org  | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS
-		parallel --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1} {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
+		$PARALLEL_PATH --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1} {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
 	done
 }
 
@@ -957,14 +958,15 @@ function extract_genomic_regions(){
 
 	time Rscript --vanilla --verbose $(echo $(dirname $0))/extract_gtf_info.R $TEMP_PATH/$f_org_name/ $f_org_name $OUT_PATH/genes/$f_org_name/gtf_stats.csv $param_file #1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
 	r_exit_code="$?"
-	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/final.list
 
-	if [[ ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || ! -s $OUT_PATH/genes/$f_org_name/final.list || $r_exit_code != 0 ]] ; then
+	if [[ ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || $r_exit_code != 0 ]] ; then #|| ! -s $OUT_PATH/genes/$f_org_name/final.list
 	  >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed... Possibly no genes were found. Check if GTF file has gene_name attribute"
 	  #>&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
 	  >&2 color_FG_Bold $Red "3. (Possible Fix) : Remove $TEMP_PATH/$f_org_name/ & $OUT_PATH/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
 	  exit 255
 	fi
+
+	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/final.list
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/gtf_stats.csv")

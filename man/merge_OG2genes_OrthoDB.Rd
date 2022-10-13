@@ -8,7 +8,7 @@ merge_OG2genes_OrthoDB(
   odb_prefix,
   quick.check = T,
   n_threads = tryCatch(parallel::detectCores(all.tests = T, logical = T), error =
-    function() {
+    function(cond) {
      return(2)
  }),
   gene_list

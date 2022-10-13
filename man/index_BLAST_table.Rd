@@ -23,7 +23,13 @@ Convert longer FASTA IDs into short indices. BLAST table IDs need to be short fo
 WARNING : Do not index it more than once (although you may do index it as much as you like)
 }
 \examples{
-in1_data <- index_BLAST_table(in1_data,1,offset = 0)
-in1_data <- index_BLAST_table(in1_data,2,offset = nrow(in1_data))
+ #Indexing columns 1 & 2
+in1_data <- index_BLAST_table(in1_data,2,offset = 0)
+in1_data <- index_BLAST_table(in1_data,1,offset = length(levels(factor( in1_data[,1] ))))
+#TO INDEX TWO TABLES
+in1_data <- index_BLAST_table(in1_data,2,offset = 0)
+in1_data <- index_BLAST_table(in1_data,1,offset = length(levels(factor( in2_data[,1] ))) + length(levels(factor( in1_data[,2] ))))
+in2_data <- index_BLAST_table(in2_data,2,offset = length(levels(factor( in1_data[,1] ))) + length(levels(factor( in2_data[,2] ))))
+in2_data <- index_BLAST_table(in2_data,1,offset = length(levels(factor( in2_data[,1] ))) + length(levels(factor( in1_data[,2] ))))
 
 }

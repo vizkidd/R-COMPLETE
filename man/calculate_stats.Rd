@@ -8,7 +8,7 @@ calculate_stats(
   gtf_data,
   allow_strand = "",
   n_threads = tryCatch(parallel::detectCores(all.tests = T, logical = T), error =
-    function() {
+    function(cond) {
      return(2)
  })
 )
@@ -16,7 +16,7 @@ calculate_stats(
 \arguments{
 \item{gtf_data}{GTF data obtained from biomaRt for an organism}
 
-\item{allow_strand}{Only allow the specified strand. ("+","-",Default - ""/" ")}
+\item{allow_strand}{Only allow the specified strand. ("+","-",Default - "" (or) " " (or) "*")}
 
 \item{n_threads}{Number of Threads}
 }
