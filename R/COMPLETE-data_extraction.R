@@ -1144,22 +1144,24 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
 group_FASTA_clusters <- function(params_list){
 
   #processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_clusters",COMPLETE$parallel,fasta_path,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH ) ,spinner = T,stdout = "",stderr = "")
+  tictoc::tic(msg = paste("Grouping & Indexing FASTA ..."))
   fasta_files <- list.files(path = params_list$FASTA_OUT_PATH,all.files = T,full.names = T,recursive = T,include.dirs = F)
-
-  parallel::mclapply(fasta_files, function(x){
+  invisible( parallel::mclapply(fasta_files, function(x){
     fasta_recs <- Biostrings::readDNAStringSet(filepath = x,use.names = T, format = "fasta")
+    print(names(fasta_recs)) #DEBUG
     org_name <- unique(stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,2] )
-    all_clusters <- unique(unlist(lapply(fasta_recs, function(each_rec){
-      split_rec <- stringi::stri_split(str = names(each_rec), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
+    print(org_name) #DEBUG
+    all_clusters <- unique(unlist(purrr::map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
+      split_rec <- stringi::stri_split(str = rec_name, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
       rec_clusters <- unique(stringi::stri_split(str = split_rec[,ncol(split_rec)], fixed = ",", simplify=T))
       lapply(rec_clusters, function(each_cluster){
-        Biostrings::writeXStringSet(x = each_rec,filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
+        Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
       })
       return(rec_clusters)
     })))
     write.table(x = all_clusters,file = paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS",sep=""),quote = F,row.names = F,col.names = F)
-  })
-
+  }) )
+  cat(print_toc(tictoc::toc(quiet = T)))
 }
 
 #' Internal Function - Merge and Format OrthoDB Flat Files
@@ -1174,12 +1176,15 @@ group_FASTA_clusters <- function(params_list){
 #' @param gene_list File name of gene list
 #' @return TRUE if output files exist, FALSE otherwise
 merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
+  tictoc::tic(msg = paste("Transforming ODB Files..."))
   if(!quick.check){
    processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "",stderr = "")
   }
   if( (file.exists(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep=""))$size > 0) || (file.exists(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))&& file.info(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))$size > 0) ){
+    cat(print_toc(tictoc::toc(quiet = T)))
     return(TRUE)
   }else{
+    cat(print_toc(tictoc::toc(quiet = T)))
     return(FALSE)
   }
 
@@ -1291,8 +1296,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     gene_list <- tmp_gene_list
   }
 
-  cat("Transforming ODB Files...\n")
-
   if(!merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
     merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
   }
@@ -1338,24 +1341,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       ) } ) )
   }
 
-  # print(process_list)
-  # for(proc in process_list){
-  #   if(proc$is_alive()){
-  #     print(proc$get_status())
-  #     if(ps_is_running(proc$as_ps_handle())){
-  #       ## if SIGCHLD is overwritten the process is lost, so we try to get pid and check if the process is running
-  #       proc$wait(timeout = -1)
-  #     }else{
-  #       print(proc$print())
-  #       print(proc$get_status())
-  #       proc$interrupt()
-  #     }
-  #   }
-  #   #print(proc$get_exit_status())
-  # }
-
-  #save("process_list", file="process_list.RData")
-
   try(parallel::mclapply(COMPLETE$process_list, function(x){
     if(!is.null(x) && x$is_alive()){
       x$wait(timeout=-1)
@@ -1363,10 +1348,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   }, mc.cores =  loaded_PARAMS$numWorkers))
 
   cat(print_toc(tictoc::toc(quiet = T, log = T)))
-
- # save("saved_meta", file="saved_meta.RData")
-  ##saved_meta[sapply(saved_meta, is.null)] <- NULL
-  #saved_meta <- purrr::reduce(saved_meta,dplyr::bind_rows)
 
   write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
   write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
@@ -1383,21 +1364,19 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     }
   })
 
-  print("Grouping & Indexing FASTA ...")
-
-  #processx::run( command = COMPLETE$SHELL ,args=c("-c", paste("'source",system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"&&","group_FASTA_clusters",loaded_PARAMS$FASTA_OUT_PATH,loaded_PARAMS$GROUPS_PATH,loaded_PARAMS$SEQUENCE_ID_DELIM,loaded_PARAMS$numWorkers,"'",sep=" ") ) ,spinner = T)
+  #GROUPING FASTA SEQUENCES INTO ORTHOLOGOUS CLUSTERS
   if(!COMPLETE$SKIP_USER_DATA){
     group_FASTA_clusters(loaded_PARAMS)
+    all_clusters_list <- parallel::mclapply(list.files(path = paste(loaded_PARAMS$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
+      if(file.exists(paste(x,"/ORG_CLUSTERS",sep="")) && file.info(paste(x,"/ORG_CLUSTERS",sep=""))$size > 0 ){
+        return(scan(paste(x,"/ORG_CLUSTERS",sep=""), character(), quiet = T))
+      }
+    }, mc.cores =  loaded_PARAMS$numWorkers)
+    all_clusters <- purrr::reduce(all_clusters_list, unique)
+    write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_CLUSTERS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-")
   }
 
-  #SKIPPING THIS BECAUSE NOW I INDEX FASTA IN R
-  ##ID Alignments - GENERATE numeric ids for FASTA IDS (because they are long and downstream analysis have difficulty taking long names)
-  #Only indexing the IDs for now because find_orthologs.sh depends on the long FASTA IDs and cannot be shorted until orthologous transcripts are obtained
-  #!!!!!!!#CHANGE FASTA IDs to numeric IDs (because some programs dont work well with long FASTA IDs) ONLY BEFORE ALIGNMENT!!!!!!!!
-  #processx::run( command = COMPLETE$SHELL ,args=c("-c", paste("'source",system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"&&","index_fastaIDs","files/rna_ids.txt",loaded_PARAMS$FASTA_OUT_PATH,"'",sep=" ") ) ,spinner = T)
-  #index_FASTA_IDs(path = loaded_PARAMS$FASTA_OUT_PATH,index_out = paste(loaded_PARAMS$OUT_PATH,"/rna_ids.txt",sep=""))
-
-  print("Coercing metdata from available organisms ...")
+  tictoc::tic(msg= "Coercing metdata from available organisms ...")
 
   missing_genes_list <- parallel::mclapply(list.files(path = paste(loaded_PARAMS$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
     if(file.exists(paste(x,"/MISSING_GENES",sep="")) && file.info(paste(x,"/MISSING_GENES",sep=""))$size > 0 ){
@@ -1428,15 +1407,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   #}
   selected_orgs <-  factor(scan( paste(loaded_PARAMS$OUT_PATH,"/selected_ORGS.txt",sep=""), character(), quiet = T))
 
-  all_clusters_list <- parallel::mclapply(list.files(path = paste(loaded_PARAMS$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
-    if(file.exists(paste(x,"/ORG_CLUSTERS",sep="")) && file.info(paste(x,"/ORG_CLUSTERS",sep=""))$size > 0 ){
-      return(scan(paste(x,"/ORG_CLUSTERS",sep=""), character(), quiet = T))
-    }
-  }, mc.cores =  loaded_PARAMS$numWorkers)
-
-  all_clusters <- purrr::reduce(all_clusters_list, unique)
-  write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_CLUSTERS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-")
-
   all_gtf_stats <- dplyr::bind_rows(parallel::mclapply(list.files(path = paste(loaded_PARAMS$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
     if(file.exists(paste(x,"/gtf_stats.csv",sep="")) && file.info(paste(x,"/gtf_stats.csv",sep=""))$size > 0 ){
       tmp_tab <- read.table(file = paste(x,"/gtf_stats.csv",sep=""),header = T,sep = ",",fill = T,na.strings = "",as.is = T, colClasses = "character") #unique
@@ -1456,9 +1426,13 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   # rm $TEMP_PATH/*
   # Rscript gene_stats.R >> files/stats.txt
 
+  cat(print_toc(tictoc::toc(quiet = T, log = T)))
+
+  #tictoc::tic.clearlog()
+  cat(paste("Extraction Time Log:\n"))
   cat(paste(tictoc::tic.log(),collapse = "\n"))
 
-  sessionInfo()
+  #sessionInfo()
 }
 
 #' Design of R-COMPLETE

@@ -505,21 +505,21 @@ function index_genome(){
 	#fi
 }
 
-function group_FASTA_clusters(){
-	local script_args=($(echo $@))
-	local PARALLEL_PATH=$(realpath ${script_args[0]}) 
-	local FASTA_PATH=$(realpath ${script_args[1]}) 
-	local GROUPS_PATH=$(realpath ${script_args[2]}) 
-	local seqID_delimiter=${script_args[3]} 
-	local n_threads=${script_args[4]} 
-	local OUT_PATH=${script_args[5]} 
+# function group_FASTA_clusters(){
+# 	local script_args=($(echo $@))
+# 	local PARALLEL_PATH=$(realpath ${script_args[0]}) 
+# 	local FASTA_PATH=$(realpath ${script_args[1]}) 
+# 	local GROUPS_PATH=$(realpath ${script_args[2]}) 
+# 	local seqID_delimiter=${script_args[3]} 
+# 	local n_threads=${script_args[4]} 
+# 	local OUT_PATH=${script_args[5]} 
 
-	for f_org in $FASTA_PATH/*; do 
-	f_org_name=$(basename $f_org)
-		grep -r -h ">" $f_org  | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS
-		$PARALLEL_PATH --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1} {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
-	done
-}
+# 	for f_org in $FASTA_PATH/*; do 
+# 	f_org_name=$(basename $f_org)
+# 		grep -r -h ">" $f_org  | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS
+# 		$PARALLEL_PATH --max-procs $n_threads " printf '%s\t%s\n' {1} {2}" :::: <(grep -H -f $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS -r $FASTA_PATH/$f_org_name/ | awk -F'[:>]' -v s_delim="$seqID_delimiter" '{split($2,a,s_delim); n=split($1,b,"."); print $1"\t"$2"\t"a[5]"\t"b[n]'}) | parallel  --max-procs 1 --colsep '\t' --recend '\n'  "if [[ -s {1} && ! -z {2} && ! -z {1} && ! -z {3} ]] ; then samtools faidx {1} {2} >> $GROUPS_PATH/{3}.{4} ; fi" 
+# 	done
+# }
 
 function do_BLAST() {
 	# $1 - Name of the BLAST run
@@ -887,7 +887,7 @@ function extract_genomic_regions(){
 
 	>&1 color_FG $Yellow "Genome : $gfile_name\nAnnotation : $ANNO_FILE"
 
-	if [[ -z $(zgrep -m 1 -hPo 'gene_name "\K[^"]+' $ANNO_FILE) ]] ; then
+	if [[ $(zgrep -m 1 -hPo 'gene_name "\K[^"]+' $ANNO_FILE | awk '{print NR}') == 0 ]] ; then
 		echo $(color_FG_BG_Bold $Red $BG_White "Error : GTF does not contain gene_name attribute") #| tee >(cat >&2)
 		exit 1
 	fi
@@ -1202,7 +1202,7 @@ function install_parallel(){
 export -f install_parallel
 
 ##DATA EXTRACTION FUNCTIONS
-export -f group_FASTA_clusters
+#export -f group_FASTA_clusters
 export -f number_to_fastaID
 export -f fastaID_to_number
 export -f index_fastaIDs
