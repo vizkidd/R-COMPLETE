@@ -16,15 +16,18 @@ calculate_HSP_coverage(
 \arguments{
 \item{blast_table}{BLAST Table with Query->Subject Hits}
 
-\item{transcript_region_lengths}{A data.frame (with one column for regional lengths and BLAST/Transcript IDs/Transcript Names as row.names) or a Named Vector or a Named List.}
+\item{transcript_region_lengths}{A data.frame (with one column for regional lengths and BLAST/Transcript IDs/Transcript Names as row.names) or a Named Vector or a Named List. Assumed to have short IDs}
 
-\item{col.indices}{A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid). Eg col.indices=list(qseqid=1,sseqid=2)}
+\item{col.indices}{A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid). Eg col.indices=list(qseqid=1,sseqid=2,qstart=10,qend=11,sstart=15,send=16)}
 
-\item{min_coverage_filter}{Minimum HSP Coverage value to filter out Hits}
+\item{min_coverage_filter}{Minimum HSP Coverage value to filter out Hits (Default - 0.5)}
 
-\item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, Default - FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN)}
+\item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, Default - FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (ONLY FOR blast_table,transcript_region_lengths are assumed to have short IDs)}
 
 \item{params_list}{Output of load_params()}
+}
+\value{
+BLAST table with Hits which pass min_coverage_filter
 }
 \description{
 This function calculates the coverage of HSPs (sum(HSP Alignment lengths)/mRNA CDS Length) between each Query->Subject Hits. Hits are filtered based on the minimum coverage filter value.

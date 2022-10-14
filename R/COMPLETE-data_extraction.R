@@ -772,10 +772,12 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
           return(NULL)
         }
       }else{
+        cat(print_toc(tictoc::toc(quiet = T, log = T)))
         return(org_row)
       }
 
   }else{
+    message(print_toc(tictoc::toc(quiet = T, log = T)))
     stop(paste("Organism not available :", org,"\n"))
   }
 }
@@ -823,9 +825,10 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     #message(cond)
      #return(
       tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
-      #cat(print_toc(tictoc::toc(quiet = T, log = T)))
+      message(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond)
     }) #)
+    message(print_toc(tictoc::toc(quiet = T, log = T)))
     stop(cond)
   }) )
 
@@ -861,9 +864,10 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     #message(cond)
     #message(print_toc(tictoc::toc(quiet = T, log = T)))
     tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
-      #cat(print_toc(tictoc::toc(quiet = T, log = T)))
+      message(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond)
     })
+    message(print_toc(tictoc::toc(quiet = T, log = T)))
     stop(cond)
   }) )
 
@@ -884,7 +888,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     message(cond)
     ##message(print_toc(tictoc::toc(quiet = T, log = T)))
     tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
-      #cat(print_toc(tictoc::toc(quiet = T, log = T)))
+      cat(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond)
     })
     stop()
@@ -965,9 +969,9 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   }
 
   if(genome == "-" || gtf == "-" || genome == " " || gtf == " " || stringi::stri_isempty(genome) || stringi::stri_isempty(gtf)){
-    return( tryCatch(fetch_FASTA(org_row = c(name=as.character(org),genome="-",gtf="-"), params_list = params_list, gene_list = genes, verbose = F),error=function(cond){
-      message(cond)
-      return(NULL)
+    return( tryCatch(fetch_FASTA(org_row = c(name=as.character(org),genome="-",gtf="-"), params_list = params_list, gene_list = genes, verbose = T),error=function(cond){
+      stop(cond)
+      #return(NULL)
     }) )
     #break;
   }
@@ -1105,6 +1109,8 @@ index_FASTA_IDs <- function(path, index_out){
 #' @param params_list Output of load_params()
 #' @export
 label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list){
+
+  tictoc::tic(msg = "Labelling Sequence IDs...")
   if(!is.null(odb_gene_map)){
     if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
       odb_gene_map <- read.table(file = odb_gene_map,header = F,quote = "",sep = "\t")
@@ -1133,35 +1139,46 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     })
 
   }, mc.cores = params_list$numWorkers,mc.silent = T)
-
+  cat(print_toc(tictoc::toc(quiet = T)))
 }
 
-#' Internal Function - Group FASTA Sequences into Cluster Files
+#' Group FASTA Sequences into Cluster Files
 #'
-#' Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in params_list$GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format
-#@param fasta_path Path with FASTA Files to index
+#' Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in params_list$GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format (?COMPLETE_PIPELINE_DESIGN)
+#'
 #' @param params_list Output of load_params()
+#' @export
 group_FASTA_clusters <- function(params_list){
 
   #processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_clusters",COMPLETE$parallel,fasta_path,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH ) ,spinner = T,stdout = "",stderr = "")
+  unlink(x = params_list$GROUPS_PATH,recursive = T,force = T,expand = T)
+  dir.create(path = params_list$GROUPS_PATH,showWarnings = F,recursive = T)
   tictoc::tic(msg = paste("Grouping & Indexing FASTA ..."))
   fasta_files <- list.files(path = params_list$FASTA_OUT_PATH,all.files = T,full.names = T,recursive = T,include.dirs = F)
-  invisible( parallel::mclapply(fasta_files, function(x){
+   parallel::mclapply(fasta_files, function(x){
     fasta_recs <- Biostrings::readDNAStringSet(filepath = x,use.names = T, format = "fasta")
-    print(names(fasta_recs)) #DEBUG
-    org_name <- unique(stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,2] )
-    print(org_name) #DEBUG
-    all_clusters <- unique(unlist(purrr::map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
-      split_rec <- stringi::stri_split(str = rec_name, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      rec_clusters <- unique(stringi::stri_split(str = split_rec[,ncol(split_rec)], fixed = ",", simplify=T))
-      lapply(rec_clusters, function(each_cluster){
-        Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
-      })
-      return(rec_clusters)
-    })))
-    write.table(x = all_clusters,file = paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS",sep=""),quote = F,row.names = F,col.names = F)
-  }) )
+    #print(names(fasta_recs)) #DEBUG
+    split_recs <- stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
+    if(ncol(split_recs)==4){ ##CHECKING IF FASTA IDs are COMPLETE.format.ids
+      org_name <- unique( split_recs[,2] )
+      #print(org_name) #DEBUG
+      all_clusters <- unique(unlist(purrr::map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
+        split_rec <- stringi::stri_split(str = rec_name, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
+        rec_clusters <- unique(stringi::stri_split(str = split_rec[,ncol(split_rec)], fixed = ",", simplify=T))
+        lapply(rec_clusters, function(each_cluster){
+          #print(paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""))  #DEBUG
+          Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
+        })
+        return(rec_clusters)
+      })))
+      write.table(x = all_clusters,file = paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS",sep=""),quote = F,row.names = F,col.names = F)
+    }else{ #DEBUG
+      print(x) #DEBUG
+    } #DEBUG
+  }, mc.cores = params_list$numWorkers,mc.preschedule = T,mc.silent = T)
   cat(print_toc(tictoc::toc(quiet = T)))
+  message(paste("Ortholog Clusters are stored in :", params_list$GROUPS_PATH))
+  #return(result_codes)
 }
 
 #' Internal Function - Merge and Format OrthoDB Flat Files
@@ -1302,7 +1319,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   cat("Checking and downloading transcripts...\n")
 
-  cat(paste("User Data Logs saved in : ",loaded_PARAMS$TEMP_PATH,"/*.log\n", sep=""))
+  cat(paste("User Data Logs saved in : ",loaded_PARAMS$TEMP_PATH,"/*.log\n\n", sep=""))
   #message(paste("Logs saved in : ",loaded_PARAMS$TEMP_PATH,"/*.log", sep = ""))
 
   saved_meta <- c()
@@ -1314,7 +1331,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       saved_meta <- apply(user_data, MARGIN = 1, function(x){
         #user_proc <- fetch_FASTA_user(x)
         #user_proc$wait()
-        tictoc::tic.clear();
+        #tictoc::tic.clear();
         return( tryCatch({
                           fetch_FASTA_user(data = x,params_list = loaded_PARAMS, gene_list = genes);
                           #cat(paste("DONE :", x["org"],"\n"));
@@ -1347,10 +1364,16 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     }
   }, mc.cores =  loaded_PARAMS$numWorkers))
 
-  cat(print_toc(tictoc::toc(quiet = T, log = T)))
+  cat(print_toc(tictoc::toc(quiet = T)))
 
-  write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
-  write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
+  save(saved_meta, file ="saved_meta.RData")
+
+  #write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
+  #write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
+
+  lapply(saved_meta, function(x){
+    write.table(x = as.data.frame(t(x)),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
+  })
 
   #DELETING EMPTY DIRECTORIES - THESE ORGANISMS COULD NOT BE FETCHED
   lapply(list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=TRUE), function(x) {
@@ -1391,10 +1414,11 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   }, mc.cores =  loaded_PARAMS$numWorkers)
   available_genes <- purrr::reduce(available_genes_list, unique)
 
-  write.table(x = list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=F),file = paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), quote = F, row.names = F,col.names = F)
+  available_orgs <- list.dirs(path= params_list$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt
+  write.table(x = available_orgs ,file = paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), quote = F, row.names = F,col.names = F)
 
-  if(file.exists(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep="")) && file.info(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""))$size > 0){
-    available_orgs <- factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), character(), quiet = T))
+  if(length(available_orgs) > 0){ #file.exists(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep="")) && file.info(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""))$size > 0
+    #available_orgs <- list.dirs(path= params_list$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), character(), quiet = T))
     unavailable_orgs <- all_orgs[which(is.na(match(all_orgs,available_orgs)))]
   }else{
     unavailable_orgs <- all_orgs

@@ -1248,6 +1248,6 @@ export -f color_FG_BG_Bold
 if [ $# -gt 0 ] ; then
 	script_args=($(echo $@))
 	#export -f "${script_args[0]}"
-	"${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" #time
+	time "${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
 	exit 0
 fi

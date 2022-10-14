@@ -568,7 +568,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
 #' @param subject_path Path to Subject FASTA
 #' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
 #' @param blast_out Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object
-#' @param blast_program Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH
+#' @param blast_program Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH.
 #' @param run_name Name of the BLAST run. Only for logging (Optional)
 #' @param blast_options Extra Options to be passed to the BLAST program
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)
@@ -674,16 +674,20 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=NULL,blast_program
   mclapply(first_list, function(first_set){
     mclapply(second_list,function(second_set){
       if(!is.null(input_prefix_path)){
-        first_set <- paste(input_prefix_path,"/",first_set,sep="")
-        second_set <- paste(input_prefix_path,"/",second_set,sep="")
+        #first_set <- paste(input_prefix_path,"/",first_set,sep="")
+        first_set <- list.files(path = input_prefix_path,pattern = first_set, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
+        #second_set <- paste(input_prefix_path,"/",second_set,sep="")
+        second_set <- list.files(path = input_prefix_path,pattern = second_set, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
       }
-      if (file.exists(first_set) && file.exists(second_set) && file.info(first_set)$size > 0 && file.info(second_set)$size > 0) {
-        run_name1 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(first_set)))
-        run_name2 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(second_set)))
-        run_name <- paste( run_name1,run_name2,"all2all" ,sep=".")
-        out_file <- paste( output_dir, run_name,sep="")
-        run_BLAST(query_path = first_set,subject_path = second_set,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list,keep.output.files = keep.output.files)
-      }
+      purrr::map2(first_set[order(first_set)], second_set[order(second_set)], function(x,y){
+        if (file.exists(x) && file.exists(y) && file.info(x)$size > 0 && file.info(y)$size > 0) {
+          run_name1 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(x)))
+          run_name2 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(y)))
+          run_name <- paste( run_name1,run_name2,"all2all" ,sep=".")
+          out_file <- paste( output_dir, run_name,sep="")
+          run_BLAST(query_path = x,subject_path = y,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list,keep.output.files = keep.output.files)
+        }
+      })
     }, mc.cores = floor(sqrt(numWorkers)) )
   }, mc.cores = floor(sqrt(numWorkers)) )
 
@@ -762,88 +766,59 @@ calculate_HSP_coverage <- function(blast_table, transcript_region_lengths,col.in
 #'  * Step 2 - A Per-Gene Conservation Score (GSC) is calculated from the availability of a gene across organisms (literally the count of organisms which have the gene, normalized to 1 relative to other genes). Genes which have GSC score below GENE_DROP_THRESHOLD (parameter) are dropped (GENE_DROP_THRESHOLD=0 does not omit any genes). Sets of organisms are created based on the available genes after GSC filtering. I can suggest reference organisms based on which ones have the maximum number of genes
 #'  * Step 3 - Two way BLAST followed by HSP selection with WISARD and Two way RBH are performed. Only transcripts which are bi-directional best hits are kept for further analysis (RBH from both the directions, not RBH in itself is bi-directionaly from the point of the QUERY, We can also do an RBH from the context of the SUBJECT to verify if it did not pas RBH by chance (even though it is very unlikely))
 #'
-#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list$BLAST_OPTIONS
 #' @param params_list Output of load_params()
-transcript_ortholog_extraction <- function(blast_program, params_list){
-
-  install_parallel()
+#' @param clusters_left Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right)
+#' @param clusters_right Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left)
+#' @param input_dir Give the directory with FASTA files (to BLAST between them using blast_program)
+#' @param output_dir Directory for saving output files (\*.out, \*.all2all, \*.wis_out,\*rbh_out)
+#' @export
+extract_transcript_orthologs <- function(blast_program, params_list, clusters_left, clusters_right, input_dir,output_dir){
 
   blast_options <- params_list$BLAST_OPTIONS
   blast_DB_dir <- params_list$BLAST_DB_PATH
-  REF_ORGS <- factor(scan(params_list$REF_ORGS_FILE, character(), quiet = T))
-  all2all_out <- paste(loaded_PARAMS$OUT_PATH,"/all2all/",sep = "")
 
-  #STEP 1
-  #select genes which are available in all the reference organisms
-  available_genes_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
-    if(file.exists(paste(x,"/AVAILABLE_GENES",sep="")) && file.info(paste(x,"/AVAILABLE_GENES",sep=""))$size > 0 ){
-      return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character()))
-    }
-  }, mc.cores =  params_list$numWorkers)
-  available_genes <- unique(purrr::reduce(available_genes_list, union))
+    all2all_BLAST(first_list = clusters_left, second_list = clusters_right,blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir =output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+    all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
 
-  #find which clusters they belong to
-  odb_map_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
-    if(file.exists(paste(x,"/odb.final_map",sep="")) && file.info(paste(x,"/odb.final_map",sep=""))$size > 0 ){
-      return(read.table(paste(x,"/odb.final_map",sep=""),header = F,sep = "\t",quote = "", col.names = c("cluster","genes")))
-    }
-  }, mc.cores =  params_list$numWorkers)
-  odb_map <- unique(purrr::reduce(odb_map_list, inner_join, by = c("cluster","genes")))
-  available_clusters <- unique(BiocGenerics::unlist(lapply(available_genes, function(gene){
-    return(odb_map[grep(pattern=gene,x = odb_map$genes,ignore.case = T), c("cluster")])
-  })))
+    mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
+      out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
+      convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+    }, mc.cores = params_list$numWorkers )
 
-  if(length(available_clusters)==0){
-    available_clusters <- "ungrouped"
-  }
+    mclapply(list.files(path = output_dir,pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
+      out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".wis_out",sep="")
+      blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list = params_list)
+      wis_GO <- run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",COMPLETE.format.ids = T, params_list = params_list) #score_col=16
+      wis_GO <- melt_wisard_list(wis_GO)
+      write.table(x = wis_GO,file = out_file,quote = F,col.names = T,row.names = F)
+    }, mc.cores = params_list$numWorkers )
 
-  if(length(dir(params_list$GROUPS_PATH)==0)){
-    group_FASTA_clusters(params_list$FASTA_OUT_PATH)
-  }
+    #save("wisard_results", file="files/all2all/wisard_results.RData")
+    #load("files/all2all/wisard_results.RData")
 
-  ##Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
-  #all2allblast and then wisard and then RBH for grouping ungrouped clusters
-  all2all_BLAST(first_list = "ungrouped", second_list = available_clusters,blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir =all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PATH, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #second_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T)
-  all2all_BLAST(first_list = available_clusters, second_list = "ungrouped",blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = all2all_out,blast_options = blast_options,input_prefix_path = params_list$GROUPS_PAT, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #first_list = grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T)
+    unique_lengths <- unique(all_gtf_stats[,c("transcript_id","total_cds_len")])
+    tx_CDS_lengths <- data.frame(length=unique_lengths$total_cds_len, row.names = unique_lengths$transcript_id)
 
-  mclapply(list.files(path = all2all_out,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
-    out_file <- paste(all2all_out,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
-    convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
-  }, mc.cores = params_list$numWorkers )
-
-   mclapply(list.files(path = all2all_out,pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
-    out_file <- paste(all2all_out,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".wis_out",sep="")
-    blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list = params_list)
-    wis_GO <- run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",COMPLETE.format.ids = T, params_list = params_list) #score_col=16
-    wis_GO <- melt_wisard_list(wis_GO)
-    write.table(x = wis_GO,file = out_file,quote = F,col.names = T,row.names = F)
-  }, mc.cores = params_list$numWorkers )
-
-  #save("wisard_results", file="files/all2all/wisard_results.RData")
-  #load("files/all2all/wisard_results.RData")
-
-   unique_lengths <- unique(all_gtf_stats[,c("transcript_id","total_cds_len")])
-   tx_CDS_lengths <- data.frame(length=unique_lengths$total_cds_len, row.names = unique_lengths$transcript_id)
-
-   ##RUN RBH
-   lapply("ungrouped", function(query){
-     mclapply(available_clusters,function(subject){ #grep("ungrouped",available_clusters,ignore.case = T,invert = T,value=T)
-       in1 <- paste(all2all_out,query,"-",subject,".wis_out",sep="")
-       in2 <- paste(all2all_out,subject,"-",query,".wis_out",sep="")
-       if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
+    ##RUN RBH
+    lapply(clusters_left, function(query){
+      mclapply(clusters_right,function(subject){ #grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+        in1 <- paste(output_dir,query,"-",subject,".wis_out",sep="")
+        in2 <- paste(output_dir,subject,"-",query,".wis_out",sep="")
+        if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
           #RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
-         RBH_out <- RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=c(22,8) ), unique.hit.weights = T, process.weights.func = max)
-         out1 <- paste(all2all_out,query,"-",subject,".rbh_out",sep="")
-         out2 <- paste(all2all_out,subject,"-",query,".rbh_out",sep="")
+          RBH_out <- RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=c(22,8) ), unique.hit.weights = T, process.weights.func = max)
+          out1 <- paste(output_dir,query,"-",subject,".rbh_out",sep="")
+          out2 <- paste(output_dir,subject,"-",query,".rbh_out",sep="")
 
-         calculate_HSP_coverage(RBH_out$in1,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
-         calculate_HSP_coverage(RBH_out$in2,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
+          calculate_HSP_coverage(RBH_out$in1,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
+          calculate_HSP_coverage(RBH_out$in2,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
 
-         write.table(x = RBH_out$in1,file = out1,quote = F,col.names = T,row.names = F)
-         write.table(x = RBH_out$in2,file = out2,quote = F,col.names = T,row.names = F)
-       }
-     }, mc.cores =numWorkers )
-   })
+          write.table(x = RBH_out$in1,file = out1,quote = F,col.names = T,row.names = F)
+          write.table(x = RBH_out$in2,file = out2,quote = F,col.names = T,row.names = F)
+        }
+      }, mc.cores = params_list$numWorkers )
+    })
 
   #calculate gene conservation - calculate_gene_conservation.R - probably not needed
    ##Maybe write one for cluster conservation/coverage across organisms
@@ -874,14 +849,15 @@ transcript_ortholog_extraction <- function(blast_program, params_list){
 #'
 #' This function can be executed after COMPLETE::EXTRACT_DATA() and is the continuation of R-COMPLETE pipeline
 #'
-#' This is the main function which calls all the other functions and performs and end-end execution of finding transcript level orthologs. It runs the iterative Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes, reduce the pool of organisms, find transcript level orthologs (check ?transcript_ortholog_extraction)
+#' This is the main function which calls all the other functions and performs and end-end execution of finding transcript level orthologs. It runs the iterative Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes, reduce the pool of organisms, find transcript level orthologs (check ?extract_transcript_orthologs)
 #'
 #' @note ONLY USE THIS FUNCTION WHEN RUNNING THE PIPELINE OF R-COMPLETE. Use other helper function to work with custom BLAST files not generated by this R package
 #'
 #' @param param_file Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from param_file
 #' @param gene_list Vector or File with a list of genes to extract data for(check the github repo for an example).
 #' @export
-FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
+FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, blast_program, gene_list){
   set.seed(123)
 
   if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
@@ -902,23 +878,73 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, gene_list){
   #loaded_PARAMS$genes <- factor(scan(gene_list, character())) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
   #loaded_PARAMS$genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
 
+  all2all_out <- paste(loaded_PARAMS$OUT_PATH,"/all2all/",sep = "")
+  all2allfinal_out <- paste(loaded_PARAMS$OUT_PATH,"/all2all_final/",sep = "")
+
   print(paste("MAX PROCESSES:",loaded_PARAMS$numWorkers))
 
-  if(CLEAN_EXTRACT){
-    unlink(paste(loaded_PARAMS$OUT_PATH,"/oneway",sep = ""), recursive = T,force = T,expand = T)
-    unlink(paste(loaded_PARAMS$OUT_PATH,"/all2all", sep=""), recursive = T,force = T,expand = T)
-    unlink(paste(loaded_PARAMS$OUT_PATH,"/all2all_final", sep = ""), recursive = T,force = T,expand = T)
+  if(loaded_PARAMS$CLEAN_EXTRACT){
+    #unlink(paste(loaded_PARAMS$OUT_PATH,"/oneway",sep = ""), recursive = T,force = T,expand = T)
+    unlink(all2all_out, recursive = T,force = T,expand = T)
+    unlink(all2allfinal_out, recursive = T,force = T,expand = T)
     unlink(paste(loaded_PARAMS$OUT_PATH,"/gene_thresholds.txt",sep=""), recursive = T,force = T,expand = T)
   }
 
-  dir.create(paste(loaded_PARAMS$OUT_PATH,"/oneway",sep = ""),showWarnings = F, recursive = T)
-  dir.create(paste(loaded_PARAMS$OUT_PATH,"/all2all",sep = ""),showWarnings = F, recursive = T)
-  dir.create(paste(loaded_PARAMS$OUT_PATH,"/all2all_final",sep = ""),showWarnings = F, recursive = T)
+  #dir.create(paste(loaded_PARAMS$OUT_PATH,"/oneway",sep = ""),showWarnings = F, recursive = T)
+  dir.create(all2all_out,showWarnings = F, recursive = T)
+  dir.create(all2allfinal_out,showWarnings = F, recursive = T)
 
-  if (!stringi::stri_isempty(blast_program)) {
-    transcript_ortholog_extraction(blast_program = Sys.which("tblastx"), params_list = loaded_PARAMS)
+  if (file.exists(blast_program)) {
+
+    install_parallel()
+
+    REF_ORGS <- factor(scan(params_list$REF_ORGS_FILE, character(), quiet = T))
+
+    available_genes_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
+      if(file.exists(paste(x,"/AVAILABLE_GENES",sep="")) && file.info(paste(x,"/AVAILABLE_GENES",sep=""))$size > 0 ){
+        return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character()))
+      }
+    }, mc.cores =  params_list$numWorkers)
+    available_genes <- unique(purrr::reduce(available_genes_list, union))
+
+    #find which clusters they belong to
+    odb_map_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
+      if(file.exists(paste(x,"/odb.final_map",sep="")) && file.info(paste(x,"/odb.final_map",sep=""))$size > 0 ){
+        return(read.table(paste(x,"/odb.final_map",sep=""),header = F,sep = "\t",quote = "", col.names = c("cluster","genes")))
+      }
+    }, mc.cores =  params_list$numWorkers)
+    odb_map <- unique(purrr::reduce(odb_map_list, inner_join, by = c("cluster","genes")))
+    available_clusters <- unique(BiocGenerics::unlist(lapply(available_genes, function(gene){
+      return(odb_map[grep(pattern=gene,x = odb_map$genes,ignore.case = T), c("cluster")])
+    })))
+
+    if(length(available_clusters)==0){
+      #available_clusters <- "ungrouped"
+      stop("No clusters were found!")
+    }
+
+    if(length(dir(params_list$GROUPS_PATH)==0)){
+      group_FASTA_clusters(params_list)
+    }
+
+    #STEP 1 - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
+    #all2allblast and then wisard and then RBH for grouping ungrouped clusters
+    if(any(grepl(pattern = "ungrouped",x = available_clusters,ignore.case = T))){
+      tictoc::tic(msg = "Placing ungrouped sequences into groups...")
+      extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = "ungrouped",clusters_right = available_clusters,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out)
+      cat(print_toc(tictoc::toc(quiet = T)))
+    }
+
+    #STEP 2 - Select transcript level orthologs with minimum coverage between clusters
+    tictoc::tic(msg = "Extracting Transcript Orthologs...")
+    lapply(available_clusters, function(x){
+      extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = x,clusters_right = x,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out)
+    })
+    cat(print_toc(tictoc::toc(quiet = T)))
+
+
   }else{
-    stop(paste(blast_program," NOT found. Is BLAST+ installed or in $PATH?"))
+    stop(paste(blast_program," NOT found."))
   }
 
 

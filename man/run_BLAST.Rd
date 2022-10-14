@@ -26,7 +26,7 @@ run_BLAST(
 
 \item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object}
 
-\item{blast_program}{Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH}
+\item{blast_program}{Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH.}
 
 \item{run_name}{Name of the BLAST run. Only for logging (Optional)}
 
