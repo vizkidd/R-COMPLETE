@@ -107,7 +107,7 @@ index_BLAST_table <- function(blast_table, index_col, offset=0){
 #' @export
 deindex_BLAST_table <- function(blast_table, index_col){
   old_name = colnames(blast_table)[index_col]
-  new_name = stringi::stri_split_fixed(old_name, pattern = "_", n=2,simplify = T)[2]
+  new_name = stringi::stri_split_fixed(old_name, pattern = "_", n=2,simplify = T)[,2]
 
   blast_table[,old_name] <- blast_table[,new_name]
   blast_table[,new_name] <- NULL
@@ -136,7 +136,7 @@ deindex_BLAST_table <- function(blast_table, index_col){
 GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL){
 
   if(!is.null(blast_input) && is.character(blast_input)){
-    blast_input <- LoadBLASTHits(blast_input,col.names = col.names)
+    blast_input <- LoadBLASTHits(blast_input)
   }
 
   # if(!is.null(col.names)){
@@ -153,15 +153,17 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   }
 
   if(COMPLETE.format.ids && !is.null(params_list)){
-    blast_input$subject_gene <- unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
-      genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
-      return(genes[2])
-    }))
+    blast_input <- blast_input %>% mutate(subject_gene=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
+      #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
+      genes <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
+      return(genes[,COMPLETE$ID_FORMAT_INDEX$GENE])
+    })) )
 
-    blast_input$query_gene <- unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
-      genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
-      return(genes[2])
-    }))
+    blast_input <- blast_input %>% mutate(query_gene=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
+      #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
+      genes <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
+      return(genes[,COMPLETE$ID_FORMAT_INDEX$GENE])
+    })) )
 
     blast_input <- blast_input[which(blast_input[,col.indices[["evalue"]]] < params_list$E_VALUE_THRESH),]
 
@@ -221,12 +223,14 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   })) )
   if(COMPLETE.format.ids && !is.null(params_list)){
     tmp_df <- mutate(tmp_df, query_org = unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
-      org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
-      return(org[3])
+      #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
+      org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
+      return(org[,COMPLETE$ID_FORMAT_INDEX$ORG])
     })) )
     tmp_df <- mutate(tmp_df, subject_org = unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
-      org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
-      return(org[3])
+      #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
+      org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
+      return(org[,COMPLETE$ID_FORMAT_INDEX$ORG])
     })) )
   }else{
     warning("Parameter file not loaded with load_params & COMPLETE.format.ids==FALSE")
@@ -236,7 +240,8 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   #gr$Hsp_positive <-
   tmp_df <- mutate(tmp_df, Hsp_gaps = blast_input[,col.indices[["gaps"]]])
   tmp_df <- mutate(tmp_df, Hsp_align.len =  blast_input[,col.indices[["length"]]])
-  if(COMPLETE.format.ids){
+  #print(head(blast_input)) #DEBUG
+  if(COMPLETE.format.ids  && !is.null(params_list)){
     tmp_df <- mutate(tmp_df, subject_gene =  blast_input[,c("subject_gene")])
     tmp_df <- mutate(tmp_df, query_gene =  blast_input[,c("query_gene")])
   }
@@ -297,16 +302,16 @@ run_WISARD <- function(blast_hits, score_col, COMPLETE.format.ids=F,params_list=
   all_results <- list()
   if(COMPLETE.format.ids && !is.null(params_list)){
     for(child in child_results) {
-      #print(child)
+      print(child)
       g_name <- NULL
-      g_name <- unique(unlist(stri_split_fixed(child$alignments$subject_gene,pattern=params_list$SEQUENCE_ID_DELIM,n = 1,tokens_only = T)))
-      # print(g_name)
+      g_name <- unique(unlist(stringi::stri_split_fixed(child$alignments$subject_gene,pattern=params_list$SEQUENCE_ID_DELIM,n = 1,tokens_only = T)))
+      print(g_name)
       #all_results<- c(all_results, child)
       if(!is.null(g_name)){
-        if(is.null(all_results)){
+        if(is.null(all_results) || length(all_results)==0){
           all_results[[g_name]] <- child
         }else{
-          all_results[[g_name]] <- merge_wis(all_results[[g_name]], child)
+          all_results[[g_name]] <- merge_wisard_lists(all_results[[g_name]], child)
         }
         # names(all_results[[g_name]]) <- g_name
       }
@@ -380,8 +385,8 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   dir.create(identities_out_path,showWarnings = F,recursive = T)
   dir.create(oinfo_out_path)
 
-  blast_table <-  mutate(blast_table,from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[3])})))
-  blast_table <-  mutate(blast_table,to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[3])})))
+  blast_table <- blast_table %>% mutate(from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE$ID_FORMAT_INDEX$ORG])})))
+  blast_table <- blast_table %>% mutate(to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE$ID_FORMAT_INDEX$ORG])})))
 
   blast_table[,1] <- factor(blast_table[,1])
   blast_table[,2] <- factor(blast_table[,2])
@@ -566,7 +571,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
 #'
 #' @param query_path Path to Query FASTA
 #' @param subject_path Path to Subject FASTA
-#' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
+#' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed. Default is tempdir(). Can also be NULL
 #' @param blast_out Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object
 #' @param blast_program Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH.
 #' @param run_name Name of the BLAST run. Only for logging (Optional)
@@ -574,9 +579,10 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)
 #' @param params_list Output from load_params() (Optional)
 #' @param keep.output.files TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)
+#' @param verbose Print DEBUG Messages?
 #' @return BLAST Hits as GRanges Object
 #' @export
-run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, blast_program=COMPLETE$BLAST_BIN, run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, keep.output.files=T){
+run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_out, blast_program=COMPLETE$BLAST_BIN, run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, keep.output.files=T, verbose=T){
 
   tryCatch({
   if (stringi::stri_isempty(COMPLETE$parallel)) {
@@ -589,18 +595,21 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, b
       BLAST_BIN <- dirname(blast_program)
     }
 
-  subject_path <- tools::file_path_as_absolute(subject_path)
+  #subject_path <- tools::file_path_as_absolute(subject_path)
   if (!is.null(blast_DB_dir)) {
     dir.create(blast_DB_dir,showWarnings = F,recursive = T)
     #query_DB <- tools::file_path_as_absolute(paste(blast_DB_dir,"/",basename(query_path),sep=""))
-    subject_DB <- tools::file_path_as_absolute(paste(blast_DB_dir,"/",basename(subject_path),sep=""))
+    subject_DB <- paste(blast_DB_dir,"/",basename(subject_path),sep="") #tools::file_path_as_absolute()
     #if(!stringi::stri_cmp_eq(query_path,query_DB)){
     #  file.copy(query_path,query_DB,overwrite = T)
     #}
-    if(!stringi::stri_cmp_eq(subject_path,subject_DB)){
-      file.copy(subject_path,subject_DB,overwrite = T)
-    }
+    #if(!stringi::stri_cmp_eq(subject_path,subject_DB)){
+      tryCatch(file.copy(subject_path,subject_DB,overwrite = T), error=function(cond){stop(cond)})
+    #}
     #query_path <- query_DB
+    if(verbose){
+      print(subject_DB)
+    }
     subject_path <- subject_DB
   }
 
@@ -614,6 +623,12 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, b
   final_blast_out <- blast_out
   blast_out <- paste(tools::file_path_sans_ext(blast_out),".blast11",sep="")
 
+  if(verbose){
+    print(query_path)
+    print(subject_path)
+    print(blast_out)
+  }
+
   #MAKE BLAST DB of FASTA files
   #Only subject fasta files needs to be a BLAST DB
   #processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_db",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
@@ -621,8 +636,14 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, b
 
   processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"do_BLAST",COMPLETE$parallel,run_name,query_path,subject_path,blast_out,blast_program,blast_options) ,spinner = T,stdout = "",stderr = "")
 
+  message(paste("Converting",blast_out,"to BLAST Format 6 :", final_blast_out))
+
   convert_BLAST_format(infile = blast_out,outfile = final_blast_out,conversion_prg = tools::file_path_as_absolute(paste(BLAST_BIN,"/blast_formatter",sep="")) )
   blast_GR <- GRObject_from_BLAST(blast_input = final_blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list)
+
+  if(verbose){
+    print(head(blast_GR))
+  }
 
   if(!keep.output.files){
     unlink(x = c(final_blast_out,blast_out), recursive = T,force = T,expand = T)
@@ -636,13 +657,69 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, b
 
   return(blast_GR)
   },error=function(cond){
-    return(cond)
+    stop(cond)
   })
 }
 
+#' Execute one2one BLAST
+#'
+#' Executes One-to-One BLAST between two lists of organisms/genes/clusters.
+#'
+#' @examples one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose)
+#'
+#' @note  ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
+#'
+#' @param first_list Vector of PATHS to FASTA
+#' @param second_list Vector of PATHS to FASTA
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. Default is tempdir(). Can also be NULL
+#' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
+#' @param blast_options Extra Options to be passed to the BLAST program
+#' @param output_dir Path to BLAST output
+#' @param input_prefix_path If input lists/vectors are filenames, then provide input folder to prefix path
+#' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)
+#' @param keep.output.files TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)
+#' @param params_list Output of load_params() (Optional)
+#' @param verbose Print DEBUG Messages?
+#' @export
+one2one_BLAST <- function(first_list,second_list,blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, keep.output.files=T, verbose=F){
+
+  if(!is.null(input_prefix_path)){
+    #first_list <- paste(input_prefix_path,"/",first_list,sep="")
+    first_list <- list.files(path = input_prefix_path,pattern = first_list, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
+    #second_list <- paste(input_prefix_path,"/",second_list,sep="")
+    second_list <- list.files(path = input_prefix_path,pattern = second_list, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
+  }
+  purrr::map2(first_list[order(first_list)], second_list[order(second_list)], function(x,y){
+    if (file.exists(x) && file.exists(y) && file.info(x)$size > 0 && file.info(y)$size > 0) {
+      run_name1 <- tools::file_path_sans_ext(BiocGenerics::basename(x)) #tools::file_path_as_absolute()
+      run_name2 <- tools::file_path_sans_ext(BiocGenerics::basename(y)) #tools::file_path_as_absolute()
+      run_name <- paste( run_name1,run_name2,"all2all" ,sep=".")
+      if(verbose){
+        cat(paste(run_name,"\n",sep = ""))
+        print(x)
+        print(y)
+      }
+      out_file <- paste( output_dir, run_name,sep="")
+
+      if(file.exists(out_file) && file.info(out_file)$size > 0){
+        if(params_list$CLEAN_EXTRACT){
+          unlink(x = out_file,recursive = F,force = T,expand = T)
+        }else{
+          stop(paste("Output file :",out_file,"exists!"))
+        }
+      }
+
+      tryCatch(run_BLAST(query_path = x,subject_path = y,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list,keep.output.files = keep.output.files, verbose = verbose), error=function(cond){
+        message(cond)
+      })
+    }
+  })
+
+  }
+
 #' Execute all2all BLAST
 #'
-#' Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir.
+#' Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir. (All-to-All is simply Many-to-Many association)
 #'
 #' @examples
 #'  all2all_BLAST(first_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F), second_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F),blast_DB_dir = "files/blastdb",blast_program = "tblastx",output_dir = "files/all2all",blast_options = "-strand plus",input_prefix_path = NULL,params_list=NULL)
@@ -651,7 +728,7 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, b
 #'
 #' @param first_list Vector of PATHS to FASTA
 #' @param second_list Vector of PATHS to FASTA
-#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. Default is tempdir(). Can also be NULL
 #' @param blast_DB_dir Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed
 #' @param blast_options Extra Options to be passed to the BLAST program
 #' @param output_dir Path to BLAST output
@@ -659,8 +736,9 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = NULL, blast_out, b
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)
 #' @param keep.output.files TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)
 #' @param params_list Output of load_params() (Optional)
+#' @param verbose Print DEBUG Messages?
 #' @export
-all2all_BLAST <- function(first_list,second_list,blast_DB_dir=NULL,blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, keep.output.files=T){
+all2all_BLAST <- function(first_list,second_list,blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, keep.output.files=T, verbose=F){
 
   if(is.null(params_list)){
     tryCatch(numWorkers <- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <- 2})
@@ -669,25 +747,20 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=NULL,blast_program
     numWorkers <- params_list$numWorkers
   }
 
+  if(verbose){
+    cat(paste("All2All BLAST Started...","\n",sep = ""))
+    print(paste(first_list,collapse = ","))
+    print(paste(second_list,collapse = ","))
+  }
+
   dir.create(path = output_dir,recursive = T,showWarnings = F)
 
-  mclapply(first_list, function(first_set){
-    mclapply(second_list,function(second_set){
-      if(!is.null(input_prefix_path)){
-        #first_set <- paste(input_prefix_path,"/",first_set,sep="")
-        first_set <- list.files(path = input_prefix_path,pattern = first_set, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
-        #second_set <- paste(input_prefix_path,"/",second_set,sep="")
-        second_set <- list.files(path = input_prefix_path,pattern = second_set, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
-      }
-      purrr::map2(first_set[order(first_set)], second_set[order(second_set)], function(x,y){
-        if (file.exists(x) && file.exists(y) && file.info(x)$size > 0 && file.info(y)$size > 0) {
-          run_name1 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(x)))
-          run_name2 <- tools::file_path_as_absolute(tools::file_path_sans_ext(BiocGenerics::basename(y)))
-          run_name <- paste( run_name1,run_name2,"all2all" ,sep=".")
-          out_file <- paste( output_dir, run_name,sep="")
-          run_BLAST(query_path = x,subject_path = y,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list,keep.output.files = keep.output.files)
-        }
-      })
+  parallel::mclapply(first_list, function(first_set){
+    parallel::mclapply(second_list,function(second_set){
+
+      one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose)
+
+      #return(NULL)
     }, mc.cores = floor(sqrt(numWorkers)) )
   }, mc.cores = floor(sqrt(numWorkers)) )
 
@@ -726,8 +799,8 @@ calculate_HSP_coverage <- function(blast_table, transcript_region_lengths,col.in
 
   purrr::map2(query_ids, subject_ids, function(x,y){
       if(COMPLETE.format.ids){
-        x_short <- stringi::stri_split(str = stringi::stri_split(str = x,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[1]
-        y_short <- stringi::stri_split(str = stringi::stri_split(str = y,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[1]
+        x_short <- stringi::stri_split(str = stringi::stri_split(str = x,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1]
+        y_short <- stringi::stri_split(str = stringi::stri_split(str = y,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1]
       }else{
         x_short <- x
         y_short <- y
@@ -767,26 +840,30 @@ calculate_HSP_coverage <- function(blast_table, transcript_region_lengths,col.in
 #'  * Step 3 - Two way BLAST followed by HSP selection with WISARD and Two way RBH are performed. Only transcripts which are bi-directional best hits are kept for further analysis (RBH from both the directions, not RBH in itself is bi-directionaly from the point of the QUERY, We can also do an RBH from the context of the SUBJECT to verify if it did not pas RBH by chance (even though it is very unlikely))
 #'
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list$BLAST_OPTIONS
+#' @param all_gtf_stats Coerced GTF stats from all the organisms. Found in paste(params_list$OUT_PATH,"/all_gtf_stats.csv",sep=""). This file is generated by EXTRACT_DATA() and is required for calculating HSP Coverage
 #' @param params_list Output of load_params()
 #' @param clusters_left Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right)
 #' @param clusters_right Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left)
 #' @param input_dir Give the directory with FASTA files (to BLAST between them using blast_program)
 #' @param output_dir Directory for saving output files (\*.out, \*.all2all, \*.wis_out,\*rbh_out)
 #' @export
-extract_transcript_orthologs <- function(blast_program, params_list, clusters_left, clusters_right, input_dir,output_dir){
+extract_transcript_orthologs <- function(blast_program, all_gtf_stats, params_list, clusters_left, clusters_right, input_dir,output_dir){
 
   blast_options <- params_list$BLAST_OPTIONS
-  blast_DB_dir <- params_list$BLAST_DB_PATH
+  #blast_DB_dir <- params_list$BLAST_DB_PATH
 
-    all2all_BLAST(first_list = clusters_left, second_list = clusters_right,blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir =output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
-    all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_DB_dir = blast_DB_dir,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+    try({
+      all2all_BLAST(first_list = clusters_left, second_list = clusters_right,blast_program = blast_program,output_dir =output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+    all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+    })
 
-    mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
-      out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
-      convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
-    }, mc.cores = params_list$numWorkers )
+    # mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
+    #   out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
+    #   convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
+    # }, mc.cores = params_list$numWorkers )
 
-    mclapply(list.files(path = output_dir,pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
+    #mclapply(list.files(path = output_dir,pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
+  mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
       out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".wis_out",sep="")
       blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list = params_list)
       wis_GO <- run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",COMPLETE.format.ids = T, params_list = params_list) #score_col=16
@@ -820,30 +897,117 @@ extract_transcript_orthologs <- function(blast_program, params_list, clusters_le
       }, mc.cores = params_list$numWorkers )
     })
 
-  #calculate gene conservation - calculate_gene_conservation.R - probably not needed
-   ##Maybe write one for cluster conservation/coverage across organisms
-
-
-
   #create organism sets
 
   #calculate cluster occupancy - number of genes per cluster && number of organisms per cluster
 
-  ##ITERATION 2 - two way RBH
-
-  #cat $reference_ORGS files/oneway/SET > files/oneway/set.tmp
-
-  #time all2all_refblast $reference_ORGS $fasta_path files/all2all/all2all.genelist files/all2all_final $blastdb_path $region $region tblastx files/oneway/set.tmp
-
-  #time Rscript wisard.R files/oneway/set.tmp files/all2all_final files/gtf_stats.csv
-
-  #readarray set_orgs < files/oneway/set.tmp
-
-  #time parallel -j $((${#ref_orgs[@]}*${#set_orgs[@]})) "twoway_RBH files/all2all_final {1} {2} $PY3_PATH $RBH_SCRIPT $SAME_GENE" ::: ${ref_orgs[@]} ::: ${set_orgs[@]}
+  # ##ITERATION 2 - two way RBH
+  #
+  # #cat $reference_ORGS files/oneway/SET > files/oneway/set.tmp
+  #
+  # #time all2all_refblast $reference_ORGS $fasta_path files/all2all/all2all.genelist files/all2all_final $blastdb_path $region $region tblastx files/oneway/set.tmp
+  #
+  # #time Rscript wisard.R files/oneway/set.tmp files/all2all_final files/gtf_stats.csv
+  #
+  # #readarray set_orgs < files/oneway/set.tmp
+  #
+  # #time parallel -j $((${#ref_orgs[@]}*${#set_orgs[@]})) "twoway_RBH files/all2all_final {1} {2} $PY3_PATH $RBH_SCRIPT $SAME_GENE" ::: ${ref_orgs[@]} ::: ${set_orgs[@]}
 
 }
 
+# #' Group FASTA Sequences into Clusters (Ortholog Clusters)
+# #'
+# #' Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in params_list$GROUPS_PATH. Wrapper function for group_FASTA(). This function is used with run.mode="cluster" in FiND_TRANSCRIPT_ORTHOLOGS(. FASTA IDs are required to be in R-COMPLETE's long format (?COMPLETE_PIPELINE_DESIGN)
+# #'
+# #' @param params_list Output of load_params()
+# #' @return Vector of all available OG Clusters
+# #' @export
+# group_FASTA_clusters <- function(params_list){
+#   tictoc::tic(msg = paste("Grouping FASTA into Clusters ..."))
+#   group_FASTA(params_list, id.col.index=4)
+#   cat(print_toc(tictoc::toc(quiet = T)))
+#   message(paste("Ortholog Clusters are stored in :", params_list$GROUPS_PATH))
+#
+#   all_clusters_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
+#     if(file.exists(paste(x,"/ORG_CLUSTERS.4",sep="")) && file.info(paste(x,"/ORG_CLUSTERS.4",sep=""))$size > 0 ){
+#       return(scan(paste(x,"/ORG_CLUSTERS.4",sep=""), character(), quiet = T))
+#     }
+#   }, mc.cores =  params_list$numWorkers, mc.preschedule = T)
+#   all_clusters <- purrr::reduce(all_clusters_list, unique)
+#   return(all_clusters)
+# }
+#
+# #' Group FASTA Sequences into Genes (Gene Names)
+# #'
+# #' Groups the Sequences in FASTA files in a folder(recursively) into Gene Names and save the Gene-FASTA files in params_list$GROUPS_PATH. Wrapper function for group_FASTA(). This function is used with run.mode="gene" in FIND_TRANSCRIPT_ORTHOLOGS(). FASTA IDs are required to be in R-COMPLETE's long format (?COMPLETE_PIPELINE_DESIGN)
+# #'
+# #' @param params_list Output of load_params()
+# #' @return Vector of all available Genes
+# #' @export
+# group_FASTA_genes <- function(params_list){
+#   tictoc::tic(msg = paste("Grouping FASTA into Genes ..."))
+#   group_FASTA(params_list, id.col.index=3)
+#   cat(print_toc(tictoc::toc(quiet = T)))
+#   message(paste("Gene Clusters are stored in :", params_list$GROUPS_PATH))
+#
+#   all_genes_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
+#     if(file.exists(paste(x,"/ORG_CLUSTERS.3",sep="")) && file.info(paste(x,"/ORG_CLUSTERS.3",sep=""))$size > 0 ){
+#       return(scan(paste(x,"/ORG_CLUSTERS.3",sep=""), character(), quiet = T))
+#     }
+#   }, mc.cores =  params_list$numWorkers, mc.preschedule = T)
+#   all_genes <- purrr::reduce(all_genes_list, unique)
+#   return(all_genes)
+# }
 
+#' Group FASTA Sequences Based on a column index of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN)
+#'
+#' group_FASTA_genes() for run.more="gene" & group_FASTA_clusters() for run.mode="cluster" wrap this function. run.mode is used in FIND_TRANSCRIPT_ORTHOLOGS(). This function write groupings (clusters/genes) of each organism (org_name) into paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS.", id.col.index,sep="")
+#'
+#' @param params_list Output of load_params()
+#' @param id.col.index The index of Column of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN) to groups sequences into. Use id.col.index=1 for grouping sequences based on Transcript IDs, id.col.index=2 to group sequences into Organisms, id.col.index=3 for grouping sequences based on Gene Names and id.col.index=4 to groups sequences into Ortholog Clusters. Check COMPLETE$ID_FORMAT_INDEX for indices
+#' @param verbose Print DEBUG Messages?
+#' @export
+group_FASTA <- function(params_list, id.col.index, verbose=T){
+  grouping_by <- names(COMPLETE$ID_FORMAT_INDEX[id.col.index])
+  tictoc::tic(msg = paste("Grouping FASTA into", grouping_by,"..."))
+  unlink(x = params_list$GROUPS_PATH,recursive = T,force = T,expand = T)
+  dir.create(path = params_list$GROUPS_PATH,showWarnings = F,recursive = T)
+  fasta_files <- list.files(path = params_list$FASTA_OUT_PATH,all.files = T,full.names = T,recursive = T,include.dirs = F)
+  parallel::mclapply(fasta_files, function(x){
+    fasta_recs <- Biostrings::readDNAStringSet(filepath = x,use.names = T, format = "fasta")
+    #print(names(fasta_recs)) #DEBUG
+    split_recs <- stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
+    if(ncol(split_recs)==4){ ##CHECKING IF FASTA IDs are COMPLETE.format.ids
+      org_name <- unique( split_recs[,2] )
+      #print(org_name) #DEBUG
+      all_clusters <- unique(unlist(purrr::map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
+        split_rec <- stringi::stri_split(str = rec_name, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
+        rec_clusters <- unique(stringi::stri_split(str = split_rec[, id.col.index], fixed = ",", simplify=T)) #ncol(split_rec)
+        print(rec_clusters) #DEBUG
+        lapply(rec_clusters, function(each_cluster){
+          #print(paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""))  #DEBUG
+          Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
+        })
+        return(rec_clusters)
+      })))
+      write.table(x = all_clusters,file = paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS.", grouping_by,sep=""),quote = F,row.names = F,col.names = F)
+    }else{ #DEBUG
+      #print(x) #DEBUG
+      if(verbose){
+        message(paste(x," : does not have COMPLETE.format.ids"))
+      }
+    } #DEBUG
+  }, mc.cores = params_list$numWorkers,mc.preschedule = T,mc.silent = !verbose)
+  cat(print_toc(tictoc::toc(quiet = T)))
+
+  all_groups_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
+    if(file.exists(paste(x,"/ORG_CLUSTERS.",grouping_by,sep="")) && file.info(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""))$size > 0 ){
+      return(scan(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""), character(), quiet = T))
+    }
+  }, mc.cores =  params_list$numWorkers, mc.preschedule = T)
+  all_groups <- purrr::reduce(all_groups_list, unique)
+  return(all_genes)
+}
 
 #' (2) - Find Transcript Orthologs
 #'
@@ -851,14 +1015,19 @@ extract_transcript_orthologs <- function(blast_program, params_list, clusters_le
 #'
 #' This is the main function which calls all the other functions and performs and end-end execution of finding transcript level orthologs. It runs the iterative Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes, reduce the pool of organisms, find transcript level orthologs (check ?extract_transcript_orthologs)
 #'
-#' @note ONLY USE THIS FUNCTION WHEN RUNNING THE PIPELINE OF R-COMPLETE. Use other helper function to work with custom BLAST files not generated by this R package
+#' @note ONLY USE THIS FUNCTION WHEN RUNNING THE PIPELINE OF R-COMPLETE. Use other helper function to work with custom BLAST files not generated by this R package. run.mode="gene" is NOT RECOMMENDED because the sequences are grouped based on gene names
 #'
 #' @param param_file Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from param_file
 #' @param gene_list Vector or File with a list of genes to extract data for(check the github repo for an example).
+#' @param run.mode A value from COMPLETE$ID_FORMAT_INDEX. COMPLETE$ID_FORMAT_INDEX$CLUSTERS(Default). Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE$ID_FORMAT_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE$ID_FORMAT_INDEX$CLUSTERS groups sequences based on protein identity.
 #' @export
-FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, blast_program, gene_list){
+FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, blast_program, gene_list, run.mode=COMPLETE$ID_FORMAT_INDEX$CLUSTERS){
   set.seed(123)
+
+  if(!grepl(pattern = "cluster|gene", x=run.mode)) {
+    stop(paste("run.mode must be either 'cluster' or 'gene'"))
+  }
 
   if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
     stop("Pipeline only supports Linux (and bash) :(")
@@ -900,53 +1069,85 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(param_file, blast_program, gene_list){
 
     REF_ORGS <- factor(scan(params_list$REF_ORGS_FILE, character(), quiet = T))
 
+    tryCatch({
+      all_gtf_stats <- read.table(file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),sep = " ",header = T,quote = "",fill = T,na.strings = "-")
+    }, error= function(cond){
+      stop(paste("Coerced GTF stats file", paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),"not found/invalid, Please rerun EXTRACT_DATA()"))
+    })
+
     available_genes_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
       if(file.exists(paste(x,"/AVAILABLE_GENES",sep="")) && file.info(paste(x,"/AVAILABLE_GENES",sep=""))$size > 0 ){
-        return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character()))
+        return(scan(paste(x,"/AVAILABLE_GENES",sep=""), character(),quiet = T))
       }
-    }, mc.cores =  params_list$numWorkers)
+    }, mc.cores =  params_list$numWorkers, mc.preschedule = T)
     available_genes <- unique(purrr::reduce(available_genes_list, union))
 
     #find which clusters they belong to
-    odb_map_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
-      if(file.exists(paste(x,"/odb.final_map",sep="")) && file.info(paste(x,"/odb.final_map",sep=""))$size > 0 ){
-        return(read.table(paste(x,"/odb.final_map",sep=""),header = F,sep = "\t",quote = "", col.names = c("cluster","genes")))
+    # if(grepl(pattern = "cluster", x=run.mode)) {
+    #   # odb_map_list <- parallel::mclapply(paste(params_list$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
+    #   #   if(file.exists(paste(x,"/odb.final_map",sep="")) && file.info(paste(x,"/odb.final_map",sep=""))$size > 0 ){
+    #   #     return(read.table(paste(x,"/odb.final_map",sep=""),header = F,sep = "\t",quote = "", col.names = c("cluster","genes")))
+    #   #   }
+    #   # }, mc.cores =  params_list$numWorkers, mc.preschedule = T)
+    #   # odb_map <- unique(purrr::reduce(odb_map_list, inner_join, by = c("cluster","genes")))
+    #   # available_clusters <- unique(BiocGenerics::unlist(lapply(available_genes, function(gene){
+    #   #   return(odb_map[grep(pattern=gene,x = odb_map$genes,ignore.case = T, value = F), c("cluster")])
+    #   # })))
+    #
+    #   #if(length(dir(loaded_PARAMS$GROUPS_PATH)==0)){
+        #GROUPING FASTA SEQUENCES
+        tryCatch({
+          all_clusters <- scan(paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), character(),quiet = T)
+          clusters_in_dir <- unique(stringi::stri_split(str = list.files(path=params_list$GROUPS_PATH,full.names = F,recursive = F,include.dirs = F), simplify=T, fixed = ".")[,1])
+          if(length(which(!is.na(match(all_clusters,clusters_in_dir)))) != length(which(!is.na(match(clusters_in_dir,all_clusters))))){
+            stop("Regrouping clusters...")
+          }
+        },error=function(cond){
+          all_clusters <- group_FASTA(params_list = loaded_PARAMS, id.col.index = run.mode)
+          write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-")
+        },finally = {
+          #DELETING NON-CDS GROUPS BECAUSE I ONLY BLAST CDS
+          unlink(x = grep(x = list.files(path=params_list$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F) , pattern = "cds", ignore.case = T,invert = T, value = T), recursive = F,force = T,expand = T)
+          available_clusters <- all_clusters
+        })
+      #}
+
+
+      if(length(available_clusters)==0){
+        #available_clusters <- "ungrouped"
+        stop("No clusters were found!. Try other values for run.mode")
       }
-    }, mc.cores =  params_list$numWorkers)
-    odb_map <- unique(purrr::reduce(odb_map_list, inner_join, by = c("cluster","genes")))
-    available_clusters <- unique(BiocGenerics::unlist(lapply(available_genes, function(gene){
-      return(odb_map[grep(pattern=gene,x = odb_map$genes,ignore.case = T), c("cluster")])
-    })))
 
-    if(length(available_clusters)==0){
-      #available_clusters <- "ungrouped"
-      stop("No clusters were found!")
-    }
+      #STEP 1 - ONLY for run.mode="cluster" - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
+      #all2allblast and then wisard and then RBH for grouping ungrouped clusters
+      if(any(grepl(pattern = "ungrouped",x = available_clusters,ignore.case = T))){
+        message("STEP 1 - Placing ungrouped sequences into groups\n")
+        tictoc::tic(msg = "Placing ungrouped sequences into groups...")
+        extract_transcript_orthologs(blast_program = blast_program, all_gtf_stats = all_gtf_stats, params_list = loaded_PARAMS,clusters_left = "ungrouped",clusters_right = available_clusters,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out)
+        cat(print_toc(tictoc::toc(quiet = T)))
+      }else{
+        message("STEP 1 - Skipped because all sequences are grouped\n")
+      }
+    # }else{
+    #   message("STEP 1 - Skipped because run.mode='gene'\n")
+    #   all_genes <- group_FASTA(params_list = loaded_PARAMS, id.col.index = COMPLETE$ID_FORMAT_INDEX$GENE)
+    #   available_clusters <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
+    # }
 
-    if(length(dir(params_list$GROUPS_PATH)==0)){
-      group_FASTA_clusters(params_list)
-    }
-
-    #STEP 1 - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
-    #all2allblast and then wisard and then RBH for grouping ungrouped clusters
-    if(any(grepl(pattern = "ungrouped",x = available_clusters,ignore.case = T))){
-      tictoc::tic(msg = "Placing ungrouped sequences into groups...")
-      extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = "ungrouped",clusters_right = available_clusters,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out)
-      cat(print_toc(tictoc::toc(quiet = T)))
-    }
-
-    #STEP 2 - Select transcript level orthologs with minimum coverage between clusters
+    #STEP 2 - Select transcript level orthologs with minimum coverage between clusters/genes
+    message("STEP 2 - Select transcript level orthologs between clusters/genes based on minimum coverage\n")
     tictoc::tic(msg = "Extracting Transcript Orthologs...")
     lapply(available_clusters, function(x){
-      extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = x,clusters_right = x,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out)
+      extract_transcript_orthologs(blast_program = blast_program, all_gtf_stats = all_gtf_stats, params_list = loaded_PARAMS,clusters_left = x,clusters_right = x,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out)
     })
     cat(print_toc(tictoc::toc(quiet = T)))
 
+    #calculate gene conservation - calculate_gene_conservation.R - probably not needed
+    ##Maybe write one for cluster conservation/coverage across organisms
 
   }else{
     stop(paste(blast_program," NOT found."))
   }
-
 
 }
 

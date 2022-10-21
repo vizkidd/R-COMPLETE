@@ -12,7 +12,6 @@ fasta_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/v
 out_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/sandbox/vegetal/files/== path to save meta output (Output)
 temp_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/sandbox/vegetal/files/temp== path to save temporary files (Temp)
 groups_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/sandbox/vegetal/files/groups== path to save FASTA sequences as orthologous groups (Output)
-blastdb_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/sandbox/vegetal/files/blastdb== path to save BLAST DBs to (Output)
 ref_orgs==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/sandbox/files/reference_ORGS.txt== subset of orgs from FASTA PATH(each line should be a folder name of an org) (Input)
 max_concurrent_jobs== == Number of concurrent jobs to be executed at any given time (threads) (Input, Optional)
 genomes_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/mrna_loc/files/genomes== path to save and work on GENOMES from user data (USER) (Input/Output)

@@ -7,14 +7,15 @@
 run_BLAST(
   query_path,
   subject_path,
-  blast_DB_dir = NULL,
+  blast_DB_dir = tempdir(),
   blast_out,
   blast_program = COMPLETE$BLAST_BIN,
   run_name = "BLAST",
   blast_options = "",
   COMPLETE.format.ids = F,
   params_list = NULL,
-  keep.output.files = T
+  keep.output.files = T,
+  verbose = T
 )
 }
 \arguments{
@@ -22,7 +23,7 @@ run_BLAST(
 
 \item{subject_path}{Path to Subject FASTA}
 
-\item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed}
+\item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed. Default is tempdir(). Can also be NULL}
 
 \item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object}
 
@@ -37,6 +38,8 @@ run_BLAST(
 \item{params_list}{Output from load_params() (Optional)}
 
 \item{keep.output.files}{TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)}
+
+\item{verbose}{Print DEBUG Messages?}
 }
 \value{
 BLAST Hits as GRanges Object

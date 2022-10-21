@@ -92,7 +92,7 @@ check_mart_dataset <- function(org){
   }
 
   split_org <- stringi::stri_split(gsub(pattern = "[[:punct:]]|[[:space:]]",x = org, replacement = "_"),fixed="_",simplify = T)
-  if(stringi::stri_isempty(split_org[2])){
+  if(stringi::stri_isempty(split_org[,2])){
     stop(paste(org,"name not in proper format, eg danio_rerio\n"))
   }
   mart.dataset <- grep(x = COMPLETE$org.meta.list$dataset, pattern=stringr::regex(split_org[2],ignore_case = T),fixed=F, value = T)
@@ -1142,45 +1142,6 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
   cat(print_toc(tictoc::toc(quiet = T)))
 }
 
-#' Group FASTA Sequences into Cluster Files
-#'
-#' Groups the Sequences in FASTA files in a folder(recursively) into Clusters and save the Cluster FASTA files in params_list$GROUPS_PATH. FASTA IDs are required to be in R-COMPLETE's long format (?COMPLETE_PIPELINE_DESIGN)
-#'
-#' @param params_list Output of load_params()
-#' @export
-group_FASTA_clusters <- function(params_list){
-
-  #processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_clusters",COMPLETE$parallel,fasta_path,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH ) ,spinner = T,stdout = "",stderr = "")
-  unlink(x = params_list$GROUPS_PATH,recursive = T,force = T,expand = T)
-  dir.create(path = params_list$GROUPS_PATH,showWarnings = F,recursive = T)
-  tictoc::tic(msg = paste("Grouping & Indexing FASTA ..."))
-  fasta_files <- list.files(path = params_list$FASTA_OUT_PATH,all.files = T,full.names = T,recursive = T,include.dirs = F)
-   parallel::mclapply(fasta_files, function(x){
-    fasta_recs <- Biostrings::readDNAStringSet(filepath = x,use.names = T, format = "fasta")
-    #print(names(fasta_recs)) #DEBUG
-    split_recs <- stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
-    if(ncol(split_recs)==4){ ##CHECKING IF FASTA IDs are COMPLETE.format.ids
-      org_name <- unique( split_recs[,2] )
-      #print(org_name) #DEBUG
-      all_clusters <- unique(unlist(purrr::map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
-        split_rec <- stringi::stri_split(str = rec_name, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
-        rec_clusters <- unique(stringi::stri_split(str = split_rec[,ncol(split_rec)], fixed = ",", simplify=T))
-        lapply(rec_clusters, function(each_cluster){
-          #print(paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""))  #DEBUG
-          Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
-        })
-        return(rec_clusters)
-      })))
-      write.table(x = all_clusters,file = paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS",sep=""),quote = F,row.names = F,col.names = F)
-    }else{ #DEBUG
-      print(x) #DEBUG
-    } #DEBUG
-  }, mc.cores = params_list$numWorkers,mc.preschedule = T,mc.silent = T)
-  cat(print_toc(tictoc::toc(quiet = T)))
-  message(paste("Ortholog Clusters are stored in :", params_list$GROUPS_PATH))
-  #return(result_codes)
-}
-
 #' Internal Function - Merge and Format OrthoDB Flat Files
 #'
 #' This step is essential for speeding up the extraction process. The gene information (Gene IDs and Gene Names) are merged with Ortholog Groups (Cluster IDs and Gene IDs) and the format is converted into a Tab Delimited file wrapped over a CSV of Gene IDs and Gene Names. This is performed because one Ortholog Group/Cluster can encompass multiple genes (across organisms). The final format looks like this [cluster1][tab][geneID1,geneID2..geneIDN][tab][gene_name1,gene_name2..gene_nameN].
@@ -1255,7 +1216,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     unlink(x = c(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""),
                  paste(loaded_PARAMS$OUT_PATH,"/unavailable_orgs.txt",sep=""),
                  paste(loaded_PARAMS$OUT_PATH,"/selected_ORGS.txt",sep=""),
-                 paste(loaded_PARAMS$OUT_PATH,"/ALL_CLUSTERS.txt",sep=""),
+                 paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""),
                  paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep="")),force = T,expand = T)
   }
 
@@ -1366,17 +1327,19 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   cat(print_toc(tictoc::toc(quiet = T)))
 
-  save(saved_meta, file ="saved_meta.RData")
+  #save(saved_meta, file ="saved_meta.RData")
 
   #write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
   #write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
-
-  lapply(saved_meta, function(x){
-    write.table(x = as.data.frame(t(x)),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
-  })
+  saved_meta[[1]] <- data.frame(t(saved_meta[[1]]))
+  colnames(saved_meta[[1]]) <- c("org","genome","gtf")
+  saved_meta[[2]] <- dplyr::bind_rows(t(saved_meta[[2]]))
+  parallel::mclapply(saved_meta, function(x){
+    write.table(x = x,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
+  }, mc.cores = loaded_PARAMS$numWorkers, mc.silent = T, mc.preschedule = T)
 
   #DELETING EMPTY DIRECTORIES - THESE ORGANISMS COULD NOT BE FETCHED
-  lapply(list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=TRUE), function(x) {
+  parallel::mclapply(list.dirs(path = loaded_PARAMS$FASTA_OUT_PATH, full.names=TRUE,recursive = F), function(x) { #list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=TRUE)
     fi <- file.info(x)
     if (fi$isdir) {
       f <- list.files(x, all.files=TRUE, recursive=TRUE, full.names=TRUE)
@@ -1385,19 +1348,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       #as precaution, print to make sure before using unlink(x, TRUE)
       if (sz==0L) unlink(x,recursive = T, force = T, expand =T) #print(x)
     }
-  })
-
-  #GROUPING FASTA SEQUENCES INTO ORTHOLOGOUS CLUSTERS
-  if(!COMPLETE$SKIP_USER_DATA){
-    group_FASTA_clusters(loaded_PARAMS)
-    all_clusters_list <- parallel::mclapply(list.files(path = paste(loaded_PARAMS$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
-      if(file.exists(paste(x,"/ORG_CLUSTERS",sep="")) && file.info(paste(x,"/ORG_CLUSTERS",sep=""))$size > 0 ){
-        return(scan(paste(x,"/ORG_CLUSTERS",sep=""), character(), quiet = T))
-      }
-    }, mc.cores =  loaded_PARAMS$numWorkers)
-    all_clusters <- purrr::reduce(all_clusters_list, unique)
-    write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_CLUSTERS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-")
-  }
+  }, mc.cores = loaded_PARAMS$numWorkers, mc.silent = T, mc.preschedule = T)
 
   tictoc::tic(msg= "Coercing metdata from available organisms ...")
 
@@ -1442,7 +1393,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       }
     }
   }, mc.cores =  loaded_PARAMS$numWorkers, mc.preschedule = T))
-  write.table(x = all_gtf_stats,file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""), quote = F, row.names = F,col.names = T,na = "-")
+  write.table(x = all_gtf_stats,file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),sep = ",", quote = F, row.names = F,col.names = T,na = "-")
 
   # time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
   # time ./align_seqs.sh $1
@@ -1461,7 +1412,12 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
 #' Design of R-COMPLETE
 #' @author Vishvesh Karthik (MDC-Berlin), [vishvesh.karthik@mdc-berlin.de]
-#' @usage NULL
+#'
+#' @usage
+#' (1) EXTRACT_DATA()
+#' (2) FIND_TRANSCRIPT_ORTHOLOGS()
+#'
+#' @details{
 #'
 #' The pipeline uses R and BASH. BASH functions are invoked through R.
 #' BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
@@ -1494,6 +1450,15 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #' * USER DATA :
 #'     Columns Org, genome, gtf
 #'
+#' * COMPLETE.format.ids :
+#'          * The Ordering of ID labels can be referred from COMPLETE$ID_FORMAT_INDEX
+#'          * Sequences are labelled with the following long ID format of R-COMPLETE
+#'          (specific to this pipeline and referred to as COMPLETE.format.ids)
+#'          (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+#'               >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
+#'               >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
+#'               >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
+#'
 #' * FLOW :
 #'
 #'     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
@@ -1503,15 +1468,9 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
 #'          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
 #'          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
-#'          * Sequences are labelled with the following long ID format of R-COMPLETE
-#'          (specific to this pipeline and referred to as COMPLETE.format.ids)
-#'          (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
-#'               >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
-#'               >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
-#'               >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
-#'          * Sequences are grouped into files of ORTHOLOG_CLUSTERS
 #'
 #'     2) FIND_ORTHOLOGS() -
+#'     }
 #' @seealso [COMPLETE::EXTRACT_DATA()], [COMPLETE::FIND_ORTHOLOGS()]
 #' @md
 COMPLETE_PIPELINE_DESIGN <- function(){

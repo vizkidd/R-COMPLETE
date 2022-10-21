@@ -119,7 +119,7 @@ load_params <- function(param_file){
   MIN_IDENT_THRESH  <- check_param(param_table,"minIdent_thresh",optional=F,CAST_FUN=as.double)
   BLAST_OPTIONS  <- check_param(param_table,"blast_options",optional=F,CAST_FUN=as.character)
   TRANSCRIPT_REGIONS_DELIMITER <- check_param(param_table,"transcript_regions_delimiter",optional=F,CAST_FUN=as.character)
-  BLAST_DB_PATH <- tools::file_path_as_absolute(check_param(param_table,"blastdb_path",optional=F,CAST_FUN=as.character,create_dir=T))
+  #BLAST_DB_PATH <- tools::file_path_as_absolute(check_param(param_table,"blastdb_path",optional=F,CAST_FUN=as.character,create_dir=T))
   REF_ORGS_FILE <- tools::file_path_as_absolute(check_param(param_table,"ref_orgs",optional=F,CAST_FUN=as.character))
   #CLUSTER_OPTIONS  <- check_param(param_table,"cluster_options",optional=T,CAST_FUN=as.character)
   BED_PATH <- tools::file_path_as_absolute(check_param(param_table,"bed_path",optional=F,CAST_FUN=as.character,create_dir=T))
@@ -159,7 +159,7 @@ load_params <- function(param_file){
                      MIN_IDENT_THRESH=MIN_IDENT_THRESH,
                      BLAST_OPTIONS=BLAST_OPTIONS,
                      TRANSCRIPT_REGIONS_DELIMITER=TRANSCRIPT_REGIONS_DELIMITER,
-                     BLAST_DB_PATH=BLAST_DB_PATH,
+                     #BLAST_DB_PATH=BLAST_DB_PATH,
                      REF_ORGS_FILE=REF_ORGS_FILE,
                      BED_PATH=BED_PATH,
                      PLOT_PATH=PLOT_PATH,
@@ -214,3 +214,5 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
 
 COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
 COMPLETE$BLAST_BIN <- dirname(Sys.which("tblastx"))
+COMPLETE$ID_FORMAT_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
+
