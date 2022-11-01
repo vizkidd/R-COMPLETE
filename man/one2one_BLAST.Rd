@@ -7,6 +7,7 @@
 one2one_BLAST(
   first_list,
   second_list,
+  run_name = "BLAST.one2one",
   blast_DB_dir = tempdir(),
   blast_program,
   output_dir = "./",
@@ -22,6 +23,8 @@ one2one_BLAST(
 \item{first_list}{Vector of PATHS to FASTA}
 
 \item{second_list}{Vector of PATHS to FASTA}
+
+\item{run_name}{Name of the BLAST run and name of the output file}
 
 \item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed}
 

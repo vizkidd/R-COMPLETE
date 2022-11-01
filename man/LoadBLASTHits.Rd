@@ -4,12 +4,24 @@
 \alias{LoadBLASTHits}
 \title{Load BLAST Hits into a data.frame}
 \usage{
-LoadBLASTHits(infile, transcript_ID_metadata = NULL, col.names = NULL)
+LoadBLASTHits(
+  infile,
+  transcript_ID_metadata = NULL,
+  col.names = NULL,
+  sep = "\\t",
+  header = F
+)
 }
 \arguments{
 \item{infile}{BLAST hits filename}
 
 \item{transcript_ID_metadata}{Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.}
+
+\item{col.names}{Name of the columns of the BLAST File}
+
+\item{sep}{Delimiter of the BLAST File columns. Default - '\t'}
+
+\item{header}{Does the file have a header? . Default - FALSE}
 }
 \value{
 Data Frame with BLAST Results

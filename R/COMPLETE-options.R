@@ -21,6 +21,40 @@ install_parallel <- function(){
   }
 }
 
+#' Connect to a biomaRt repo/dataset
+#'
+#' This function tries to connect to BIOMART services (using biomaRt) and retries if the connection fails with a stepping timeout of 5secs.
+#' The MART_FUN is called with do.call()
+#'
+#' @param MART_FUN Fuction to be called
+#' @param args Named list of arguments to be used by the function
+#' @return Name of the dataset in biomaRt
+mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
+  if (!is.null(MART_FUN)) {
+    #print(args)
+    time_out <- 0
+    while (time_out < 600) { #max time out is 10mins, code will fibonacci to it stepping up 5 seconds
+      time_out <- time_out+5
+      catch_value <- tryCatch(do.call(MART_FUN,args),
+                              error=function(cond){
+                                if(verbose){
+                                  message(cond)
+                                  #print(class(cond))
+                                  message(paste("\nWaiting for",time_out,"s & trying again...\n"))
+                                }
+                                Sys.sleep(time_out)
+                              })
+      if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
+        #print("Done!")
+        return(catch_value)
+      }
+    }
+    stop("\nEnsembl is unresponsive, please check connection\n")
+  }else{
+    return(0)
+  }
+}
+
 #' Checks for parameter and return the value
 #'
 #' If a parameter ID does not exist or if the value is empty and if the parameter is NOT optional then the execution is stopped
@@ -115,6 +149,11 @@ load_params <- function(param_file){
   if(is.na(GENE_SEARCH_MODE) || length(GENE_SEARCH_MODE) == 0){
     GENE_SEARCH_MODE <- "HARD"
   }
+  SELECT_ALL_GENES <- check_param(param_table,"select_all_genes_from_cluster",optional=T,CAST_FUN=as.logical)
+  if(is.na(SELECT_ALL_GENES) || length(SELECT_ALL_GENES) == 0){
+    SELECT_ALL_GENES <- FALSE
+  }
+
   E_VALUE_THRESH <- check_param(param_table,"e_value_thresh",optional=F,CAST_FUN=as.double)
   MIN_IDENT_THRESH  <- check_param(param_table,"minIdent_thresh",optional=F,CAST_FUN=as.double)
   BLAST_OPTIONS  <- check_param(param_table,"blast_options",optional=F,CAST_FUN=as.character)
@@ -136,6 +175,8 @@ load_params <- function(param_file){
   ALIGNMENT_GAP_THRESHOLD  <- check_param(param_table,"aln_gap_thres",optional=F,CAST_FUN=as.double)
   MIN_COVERAGE_THRESHOLD <- check_param(param_table,"min_coverage_thres",optional=F,CAST_FUN=as.double)
 
+  COMPLETE$numWorkers <- max_concurrent_jobs
+
   #COMPLETE <- new.env(parent=emptyenv())
   #COMPLETE$PARAMS <-
   param_list <- list(param_file=param_file,
@@ -155,6 +196,7 @@ load_params <- function(param_file){
                      max_concurrent_jobs=max_concurrent_jobs,
                      numWorkers=numWorkers,
                      GENE_SEARCH_MODE=GENE_SEARCH_MODE,
+                     SELECT_ALL_GENES=SELECT_ALL_GENES,
                      E_VALUE_THRESH=E_VALUE_THRESH,
                      MIN_IDENT_THRESH=MIN_IDENT_THRESH,
                      BLAST_OPTIONS=BLAST_OPTIONS,
@@ -175,6 +217,7 @@ load_params <- function(param_file){
                      PARAMETERS_LOADED=TRUE)
 
   #return(COMPLETE$PARAMS)
+  class(param_list) <- c(class(param_list), "COMPLETE-options")
   return(param_list)
 }
 
@@ -212,7 +255,8 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
   stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
 }
 
+COMPLETE$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})
 COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
 COMPLETE$BLAST_BIN <- dirname(Sys.which("tblastx"))
-COMPLETE$ID_FORMAT_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
+COMPLETE$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
 

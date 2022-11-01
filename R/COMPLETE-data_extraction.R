@@ -111,40 +111,6 @@ check_mart_dataset <- function(org){
     }
 }
 
-#' Connect to a biomaRt repo/dataset
-#'
-#' This function tries to connect to BIOMART services (using biomaRt) and retries if the connection fails with a stepping timeout of 5secs.
-#' The MART_FUN is called with do.call()
-#'
-#' @param MART_FUN Fuction to be called
-#' @param args Named list of arguments to be used by the function
-#' @return Name of the dataset in biomaRt
-mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
-  if (!is.null(MART_FUN)) {
-    #print(args)
-    time_out <- 0
-    while (time_out < 600) { #max time out is 10mins, code will fibonacci to it stepping up 5 seconds
-      time_out <- time_out+5
-      catch_value <- tryCatch(do.call(MART_FUN,args),
-                              error=function(cond){
-                                if(verbose){
-                                  message(cond)
-                                  #print(class(cond))
-                                  message(paste("\nWaiting for",time_out,"s & trying again...\n"))
-                                }
-                                Sys.sleep(time_out)
-                              })
-      if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
-        #print("Done!")
-        return(catch_value)
-      }
-    }
-    stop("\nEnsembl is unresponsive, please check connection\n")
-  }else{
-    return(0)
-  }
-}
-
 #' Calculate Flank Values and other statistics from GTF Data
 #'
 #' This function calculates Flank Values (for transcripts whose UTR lengths are not known in which case Flank values are used instead of lengths to obtain the Flanking regions),
@@ -848,7 +814,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   odb_list_genes <- c()
   if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
     #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
-    proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file), params_list=params_list))
+    proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE$SELECT_ALL_GENES), params_list=params_list))
     proc$wait(timeout=-1)
   }
   if(file.exists(odb_list) && file.info(odb_list)$size > 0){
@@ -1204,7 +1170,11 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     }
     loaded_PARAMS <- load_params(params_list)
   }else{
-    loaded_PARAMS <- params_list
+    if(any(grepl(x = class(params_list), pattern = "COMPLETE-options"))){
+      loaded_PARAMS <- params_list
+    }else{
+      stop("Error: params_list not valid!")
+    }
   }
   print(loaded_PARAMS)
 
@@ -1417,7 +1387,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #' (1) EXTRACT_DATA()
 #' (2) FIND_TRANSCRIPT_ORTHOLOGS()
 #'
-#' @details{
+#' @details
 #'
 #' The pipeline uses R and BASH. BASH functions are invoked through R.
 #' BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
@@ -1451,7 +1421,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'     Columns Org, genome, gtf
 #'
 #' * COMPLETE.format.ids :
-#'          * The Ordering of ID labels can be referred from COMPLETE$ID_FORMAT_INDEX
+#'          * The Ordering of ID labels can be referred from COMPLETE$FORMAT_ID_INDEX
 #'          * Sequences are labelled with the following long ID format of R-COMPLETE
 #'          (specific to this pipeline and referred to as COMPLETE.format.ids)
 #'          (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
@@ -1470,7 +1440,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
 #'
 #'     2) FIND_ORTHOLOGS() -
-#'     }
+#'
 #' @seealso [COMPLETE::EXTRACT_DATA()], [COMPLETE::FIND_ORTHOLOGS()]
 #' @md
 COMPLETE_PIPELINE_DESIGN <- function(){

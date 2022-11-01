@@ -7,6 +7,8 @@
 RBH(
   in1,
   in2,
+  sep = "\\t",
+  header = F,
   transcript_ID_metadata = NULL,
   col.names = NULL,
   index.tables = T,
@@ -23,6 +25,10 @@ RBH(
 \item{in1}{Input (query->subject) BLAST/WISARD hits table/filename}
 
 \item{in2}{Input (query<-subject) BLAST/WISARD hits table/filename}
+
+\item{sep}{Delimiter for the input Files. Only valid if in1 and in2 are files. Default - '\t'}
+
+\item{header}{Does the input files have header?. Only valid if in1 and in2 are files. Default - FALSE}
 
 \item{transcript_ID_metadata}{Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.}
 
@@ -51,7 +57,7 @@ convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sse
 Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
 }
 \note{
-Both the input files are expected to have a header, the same number of columns with matching column order (and names). Give only indices for col.indices. Order of execution is unique.hit.weights followed by process.weights.func (if any/all these options are set), i.e Unique Weights are chosen for each hit (if unique.hit.weights=T) and then weights are processed using process.weights.func (if process.weights.func is set)
+Both the input files are expected to have a header, the same number of columns with matching column order (and names). Give only indices for col.indices. Order of execution is unique.hit.weights followed by process.weights.func (if any/all these options are set), i.e Unique Weights are chosen for each hit (if unique.hit.weights=T) and then weights are processed using process.weights.func (if process.weights.func is set). If the function fails, try indexing the tables with index.tables=T
 }
 \examples{
    convert_BLAST_format(in_file1,outfile = out_file1,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
