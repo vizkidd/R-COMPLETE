@@ -366,10 +366,10 @@ function get_FASTA() {
 	local base_bed=$3
 	local genome_fa=$4
 	local org_name=$5
-	local FASTA_PATH=$(realpath $6)
-	local GTF_PATH=$(realpath $7)
-	local TEMP_PATH=$(realpath $8)
-	local OUT_PATH=$(realpath $9)
+	local FASTA_PATH=$6
+	local GTF_PATH=$7
+	local TEMP_PATH=$8
+	local OUT_PATH=$9
 	#local LABEL_FASTA=$9
 
 	if [ ! -s $FASTA_PATH/$s_name.$reg ]; then #$FASTA_PATH/$file_out.cds
@@ -507,9 +507,9 @@ function index_genome(){
 
 # function group_FASTA_clusters(){
 # 	local script_args=($(echo $@))
-# 	local PARALLEL_PATH=$(realpath ${script_args[0]}) 
-# 	local FASTA_PATH=$(realpath ${script_args[1]}) 
-# 	local GROUPS_PATH=$(realpath ${script_args[2]}) 
+# 	local PARALLEL_PATH=${script_args[0]}) 
+# 	local FASTA_PATH=${script_args[1]}) 
+# 	local GROUPS_PATH=${script_args[2]}) 
 # 	local seqID_delimiter=${script_args[3]} 
 # 	local n_threads=${script_args[4]} 
 # 	local OUT_PATH=${script_args[5]} 
@@ -772,10 +772,10 @@ function twoway_RBH() {
 
 function merge_OG2genes_OrthoDB(){
 	local script_args=($(echo $@))
-	local ORTHODB_PATH_PREFIX=$(realpath ${script_args[0]}) #$1 #$(grep -i -w "orthodb_path_prefix" $1 | check_param) 
+	local ORTHODB_PATH_PREFIX=${script_args[0]} #$1 #$(grep -i -w "orthodb_path_prefix" $1 | check_param) 
 	local CLEAN_EXTRACT=${script_args[1]} #$2 #$(grep -i -w "clean_extract" $1 | check_param) 
 	local n_threads=${script_args[2]} #$3 #$(grep -i -w "max_concurrent_jobs" $1 | check_param)
-	local gene_list=$(realpath ${script_args[3]}) #$4
+	local gene_list=${script_args[3]} #$4
 
 	if [[ $(ls -1 "$ORTHODB_PATH_PREFIX"*.gz | awk "END{print NR}") == 0 ]] ; then
 		>&2 echo $(color_FG_BG_Bold $Red $BG_White "Error : ODB Path not found!") #| tee >(cat >&2)
@@ -813,24 +813,27 @@ function extract_genomic_regions(){
 	# $5 = Path to parameters file
 
 	local script_args=($(echo $@))
-	local GENOME_FILE=$(realpath ${script_args[0]}) #$1
-	local ANNO_FILE=$(realpath ${script_args[1]}) #$2
-	local GENE_LIST=$(realpath ${script_args[2]}) #$3
+	local GENOME_FILE=${script_args[0]} #$1
+	local ANNO_FILE=${script_args[1]} #$2
+	local GENE_LIST=${script_args[2]} #$3
 	local f_org_name=${script_args[3]} #$4
-	local param_file=$(realpath ${script_args[4]}) #$5
+	local param_file=${script_args[4]} #$5
 	local org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2; } ;')
 
-	local GENOMES_PATH=$(realpath $(grep -i -w "genomes_path" $param_file | check_param))
-	local ANNOS_PATH=$(realpath $(grep -i -w "annos_path" $param_file | check_param))
-	local BED_PATH=$(realpath $(grep -i -w "bed_path" $param_file | check_param))
-	local FASTA_PATH=$(realpath $(grep -i -w "fasta_path" $param_file | check_param))
-	local OUT_PATH=$(realpath $(grep -i -w "out_path" $param_file | check_param))
-	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
+	#chmod a+x $GENOME_FILE
+	#chmod a+x $ANNO_FILE
+
+	local GENOMES_PATH=$(grep -i -w "genomes_path" $param_file | check_param)
+	local ANNOS_PATH=$(grep -i -w "annos_path" $param_file | check_param)
+	local BED_PATH=$(grep -i -w "bed_path" $param_file | check_param)
+	local FASTA_PATH=$(grep -i -w "fasta_path" $param_file | check_param)
+	local OUT_PATH=$(grep -i -w "out_path" $param_file | check_param)
+	local TEMP_PATH=$(grep -i -w "temp_path" $param_file | check_param)
 	local CLEAN_EXTRACT=$(grep -i -w "clean_extract" $param_file | check_param) 
 	local TRANSCRIPT_REGIONS=($(grep -i -w "transcript_regions" $param_file | check_param | sed "s/,/\n/g" ))
 	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}') # | check_param)
-	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
-	local REF_ORGS=$(realpath $(grep -i -w "ref_orgs" $param_file | check_param))
+	local ORTHODB_PATH_PREFIX=$(grep -i -w "orthodb_path_prefix" $param_file | check_param)
+	local REF_ORGS=$(grep -i -w "ref_orgs" $param_file | check_param)
 	local seqID_delimiter=$(grep -i -w "seqID_delimiter" $param_file | check_param) 
 	#LABEL_SEQS=$(grep -i -w "label_sequence_IDs" $5 | check_param) 
 	#n_threads=$(nproc --all)
@@ -844,7 +847,7 @@ function extract_genomic_regions(){
 	  local MODE="-w"
 	fi
 
-	echo "Command : $0 $@"
+	echo "Command : $0 extract_genomic_regions $@"
 
 	if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
 	  rm -rf $FASTA_PATH/$f_org_name
@@ -1052,15 +1055,15 @@ function check_OrthoDB(){
 	local script_args=($(echo $@))
 	local f_org_name=${script_args[0]}  #$1
 	#readarray gene_list < $2
-	local gene_list=($(cat $(realpath ${script_args[1]}) | grep -v -w -i "gene")) #$2
-	local out_gene_list=$(realpath ${script_args[2]}) #$3
-	local out_gene_clusters=$(realpath ${script_args[3]}) #$4 #$5 - is parameters.txt
-	local param_file=$(realpath ${script_args[4]})
-	local select_all_genes=$(realpath ${script_args[5]})
+	local gene_list=($(cat ${script_args[1]} | grep -v -w -i "gene")) #$2
+	local out_gene_list=${script_args[2]} #$3
+	local out_gene_clusters=${script_args[3]} #$4 #$5 - is parameters.txt
+	local param_file=${script_args[4]}
+	local select_all_genes=${script_args[5]}
 
-	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
-	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
-	local REF_ORGS=$(realpath $(grep -i -w "ref_orgs" $param_file | check_param))
+	local TEMP_PATH=$(grep -i -w "temp_path" $param_file | check_param)
+	local ORTHODB_PATH_PREFIX=$(grep -i -w "orthodb_path_prefix" $param_file | check_param)
+	local REF_ORGS=$(grep -i -w "ref_orgs" $param_file | check_param)
 	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}' ) #| check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
 
@@ -1159,7 +1162,7 @@ function check_OrthoDB(){
 	  >&2 color_FG_Bold $Red "2. $org_name not found in OrthoDB files"
 	fi
 
-	exit 0
+	#exit 0
 }
 
 function convert_BLAST_format(){
@@ -1173,6 +1176,25 @@ function convert_BLAST_format(){
 	if [[ -s $blast_archive && -s $blast_formatter_path ]]; then
 		$blast_formatter_path -archive $blast_archive -outfmt "$out_fmt $blast_cols" -out $out_file #&> /dev/null
 	fi
+}
+
+function select_ref_org_groups(){
+	local script_args=($(echo $@))
+	local ref_orgs_file=${script_args[0]}
+	local groups_path=${script_args[1]}  
+	local parallel_path=${script_args[2]}  
+	local any_or_all_refs=${script_args[3]}  
+	local n_threads=${script_args[4]}
+
+if [[ $any_or_all_refs == "ANY" ]]; then
+	rm -f $(grep -r -L -i -f $ref_orgs_file $groups_path)
+elif [[ $any_or_all_refs == "ALL" ]]; then
+	readarray refs < $ref_orgs_file	
+	$parallel_path --max-procs $n_threads "grep -r -l -i {1} $groups_path | sort > $groups_path/{1}.tmp" ::: "${refs[@]}" 
+	#rm -f $(grep -r -L -i -f $(cat $groups_path/*.tmp | sort | uniq -d))
+	rm -f $(cat $groups_path/*.tmp | grep -v -i -f <(cat $groups_path/*.tmp | sort | uniq -d))
+	rm -f $groups_path/*.tmp
+fi
 }
 
 function install_parallel(){
@@ -1244,6 +1266,7 @@ export -f twoway_RBH
 export -f do_BLAST
 export -f make_BLAST_db
 export -f convert_BLAST_format
+export -f select_ref_org_groups
 
 ##FUNCTIONS FOR COLORING CONSOLE OUTPUT
 export -f color_FG

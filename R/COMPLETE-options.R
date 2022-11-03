@@ -154,6 +154,16 @@ load_params <- function(param_file){
     SELECT_ALL_GENES <- FALSE
   }
 
+  SELECT_REF_ORG_GROUPS <- check_param(param_table,"select_groups_with_ref_orgs",optional=T,CAST_FUN=as.logical)
+  if(is.na(SELECT_REF_ORG_GROUPS) || length(SELECT_REF_ORG_GROUPS) == 0){
+    SELECT_REF_ORG_GROUPS <- FALSE
+  }
+
+  SELECT_REF_ORG_GROUPS_METHOD <- toupper(check_param(param_table,"select_groups_with_ref_orgs_method",optional=T,CAST_FUN=as.character))
+  if(is.na(SELECT_REF_ORG_GROUPS_METHOD) || length(SELECT_REF_ORG_GROUPS_METHOD) == 0){
+    SELECT_REF_ORG_GROUPS_METHOD <- "ANY"
+  }
+
   E_VALUE_THRESH <- check_param(param_table,"e_value_thresh",optional=F,CAST_FUN=as.double)
   MIN_IDENT_THRESH  <- check_param(param_table,"minIdent_thresh",optional=F,CAST_FUN=as.double)
   BLAST_OPTIONS  <- check_param(param_table,"blast_options",optional=F,CAST_FUN=as.character)
@@ -197,6 +207,8 @@ load_params <- function(param_file){
                      numWorkers=numWorkers,
                      GENE_SEARCH_MODE=GENE_SEARCH_MODE,
                      SELECT_ALL_GENES=SELECT_ALL_GENES,
+                     SELECT_REF_ORG_GROUPS=SELECT_REF_ORG_GROUPS,
+                     SELECT_REF_ORG_GROUPS_METHOD=SELECT_REF_ORG_GROUPS_METHOD,
                      E_VALUE_THRESH=E_VALUE_THRESH,
                      MIN_IDENT_THRESH=MIN_IDENT_THRESH,
                      BLAST_OPTIONS=BLAST_OPTIONS,

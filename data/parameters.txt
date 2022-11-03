@@ -19,6 +19,8 @@ annos_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/v
 bed_path==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/sandbox/vegetal/files/bed== Path to save the extracted BED files (to avoid re-extraction each time) (USER) (Input/Output)
 clean_extract==FALSE== Remove old files and Re-extract transcript regions? (Input)
 select_all_genes_from_cluster==FALSE== Select all genes from each cluster for each organism? (otherwise only the user specified genes are selected from each ODB cluster) (Default-FALSE) (Input, Optional)
+select_groups_with_ref_orgs==TRUE== Select only clusters which contain the sequences from the reference organisms? (Default-TRUE) (Input, Optional)
+select_groups_with_ref_orgs_method==ALL== Select only groups which contain the sequences from ANY/ALL of the reference organisms? (Default-ALL) (Input, Optional)
 plot_path==files/plots== Path to save plot images (Output)
 gene_drop_thresh==0== Threshold to filter genes (Input)
 orthodb_path_prefix==/run/user/25654/gvfs/sftp:host=max-login.mdc-berlin.net/fast/AG_Meyer/viz/OrthoDB/odb10v1== Path and prefix to OrthoDB files, check docs to know which files you need (merge_OG2genes_OrthoDB.R) (Input/Output)

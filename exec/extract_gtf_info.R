@@ -317,10 +317,11 @@ if (CLEAN_EXTRACT==T) {
 utr_len_df <- c()
 bed_df <- c()
 
-if(!file.exists(paste(BED_PATH_PREFIX,"bed",sep=".")) || file.info(paste(BED_PATH_PREFIX,"bed",sep="."))$size<4){ #file.exists(output_file) || file.info(output_file)$size<4
-  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
-}else{
-  #print(paste("Output file exists(",output_file,")...Checking BED files!"))
+#if(!file.exists(paste(BED_PATH_PREFIX,"bed",sep=".")) || file.info(paste(BED_PATH_PREFIX,"bed",sep="."))$size<4){ #file.exists(output_file) || file.info(output_file)$size<4
+#  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
+#}else{
+tryCatch({
+ #print(paste("Output file exists(",output_file,")...Checking BED files!"))
 
   utr_len_df <- read.table(file = file(output_file, open = "r"), sep = ",",header = T)
 
@@ -334,7 +335,9 @@ if(!file.exists(paste(BED_PATH_PREFIX,"bed",sep=".")) || file.info(paste(BED_PAT
   }
 
   print("Files Checked!")
-}
+},error=function(cond){
+  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
+})
 
 quit()
 
