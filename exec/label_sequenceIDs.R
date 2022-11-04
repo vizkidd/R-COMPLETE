@@ -1,6 +1,7 @@
 suppressMessages(require(parallel))
 suppressMessages(require(Biostrings))
 suppressMessages(require(stringi))
+#suppressMessages(require(COMPLETE))
 
 ##FUNCTIONS
 label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list){
@@ -18,18 +19,29 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
   }
 
   invisible(mclapply(genes, function(x){
+    #print(x) #DEBUG
     safe_gene <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(x))
-    file_path <- paste(fasta_path,safe_gene,sep="")
+    #file_path <- paste(fasta_path,safe_gene,sep="")
+    odb_clusters <- "ungrouped"
     if(!is.null(odb_gene_map)){
       odb_clusters <- paste(odb_gene_map[grep(pattern = x,x = odb_gene_map[,2],ignore.case = T,value = F),1],collapse = ",")
-    }else{
-      odb_clusters <- "ungrouped"
+      if(stringi::stri_isempty(odb_clusters)){
+        odb_clusters <- "ungrouped"
+      }
     }
-    lapply(list.files(path = fasta_path,pattern = safe_gene,full.names = T), function(y){
-      seq_set <- readDNAStringSet(filepath = y,format = "fasta",use.names = T)
-      names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
-      writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
-    })
+    #print(paste(x, safe_gene,odb_clusters)) #DEBUG
+    mclapply(list.files(path = fasta_path,pattern = safe_gene,full.names = T,ignore.case = T), function(y){
+      #if(file.exists(y)){
+        seq_set <- readDNAStringSet(filepath = y,format = "fasta",use.names = T)
+        if( ncol(stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T) ) != 4 ){ #length(COMPLETE$FORMAT_ID_INDEX)
+          #print(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
+          #print(names(seq_set)) #DEBUG
+          names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
+          writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
+          #return(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
+        }
+      #}
+    }, mc.cores = params_list$numWorkers,mc.silent = T)
 
   }, mc.cores = params_list$numWorkers,mc.silent = T))
 

@@ -366,6 +366,9 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
     return(FALSE)
   }, error=function(cond){
     message(cond)
+    if(verbose){
+      message(paste("Org:",org,", ",fasta_path," : Check FAILED!"))
+    }
     return(FALSE)
   }))
 }
@@ -1278,7 +1281,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     message("User Data is skipped!")
   }
 
-  if( !only.user.data && !is.null(user_data) ){ #loaded_PARAMS$DATA_SOURCE=="both" || loaded_PARAMS$DATA_SOURCE!="user"){
+  if( !only.user.data ){ #loaded_PARAMS$DATA_SOURCE=="both" || loaded_PARAMS$DATA_SOURCE!="user"){
     #parallel::mclapply(org.meta$name, fetch_genome_db, mc.cores = 1)
     #lapply(org.meta$name, FUN = function(x){
     saved_meta <- apply(orgs_to_fetch, MARGIN = 1, FUN = function(x){
@@ -1299,7 +1302,11 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     }
   }, mc.cores =  loaded_PARAMS$numWorkers))
 
-  cat(print_toc(tictoc::toc(quiet = T, log = T)))
+  final_toc_print <- tictoc::toc(quiet = T, log = T)
+  while(!is.null(final_toc_print)){
+    cat(print_toc(final_toc_print))
+    final_toc_print <- tictoc::toc(quiet = T, log = T)
+  }
 
   #save(saved_meta, file ="saved_meta.RData")
 
@@ -1345,12 +1352,13 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   }, mc.cores =  loaded_PARAMS$numWorkers)
   available_genes <- purrr::reduce(available_genes_list, unique)
 
-  available_orgs <- list.dirs(path= params_list$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt
+  available_orgs <- list.dirs(path= loaded_PARAMS$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt
   write.table(x = available_orgs ,file = paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), quote = F, row.names = F,col.names = F)
 
   if(length(available_orgs) > 0){ #file.exists(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep="")) && file.info(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""))$size > 0
-    #available_orgs <- list.dirs(path= params_list$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), character(), quiet = T))
+    #available_orgs <- list.dirs(path= loaded_PARAMS$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), character(), quiet = T))
     unavailable_orgs <- all_orgs[which(is.na(match(all_orgs,available_orgs)))]
+    cat(paste("Unavailable Organisms :",unavailable_orgs, collapse = ","))
   }else{
     unavailable_orgs <- all_orgs
     stop("No organisms were available!. Rety with other options or a different gene list.")
