@@ -9,6 +9,9 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
       odb_gene_map <- read.table(file = odb_gene_map,header = F,quote = "",sep = "\t")
       #local ortho_cluster=$(grep -w $gene_name $odb_clusters | awk -F'\t' '{if (length(c) == 0){c=$1;}else{c=c","$1;}}END{print c}')
+    }else{
+      warning(paste(odb_gene_map,"does not exist!"))
+      odb_gene_map <- NULL
     }
   }
   if (is.character(gene_list)) {

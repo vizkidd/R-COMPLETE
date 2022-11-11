@@ -348,7 +348,7 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
       #   return(FALSE)
       # }
 
-      if((all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) && all(which(is.na(match(missing_genes, files_in_dir))))){
+      if( all(!is.na(match(available_genes,files_in_dir))) && all(is.na(match(available_genes,missing_genes))) ){ #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
         if(verbose){
           cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check PASSED!\n"))
         }
@@ -887,7 +887,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   #   }
   #   x$kill(close_connections = TRUE)
   # }, mc.cores = params_list$numWorkers))
-
+  #print(paste(org_fasta_path,org,genes,odb_gene_map,params_list)) #DEBUG
   label_sequenceIDs(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list)
 
   names(gtf_stats)[grep(pattern="transcript_length",names(gtf_stats))] <- "transcript_length.annotated"
@@ -1084,6 +1084,9 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
       odb_gene_map <- read.table(file = odb_gene_map,header = F,quote = "",sep = "\t")
       #local ortho_cluster=$(grep -w $gene_name $odb_clusters | awk -F'\t' '{if (length(c) == 0){c=$1;}else{c=c","$1;}}END{print c}')
+    }else{
+      warning(paste(odb_gene_map,"does not exist!"))
+      odb_gene_map <- NULL
     }
   }
   if (length(gene_list) == 1 && file.exists(gene_list)) {
@@ -1317,8 +1320,11 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     colnames(user_saved_meta) <- c("org","genome","gtf")
     write.table(x = user_saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
   }
-  if(!is.null(saved_meta)){
-    saved_meta <- dplyr::bind_rows(t(saved_meta))
+  saved_meta[which(sapply(saved_meta, is.null))] <- NULL
+  #print(saved_meta) #DEBUG
+  #save(saved_meta, file ="saved_meta.RData") #DEBUG
+  if(!is.null(saved_meta) && length(saved_meta) > 0){
+    saved_meta <- t(saved_meta) #dplyr::bind_rows(t(saved_meta))
     write.table(x = saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
   }
   #parallel::mclapply(saved_meta, function(x){
@@ -1358,7 +1364,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   if(length(available_orgs) > 0){ #file.exists(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep="")) && file.info(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""))$size > 0
     #available_orgs <- list.dirs(path= loaded_PARAMS$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), character(), quiet = T))
     unavailable_orgs <- all_orgs[which(is.na(match(all_orgs,available_orgs)))]
-    cat(paste("Unavailable Organisms :",unavailable_orgs, collapse = ","))
+    cat(paste("Unavailable Organisms :",paste(unavailable_orgs, collapse = ",")))
   }else{
     unavailable_orgs <- all_orgs
     stop("No organisms were available!. Rety with other options or a different gene list.")
@@ -1400,13 +1406,6 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 }
 
 #' Design of R-COMPLETE
-#' @author Vishvesh Karthik (MDC-Berlin), [vishvesh.karthik@mdc-berlin.de]
-#'
-#' @usage
-#' (1) EXTRACT_DATA()
-#' (2) FIND_TRANSCRIPT_ORTHOLOGS()
-#'
-#' @details
 #'
 #' The pipeline uses R and BASH. BASH functions are invoked through R.
 #' BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
@@ -1459,6 +1458,12 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
 #'
 #'     2) FIND_ORTHOLOGS() -
+#'
+#' @author Vishvesh Karthik (MDC-Berlin), [vishvesh.karthik@mdc-berlin.de]
+#'
+#' @usage
+#' (1) EXTRACT_DATA()
+#' (2) FIND_TRANSCRIPT_ORTHOLOGS()
 #'
 #' @seealso [COMPLETE::EXTRACT_DATA()], [COMPLETE::FIND_ORTHOLOGS()]
 #' @md

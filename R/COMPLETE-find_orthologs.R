@@ -203,9 +203,9 @@ deindex_BLAST_table <- function(blast_table, index_col){
 #' @export
 GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL, sep="\t", header=F){
 
-  if(!is.null(blast_input) && is.character(blast_input)){
-    blast_input <- LoadBLASTHits(blast_input,sep=sep,header=header)
-  }
+  # if(!is.null(blast_input) && is.character(blast_input) &&){
+  #   blast_input <- LoadBLASTHits(blast_input,sep=sep,header=header)
+  # }
   #print(head(blast_input)) #DEBUG
   # if(!is.null(col.names)){
   #   if(ncol(blast_input) != length(col.names)){
@@ -214,7 +214,22 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   #   colnames(blast_input) <- col.names
   # }
 
-  req_columns <- c("qseqid","sseqid","pident","length","qstart","qend","sstart","send","evalue","bitscore","gaps","frames","qcovhsp","sstrand","qlen","slen")
+  if(!is.null(blast_input) && is.character(blast_input)){
+    if( file.exists(blast_input)){
+      blast_input <- LoadBLASTHits(infile = blast_input, sep=sep, header=header)
+    }else{
+      stop(paste(blast_input,"does not exist!"))
+    }
+  }else if(!is.null(blast_input) && !is.character(blast_input)){
+    blast_input <- blast_input
+    #if(!is.null(col.names)){
+    #  colnames(blast_table) <- col.names
+    #}
+  }else{
+    stop(paste("Input does not exist or is not a table!"))
+  }
+
+  req_columns <- c("qseqid","sseqid","qstart","qend","sstart","send", "sstrand") #"pident","length", "evalue","bitscore","gaps","frames","qcovhsp","sstrand","qlen","slen"
 
   if (any(is.na(match(req_columns, names(col.indices))))) {
     stop(paste("Missing columns, Require indices of :",paste(req_columns,collapse = ",")))
@@ -245,13 +260,17 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
       return(stringi::stri_split_fixed(tx_id[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
     })) )
 
-    blast_input <- blast_input[which(blast_input[,col.indices[["evalue"]]] < params_list$E_VALUE_THRESH),]
+    if(!is.null(col.indices[["evalue"]])) blast_input <- blast_input[which(blast_input[,col.indices[["evalue"]]] < params_list$E_VALUE_THRESH),]
 
-  }#else{
-  #  stop("Parameter file not loaded with load_params(), params_list is NULL & COMPLETE.format.ids==FALSE")
-  #}
+    if(nrow(blast_input) == 0){
+      return(stop("GRObject_from_BLAST() - No hits passed the E-Value threshold!."))
+    }
 
-  ##CHANGE strands
+  }else{
+    warning(paste("is.null(params_list)==",is.null(params)," && COMPLETE.format.ids==",COMPLETE.format.ids,". Must be COMPLETE.format.ids==TRUE && is.null(params_list)==FALSE",sep=""))
+  }
+
+  ##CHANGE strands otherwise IRanges will not work
   change_qstrand <- which(blast_input[,col.indices[["qstart"]]] > blast_input[,col.indices[["qend"]]])
   if (length(change_qstrand) > 0) {
     # print("changing qstart")
@@ -273,6 +292,7 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   no_strand_info <- which(stringi::stri_cmp_eq("N/A",blast_input[,col.indices[["sstrand"]]]))
   blast_input[no_strand_info,col.indices[["sstrand"]]] <- "*"
 
+  #print(blast_input) #DEBUG
   #tmp_gr <- GenomicRanges::GRanges(S4Vectors::Rle(blast_input[,col.indices["sseqid"]]), ranges =  IRanges::IRanges(blast_input[,col.indices["sstart"]], end = blast_input[,col.indices["send"]],strand= blast_input[,col.indices["sstrand"]])) #, names = orths$sseqid))
 
   tmp_df <- data.frame(seq_names=blast_input[,col.indices[["sseqid"]]])
@@ -282,22 +302,23 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   tmp_df <- mutate(tmp_df, sstart = blast_input[,col.indices[["sstart"]]])
   tmp_df <- mutate(tmp_df, send = blast_input[,col.indices[["send"]]])
   tmp_df <- mutate(tmp_df, sstrand= blast_input[,col.indices[["sstrand"]]])
+  #print(tmp_df) #DEBUG
   tmp_df <- mutate(tmp_df, Hsp_num=c(1:nrow(blast_input))) #seq(1,nrow(tmp_blast),1)
-  tmp_df <- mutate(tmp_df, Hsp_bit.score = blast_input[,col.indices[["bitscore"]]])
-  tmp_df <- mutate(tmp_df, Hsp_score = blast_input[,col.indices[["qcovhsp"]]])
-  tmp_df <- mutate(tmp_df, Hsp_evalue = blast_input[,col.indices[["evalue"]]])
+  if(!is.null(col.indices[["bitscore"]])) tmp_df <- mutate(tmp_df, Hsp_bit.score = blast_input[,col.indices[["bitscore"]]])
+  if(!is.null(col.indices[["qcovhsp"]])) tmp_df <- mutate(tmp_df, Hsp_score = blast_input[,col.indices[["qcovhsp"]]])
+  if(!is.null(col.indices[["evalue"]])) tmp_df <- mutate(tmp_df, Hsp_evalue = blast_input[,col.indices[["evalue"]]])
   tmp_df <- mutate(tmp_df, subject_HSP_from = blast_input[,col.indices[["sstart"]]])
   tmp_df <- mutate(tmp_df, subject_HSP_to = blast_input[,col.indices[["send"]]])
   tmp_df <- mutate(tmp_df, query_id = blast_input[,col.indices[["qseqid"]]])
-  tmp_df <- mutate(tmp_df, query_len = blast_input[,col.indices[["qlen"]]])
-  tmp_df <- mutate(tmp_df, subject_len = blast_input[,col.indices[["slen"]]])
+  if(!is.null(col.indices[["qlen"]])) tmp_df <- mutate(tmp_df, query_len = blast_input[,col.indices[["qlen"]]])
+  if(!is.null(col.indices[["slen"]])) tmp_df <- mutate(tmp_df, subject_len = blast_input[,col.indices[["slen"]]])
   tmp_df <- mutate(tmp_df, query_HSP_from = blast_input[,col.indices[["qstart"]]])
   tmp_df <- mutate(tmp_df, query_HSP_to = blast_input[,col.indices[["qend"]]])
-  tmp_df <- mutate(tmp_df, Hsp_query.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
+  if(!is.null(col.indices[["frames"]])) tmp_df <- mutate(tmp_df, query.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
     frames <- as.integer(unlist(stringi::stri_split_fixed(x,pattern = "/")))
     return(frames[1])
   })) )
-  tmp_df <- mutate(tmp_df, Hsp_hit.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
+  if(!is.null(col.indices[["frames"]])) tmp_df <- mutate(tmp_df, subject.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
     frames <- as.integer(unlist(stringi::stri_split_fixed(x,pattern = "/")))
     return(frames[2])
   })) )
@@ -312,14 +333,15 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
       org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(org[,COMPLETE$FORMAT_ID_INDEX$ORG])
     })) )
-  }else{
-    warning("Parameter file not loaded with load_params & COMPLETE.format.ids==FALSE")
-  }
+  }#else{
+    #warning("Parameter file not loaded with load_params & COMPLETE.format.ids==FALSE")
+    #warning(paste("is.null(params_list)==",is.null(params)," && COMPLETE.format.ids==",COMPLETE.format.ids,". Must be COMPLETE.format.ids==TRUE && is.null(params_list)==FALSE",sep=""))
+  #}
 
-  tmp_df <- mutate(tmp_df, pidentity = blast_input[,col.indices[["pident"]]])
+  if(!is.null(col.indices[["pident"]])) tmp_df <- mutate(tmp_df, pidentity = blast_input[,col.indices[["pident"]]])
   #gr$Hsp_positive <-
-  tmp_df <- mutate(tmp_df, Hsp_gaps = blast_input[,col.indices[["gaps"]]])
-  tmp_df <- mutate(tmp_df, Hsp_align.len =  blast_input[,col.indices[["length"]]])
+  if(!is.null(col.indices[["gaps"]])) tmp_df <- mutate(tmp_df, Hsp_gaps = blast_input[,col.indices[["gaps"]]])
+  if(!is.null(col.indices[["length"]])) tmp_df <- mutate(tmp_df, Hsp_align.len =  blast_input[,col.indices[["length"]]])
   #print(head(blast_input)) #DEBUG
   if(COMPLETE.format.ids  && !is.null(params_list)){
     tmp_df <- mutate(tmp_df, subject_gene =  blast_input[,c("subject_gene")])
@@ -328,6 +350,7 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
     tmp_df <- mutate(tmp_df, subject_transcript_id =  blast_input[,c("subject_transcript_id")])
   }
 
+  #print(tmp_df) #DEBUG
   tmp_gr <- GenomicRanges::makeGRangesFromDataFrame(df = tmp_df,seqnames.field = "seq_names",start.field = "sstart",end.field = "send",strand.field = "sstrand" ,keep.extra.columns = T,ignore.strand = F)
 
   return(tmp_gr)
@@ -363,6 +386,9 @@ run_WISARD <- function(blast_hits, score_col, COMPLETE.format.ids=F,params_list=
     numWorkers <- params_list$numWorkers
   }
   gr <- blast_hits
+  if(!any(grepl(pattern = "query_id",x = colnames(as.data.frame(gr)),ignore.case = F))){
+    stop("Column Name : query_id is missing from the GRangesObject and is required. Use GRObject_from_BLAST()")
+  }
   query_vector <- unique(gr$query_id)
   #print(S4Vectors::runValue(GenomicRanges::seqnames(gr)))
   subject_vector <- unique(S4Vectors::runValue(GenomicRanges::seqnames(gr)))
@@ -394,7 +420,7 @@ run_WISARD <- function(blast_hits, score_col, COMPLETE.format.ids=F,params_list=
         print(child)
       }
       g_name <- NULL
-      g_name <- unique(unlist(stringi::stri_split_fixed(child$alignments$subject_gene,pattern=params_list$SEQUENCE_ID_DELIM,n = 1,tokens_only = T)))
+      g_name <- unique(child$alignments$subject_gene) #unique(unlist(stringi::stri_split_fixed(child$alignments$subject_gene,pattern=params_list$SEQUENCE_ID_DELIM,n = 1,tokens_only = T)))
       if(verbose){
         print(g_name)
       }
@@ -730,12 +756,10 @@ run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_o
 
     message(paste("Converting",blast_out,"to BLAST Format 6 :", final_blast_out))
 
-    convert_BLAST_format(infile = blast_out,outfile = final_blast_out,conversion_prg = tools::file_path_as_absolute(paste(BLAST_BIN,"/blast_formatter",sep="")) )
+    convert_BLAST_format(infile = blast_out,outfile = final_blast_out,conversion_prg = paste(BLAST_BIN,"/blast_formatter",sep="") ) #tools::file_path_as_absolute()
     blast_GR <- GRObject_from_BLAST(blast_input = final_blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list)
 
-    if(verbose){
-      print(head(blast_GR))
-    }
+    #print(head(blast_GR)) #DEBUG
 
     if(!keep.output.files){
       unlink(x = c(final_blast_out,blast_out), recursive = T,force = T,expand = T)
@@ -782,7 +806,7 @@ one2one_BLAST <- function(first_list,second_list, run_name="BLAST.one2one" ,blas
     #second_list <- paste(input_prefix_path,"/",second_list,sep="")
     second_list <- list.files(path = input_prefix_path,pattern = second_list, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
   }
-  purrr::map2(first_list[order(first_list)], second_list[order(second_list)], function(x,y){
+  furrr::future_map2(.x=first_list[order(first_list)], .y=second_list[order(second_list)], .f=function(x,y){
     if (file.exists(x) && file.exists(y) && file.info(x)$size > 0 && file.info(y)$size > 0) {
       # run_name1 <- tools::file_path_sans_ext(BiocGenerics::basename(x)) #tools::file_path_as_absolute()
       # run_name2 <- tools::file_path_sans_ext(BiocGenerics::basename(y)) #tools::file_path_as_absolute()
@@ -849,14 +873,12 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=tempdir(),blast_pr
   dir.create(path = output_dir,recursive = T,showWarnings = F)
 
   list_combinations <- unique(tidyr::crossing(first_list,second_list))
-  purrr::map2(list_combinations$first_list, list_combinations$second_list, function(first_set,second_set){
+  furrr::future_map2(.x=list_combinations$first_list, .y=list_combinations$second_list, .f=function(first_set,second_set){
     #parallel::mclapply(first_list, function(first_set){
     #  parallel::mclapply(second_list,function(second_set){
 
-    try({
-      one2one_BLAST(first_list = first_set,second_list = second_set, run_name = paste(first_set,second_set,"fw.all2all",sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose)
-      one2one_BLAST(first_list = second_set,second_list = first_set, run_name = paste(first_set,second_set,"bk.all2all",sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose)
-      })
+    try(one2one_BLAST(first_list = first_set,second_list = second_set, run_name = paste(first_set,second_set,"fw.all2all",sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose))
+    try(one2one_BLAST(first_list = second_set,second_list = first_set, run_name = paste(first_set,second_set,"bk.all2all",sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose))
 
     #return(NULL)
     #  }, mc.cores = floor(sqrt(numWorkers)) )
@@ -873,7 +895,7 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=tempdir(),blast_pr
 #' @param bk_blast_table Filename or BLAST Table with Query<-Subject Hits (Backward)
 #' @param col.indices A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid), Query Length (query_len), Subject Length (subject_len) and Alignment Length (HSP alignment length in our case)(align_len). Eg col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=23)
 #' @param group Name of the group/BLAST Run. Default -  "ungrouped"
-#' @param run.mode "both" or "coverage_distance" (Default) or "coverage_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict
+#' @param run.mode "both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits
 #' @param min_coverage_filter Minimum HSP Coverage value to filter out Hits (Default - 0.5)
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, Default - FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (ONLY FOR blast_table,transcript_region_lengths are assumed to have short IDs)
 #' @param params_list Output of load_params()
@@ -882,18 +904,19 @@ all2all_BLAST <- function(first_list,second_list,blast_DB_dir=tempdir(),blast_pr
 #' @param verbose Print Output Messages?
 #' @return BLAST table with Hits which pass min_coverage_filter
 #' @export
-calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, group="ungrouped",run.mode="coverage_distance",min_coverage_filter=0.5, COMPLETE.format.ids=F,params_list, sep="\t", header=F, verbose=F){ #transcript_region_lengths
+calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, group="ungrouped",run.mode="coverage_distance",min_coverage_filter=0.5, COMPLETE.format.ids=F,params_list, sep="\t", header=F, verbose=T){ #transcript_region_lengths
 
-  if(!grepl(pattern ="coverage_distance|coverage_filter|both",ignore.case = T,x = run.mode) || is.null(run.mode)){
-    stop("run.mode must be either 'both' or 'coverage_distance' or 'coverage_filter'")
+  if(!grepl(pattern ="coverage_distance|coverage_filter|both|no_filter",ignore.case = T,x = run.mode) || is.null(run.mode)){
+    stop("run.mode must be either 'both' or 'coverage_distance' or 'coverage_filter' or 'no_filter'")
   }
 
   blast_table <- parallel::mclapply(list(fw_blast_table,bk_blast_table), function(in_file){
     if(!is.null(in_file) && is.character(in_file)){
-      if( file.exists(in_file)){
+      if(file.exists(in_file)){
         return(LoadBLASTHits(infile = in_file, sep=sep, header=header))
       }else{
-        stop(paste(in_file,"does not exist!"))
+        message(paste(in_file,"does not exist!"))
+        return(NULL)
       }
     }else if(!is.null(in_file) && !is.character(in_file)){
       return(in_file)
@@ -901,9 +924,13 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
       #  colnames(blast_table) <- col.names
       #}
     }else{
-      stop(paste("Input does not exist or is not a table!"))
+      message(paste("Input does not exist or is not a table!"))
+      return(NULL)
     }
-  }, mc.cores = 2)
+  }, mc.cores = 2, mc.silent = F)
+  if (any(sapply(blast_table,is.null))) {
+    return(NULL)
+  }
   #print(head(blast_table)) #DEBUG
   # if(is.vector(transcript_region_lengths)){
   #   region_lengths <- as.data.frame(x=transcript_region_lengths,row.names = names(transcript_region_lengths)) #vector
@@ -915,30 +942,56 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
   #   stop("transcript_region_lengths must be a Data.Frame (with one column for (CDS/UTR) lengths and BLAST IDs/Transcript IDs as row.names) or a Named Vector or a Named List")
   # }
 
-  query_ids <- unique(blast_table[[1]][,col.indices[["qseqid"]]])
-  subject_ids <- unique(blast_table[[2]][,col.indices[["sseqid"]]])
+  fw_ids <- unique(c(blast_table[[1]][,col.indices[["qseqid"]]],blast_table[[1]][,col.indices[["sseqid"]]]))
+  bk_ids <- unique(c(blast_table[[2]][,col.indices[["qseqid"]]],blast_table[[2]][,col.indices[["sseqid"]]]))
 
   #print(region_lengths) #DEBUG
-  #print(paste(query_ids,collapse = ",")) #DEBUG
-  #print(paste(subject_ids,collapse = ",")) #DEBUG
+  #print(paste(fw_ids,collapse = ",")) #DEBUG
+  #print(paste(bk_ids,collapse = ",")) #DEBUG
 
-  id_combinations <- unique(tidyr::crossing(query_ids,subject_ids))
-  passed_coverage <- purrr::map2(id_combinations$query_ids, id_combinations$subject_ids, function(x,y){
+  id_combinations <- unique(tidyr::crossing(fw_ids,bk_ids))
+  passed_coverage <- furrr::future_map2(.x=id_combinations$fw_ids, .y=id_combinations$bk_ids, .f=function(fw_x,bk_y){
+    #print(data.frame(query=x,subject=y))
     if(COMPLETE.format.ids){
-      x_short <- stringi::stri_split(str = stringi::stri_split(str = x,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID]
-      y_short <- stringi::stri_split(str = stringi::stri_split(str = y,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1], fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID]
+      tx_x <- stringi::stri_split(str = fw_x,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
+      x_short <- stringi::stri_split(str = tx_x, fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID]
+      tx_y <- stringi::stri_split(str = bk_y,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
+      y_short <- stringi::stri_split(str = tx_y, fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID]
     }else{
-      x_short <- x
-      y_short <- y
+      x_short <- unlist(fw_x)
+      y_short <- unlist(bk_y)
     }
-    if(x_short!=y_short){
-      #q_length <- as.numeric(region_lengths[x_short,])
-      #s_length <- as.numeric(region_lengths[y_short,])
-
+    if(x_short!=y_short && fw_x != bk_y){
       #if(verbose) print(paste(c(x,x_short,q_length,y,y_short,s_length),collapse = ":"))
 
-      query_hits <- blast_table[[1]][which(!is.na(match(blast_table[[1]][,col.indices[["qseqid"]]],x)) & !is.na(match(blast_table[[1]][,col.indices[["sseqid"]]],y))),]
-      subject_hits <- blast_table[[2]][which(!is.na(match(blast_table[[2]][,col.indices[["sseqid"]]],y)) & !is.na(match(blast_table[[2]][,col.indices[["qseqid"]]],x))),]
+      #fw_hits <- blast_table[[1]][which(!is.na(match(blast_table[[1]][,col.indices[["qseqid"]]],x_short)) & !is.na(match(blast_table[[1]][,col.indices[["sseqid"]]],y_short))),]
+      #bk_hits <- blast_table[[2]][which(!is.na(match(blast_table[[2]][,col.indices[["qseqid"]]],y_short)) & !is.na(match(blast_table[[2]][,col.indices[["sseqid"]]],x_short))),]
+      fw_hits <- blast_table[[1]][intersect(grep(pattern = x_short,x = blast_table[[1]][,col.indices[["qseqid"]]], fixed = T), grep(pattern = y_short,x = blast_table[[1]][,col.indices[["sseqid"]]], fixed = T)),]
+      bk_hits <- blast_table[[2]][intersect(grep(pattern = y_short,x = blast_table[[2]][,col.indices[["qseqid"]]], fixed = T), grep(pattern = x_short,x = blast_table[[2]][,col.indices[["sseqid"]]], fixed = T)),]
+
+      if(is.null(fw_hits) || is.null(bk_hits) || nrow(fw_hits) == 0 || nrow(bk_hits) == 0){
+        #print(paste(fw_x,bk_y,sep="///"))
+        return(NULL)
+      }
+
+      ##ABSORB hits overlapped by other hits
+      hits_list <- lapply(list(fw_hits,bk_hits), function(hits_dir){
+        hits_GO <- GRObject_from_BLAST(blast_input = hits_dir,COMPLETE.format.ids = T,col.indices=list(qseqid=12,sseqid=1,qstart=15,qend=16,sstart=2,send=3,sstrand=5),params_list = params_list)
+        hits_ovlps <- as.data.frame(findOverlaps(hits_GO,hits_GO,type = c("within")))
+        hits_rle <- Rle(values = hits_ovlps[,1], lengths = hits_ovlps[,2])
+        if(length(hits_rle) > 1){
+          hits_dir <- hits_dir[-runValue(bk_rle)[-which.min(runLength(bk_rle))],]
+        }
+        return(hits_dir)
+      })
+
+      fw_hits <- hits_list[[1]]
+      bk_hits <- hits_list[[2]]
+
+      #print("---------------------") #DEBUG
+      #print(head(fw_hits)) #DEBUG
+      #print(head(bk_hits)) #DEBUG
+      #print("---------------------") #DEBUG
 
       ##s_overlaps <- dissolve_GR_Overlaps(subject_result)
       #s_align_length <- sum(subject_hits[,col.indices[["send"]]] - subject_hits[,col.indices[["sstart"]]])
@@ -954,38 +1007,59 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
       #print(query_hits[,col.indices[["query_len"]]] / query_hits[,col.indices[["Hsp_align.len"]]] ) #DEBUG
       #print(subject_hits[,col.indices[["align_len"]]])
 
-      q_length <- unique(query_hits[,col.indices[["query_len"]]])
-      s_length <- unique(subject_hits[,col.indices[["subject_len"]]])
+      #q_length <- as.numeric(region_lengths[x_short,])
+      #s_length <- as.numeric(region_lengths[y_short,])
 
-      raw_cov_q <- sum(subject_hits[,col.indices[["align_len"]]]) / q_length
-      raw_cov_s <- sum(query_hits[,col.indices[["align_len"]]]) / s_length
+      fw_q_length <- sum(fw_hits[,col.indices[["query_len"]]]) #sum(unique()) # mean()
+      bk_q_length <- sum(bk_hits[,col.indices[["query_len"]]]) #sum(unique()) # mean()
 
-      if(length(raw_cov_q) > 0 && length(raw_cov_s) > 0){
-        if(raw_cov_q > 1){
-          cov_q <- 1 / raw_cov_q  #sum(subject_hits[,col.indices[["send"]]] - subject_hits[,col.indices[["sstart"]]])
-        }else{
-          cov_q <- raw_cov_q
-        }
-        if(raw_cov_s > 1){
-          cov_s <-  1 / raw_cov_s #sum(query_hits[,col.indices[["qend"]]] - query_hits[,col.indices[["qstart"]]])
-        }else{
-          cov_s <- raw_cov_s
-        }
+      fw_align_length <- sum(fw_hits[,col.indices[["align_len"]]])
+      bk_align_length <- sum(bk_hits[,col.indices[["align_len"]]])
 
-        coverage_distance= sqrt((1-1/(cov_q/cov_s))^2) #sqrt((1-1/(cov_q/cov_s))^2) #1 - (cov_q/cov_s) #1- (1/(cov_q/cov_s))
+      #print(paste(fw_hits[,col.indices[["align_len"]]], q_length) )#DEBUG
+      #print(paste(bk_hits[,col.indices[["align_len"]]], s_length) )#DEBUG
+      raw_cov_fw <-  fw_align_length / fw_q_length
+      raw_cov_bk <- bk_align_length / bk_q_length
+
+      #print(paste(q_length,s_length,sep="/")) #DEBUG
+      #print(paste(raw_cov_fw,raw_cov_bk,sep="/")) #DEBUG
+
+      if(length(raw_cov_fw) != 0 && length(raw_cov_bk) != 0){
+        # if(raw_cov_fw > 1){
+        #   cov_q <- 1 / raw_cov_fw  #sum(subject_hits[,col.indices[["send"]]] - subject_hits[,col.indices[["sstart"]]])
+        # }else{
+        #   cov_q <- raw_cov_fw
+        # }
+        # if(raw_cov_bk > 1){
+        #   cov_s <-  1 / raw_cov_bk #sum(query_hits[,col.indices[["qend"]]] - query_hits[,col.indices[["qstart"]]])
+        # }else{
+        #   cov_s <- raw_cov_bk
+        # }
+
+        #raw_cov_fw[which(raw_cov_fw > 1)] <- 1/raw_cov_fw[which(raw_cov_fw > 1)]
+        #raw_cov_bk[which(raw_cov_bk > 1)] <- 1/raw_cov_bk[which(raw_cov_bk > 1)]
+        scaled_covs <- as.vector(scale(c(raw_cov_fw,raw_cov_bk),center = F))
+        cov_q <- scaled_covs[1] #raw_cov_fw
+        cov_s <- scaled_covs[2] #raw_cov_bk
+
+        coverage_distance= 1-((cov_q/cov_s)/100) #cov_q/cov_s #sqrt((1-(cov_q/cov_s))^2) #sqrt((1-1/(cov_q/cov_s))^2) #1 - (cov_q/cov_s) #1- (1/(cov_q/cov_s))
 
         if(length(coverage_distance) > 0 && length(cov_q) > 0  && length(cov_s) > 0 ){
           #if(verbose) print(paste(paste(x,"(",cov_q,")",sep = ""),paste(y,"(",cov_s,")",sep = ""),sep="->"),)
           #if(verbose) print(paste(x,"[","q_align_len/q_CDS_length:",q_align_length,"/",q_length,"]",sep=""))
           #if(verbose) print(paste(y,"[","s_align_len/s_CDS_length:",s_align_length,"/",s_length,"]",sep=""))
-          if(verbose) print(paste(x,"->",y,"[","(cov_q, cov_s): (",cov_q,", ",cov_s,")]",sep=""))
+          if(verbose) print(paste(fw_x,"->",bk_y,"[","(cov_q, cov_s): (",cov_q,", ",cov_s,")]",sep=""))
           if(verbose) print(paste("Coverage Distance:",coverage_distance,sep=""))
-          if(verbose) print(paste("raw_cov_q, raw_cov_s:",raw_cov_q,",",raw_cov_s,sep=""))
+          if(verbose) print(paste("raw_cov_fw, raw_cov_bk:",raw_cov_fw,",",raw_cov_bk,sep=""))
+          if(verbose) print(paste(q_length,s_length,sep="/"))  #DEBUG
+          if(verbose) print(paste(sum(fw_hits[,col.indices[["align_len"]]]),sum(bk_hits[,col.indices[["align_len"]]]),sep="/"))
           #if(cov_q >= min_coverage_filter && cov_s >= min_coverage_filter){
           #  return(data.frame(query=x,subject=y))
           #}
 
-          return_data <- data.frame(query=x,subject=y,query_len=q_length, subject_len=s_length,coverage_distance=coverage_distance,raw_cov_q=raw_cov_q,raw_cov_s=raw_cov_s,cov_q=cov_q,cov_s=cov_s, min=min(cov_q,cov_s),max=max(cov_q,cov_s),group=group)
+          return_data <- data.frame("query_id"=c(fw_x),"subject_id"=c(bk_y),"query_len"=q_length, "subject_len"=s_length,"coverage_distance"=coverage_distance,"raw_cov_fw"=raw_cov_fw,"raw_cov_bk"=raw_cov_bk,"cov_q"=cov_q,"cov_s"=cov_s, "min"=min(cov_q,cov_s),"max"=max(cov_q,cov_s),"group"=group)
+          #return_data <- data.frame(c(x),c(y),q_length,s_length,coverage_distance,raw_cov_fw,raw_cov_bk,cov_q,cov_s, min(cov_q,cov_s),max(cov_q,cov_s),group)
+          #colnames(return_data) <- c("query","subject","query_len", "subject_len","coverage_distance","raw_cov_fw","raw_cov_bk","cov_q","cov_s", "min","max","group")
 
           if(grepl(pattern ="both",ignore.case = T,x = run.mode)){
             if(coverage_distance <= min_coverage_filter && cov_q >= min_coverage_filter && cov_s >= min_coverage_filter ){
@@ -1000,22 +1074,32 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
             if(cov_q >= min_coverage_filter && cov_s >= min_coverage_filter){
               return(return_data)
             }
+          }else{
+            return(return_data)
           }
         }
+      }else{
+        return(NULL)
       }
-    }
+    }else{return(NULL)}
   })
 
-  #tmp_passed_coverage <<- passed_coverage
+  tmp_passed_coverage <<- passed_coverage
   passed_coverage <- dplyr::bind_rows(passed_coverage[!sapply(passed_coverage, is.null)])
-  blast_table <- lapply(blast_table, function(b_table){
-    b_table <- b_table[!is.na(match(b_table[,col.indices[["qseqid"]]],unique(c(passed_coverage$query,passed_coverage$subject)))),]
-    b_table <- b_table[!is.na(match(b_table[,col.indices[["sseqid"]]],unique(c(passed_coverage$query,passed_coverage$subject)))),]
-  })
-  return(list(coverage=passed_coverage, blast_table=blast_table))
+  print(head(passed_coverage))
+  if(nrow(passed_coverage) > 0){
+    blast_table <- lapply(blast_table, function(b_table){
+      b_table <- b_table[!is.na(match(b_table[,col.indices[["qseqid"]]],unique(c(passed_coverage$query_id,passed_coverage$subject_id)))),]
+      b_table <- b_table[!is.na(match(b_table[,col.indices[["sseqid"]]],unique(c(passed_coverage$query_id,passed_coverage$subject_id)))),]
+    })
+    return(list(coverage=passed_coverage, blast_table=blast_table))
+  }else{
+    stop(paste("No hits passed coverage filter :", group))
+  }
+
 }
 
-#all_gtf_stats Coerced GTF stats from all the organisms. Found in paste(params_list$OUT_PATH,"/all_gtf_stats.csv",sep=""). This file is generated by EXTRACT_DATA() and is required for calculating HSP Coverage
+# @param all_gtf_stats Coerced GTF stats from all the organisms. Found in paste(params_list$OUT_PATH,"/all_gtf_stats.csv",sep=""). This file is generated by EXTRACT_DATA() and is required for calculating HSP Coverage
 #' Internal Function - Transcript Ortholog Extraction Function for R-COMPLETE pipeline
 #'
 #' This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables.
@@ -1037,14 +1121,14 @@ extract_transcript_orthologs <- function(blast_program, params_list, clusters_le
     stop("Error: params_list is not a COMPLETE-options class. Use load_params()")
   }
 
-  #unique_lengths <- unique(all_gtf_stats[,c("transcript_id","total_cds_len")])
-  #tx_CDS_lengths <- data.frame(length=unique_lengths$total_cds_len, row.names = unique_lengths$transcript_id)
+  # unique_lengths <- unique(all_gtf_stats[,c("transcript_id","total_cds_len")])
+  # tx_CDS_lengths <- data.frame(length=unique_lengths$total_cds_len, row.names = unique_lengths$transcript_id)
 
   blast_options <- params_list$BLAST_OPTIONS
   #blast_DB_dir <- params_list$BLAST_DB_PATH
 
   all2all_BLAST(first_list = clusters_left, second_list = clusters_right,blast_program = blast_program,output_dir =output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
-  all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+  #all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
 
   # parallel::mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
   #   out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
@@ -1055,21 +1139,26 @@ extract_transcript_orthologs <- function(blast_program, params_list, clusters_le
 
   ## parallel::mclapply(list.files(path = output_dir,pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
   #parallel::mclapply(list.files(path = output_dir,pattern = c(paste(clusters_left,clusters_right,"all2all",sep="."),paste(clusters_right,clusters_left,"all2all",sep=".")), ignore.case = T,full.names = T),function(in_file){ #c(paste(clusters_left,clusters_right,"all2all",sep="."),paste(clusters_right,clusters_left,"all2all",sep=".")) #list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T)
-  purrr::map2(group_combinations$clusters_left,group_combinations$clusters_right ,function(c_left,c_right){
+  furrr::future_map2(.x=group_combinations$clusters_left,.y=group_combinations$clusters_right ,.f=function(c_left,c_right){
     in_file1 <- paste(output_dir,c_left,".",c_right,".fw.all2all",sep="")
-    in_file2 <- paste(output_dir,c_right,".",c_left,".bk.all2all",sep="")
-    out_file1 <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file1)),".fw.wis_out",sep="")
-    out_file2 <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file2)),".bk.wis_out",sep="")
-    purrr::map2(c(in_file1,in_file2),c(out_file1,out_file2),function(in_file,out_file){
+    in_file2 <- paste(output_dir,c_left,".",c_right,".bk.all2all",sep="")
+    out_file1 <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file1)),".wis_out",sep="")
+    out_file2 <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file2)),".wis_out",sep="")
+    furrr::future_map2(.x=c(in_file1,in_file2),.y=c(out_file1,out_file2),.f=function(in_file,out_file){
       #try(
       if(!file.exists(out_file) && file.exists(in_file)){
         blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list = params_list)
+
+        #SELECT ONLY FRAMES 1/1
+        blast_GO <- blast_GO[blast_GO$query.frame==1]
+        blast_GO <- blast_GO[blast_GO$subject.frame==1]
+
         wis_GO <- invisible(run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",COMPLETE.format.ids = T, params_list = params_list)) #score_col=16)
         wis_GO <- melt_wisard_list(wis_GO)
         write.table(x = wis_GO,file = out_file,quote = F,col.names = T,row.names = F,sep = "\t")
-      }else{
-        stop(paste(out_file,"exists!"))
-      }
+      } #else{
+      #   stop(paste(out_file,"exists! (OR)",in_file, "does not exist!"))
+      # }
       #)
     })
   })
@@ -1078,16 +1167,16 @@ extract_transcript_orthologs <- function(blast_program, params_list, clusters_le
   #load("files/all2all/wisard_results.RData")
 
   ##RUN RBH
-  purrr::map2(group_combinations$clusters_left,group_combinations$clusters_right ,function(query,subject){
+  furrr::future_map2(.x=group_combinations$clusters_left,.y=group_combinations$clusters_right ,.f=function(query,subject){
     #lapply(clusters_left, function(query){
     #  parallel::mclapply(clusters_right,function(subject){ #grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
     in1 <- paste(output_dir,query,".",subject,".fw.wis_out",sep="")
-    in2 <- paste(output_dir,subject,".",query,".bk.wis_out",sep="")
+    in2 <- paste(output_dir,query,".",subject,".bk.wis_out",sep="")
     out1 <- paste(output_dir,query,".",subject,".fw.rbh_out",sep="")
-    out2 <- paste(output_dir,subject,".",query,".bk.rbh_out",sep="")
+    out2 <- paste(output_dir,query,".",subject,".bk.rbh_out",sep="")
     #print(paste(in1,in2)) #DEBUG
     try(
-      if (!file.exists(out1) && !file.exists(out2) && file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) {
+      if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 ) { #!file.exists(out1) && !file.exists(out2) &&
         #RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1,weight.col=22),col.names = c("subject_id","start","end","width","strand","Hsp_num","Hsp_bit.score","Hsp_score","Hsp_evalue","Hsp_query.from","Hsp_query.to","query_id","query_len","subject_len","Hsp_hit.from","Hsp_hit.to","Hsp_query.frame","Hsp_hit.frame","Hsp_pidentity","Hsp_gaps","Hsp_align.len","max_score"))
         #print(paste(out1,out2))
         RBH_out <- RBH(in1 = in1, in2 = in2, index.tables = T, col.indices = list(qseqid=12,sseqid=1), header = T,n_threads = params_list$numWorkers) #,weight.col=c(22,8) ), unique.hit.weights = T, process.weights.func = max)
@@ -1097,31 +1186,35 @@ extract_transcript_orthologs <- function(blast_program, params_list, clusters_le
         #save(RBH_out, tx_CDS_lengths, file = "tmp.RData")
         #calculate_HSP_coverage(RBH_out$in1,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
         #calculate_HSP_coverage(RBH_out$in2,transcript_region_lengths = tx_CDS_lengths, col.indices=list(qseqid=12,sseqid=1,qstart=10,qend=11,sstart=2,send=3), COMPLETE.format.ids = T,params_list = params_list)
-      }else{
-        stop(paste(out1,"exists!"))
-      })
+      } #else{
+      #   stop(paste(out1,"exists! (OR)",in1," & ",in2,"does not exist"))
+      # }
+    )
     # }, mc.cores = params_list$numWorkers )
     #})
   })
 
-  final_blast_tables <- purrr::map2(group_combinations$clusters_left,group_combinations$clusters_right ,function(query,subject){
+  final_blast_tables <- furrr::future_map2(.x=group_combinations$clusters_left,.y=group_combinations$clusters_right ,.f=function(query,subject){
     in1_data <- paste(output_dir,query,".",subject,".fw.rbh_out",sep="")
-    in2_data <- paste(output_dir,subject,".",query,".bk.rbh_out",sep="")
+    in2_data <- paste(output_dir,query,".",subject,".bk.rbh_out",sep="")
     out1_data <- paste(output_dir,query,".",subject,".fw.final_out",sep="")
-    out2_data <- paste(output_dir,subject,".",query,".bk.final_out",sep="")
+    out2_data <- paste(output_dir,query,".",subject,".bk.final_out",sep="")
     out_cov_data <- paste(output_dir,query,".",subject,".coverage",sep="")
-    try(if(file.exists(in_data) && !file.exists(out_data) && !file.exists(out_cov_data)){
-      final_blast_table <- calculate_HSP_coverage(fw_blast_table = in1_data,bk_blast_table = in2_data,col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=21), group=paste(query,subject,sep="."),COMPLETE.format.ids = T,params_list = params_list)
-      write.table(x = final_blast_table$blast_table[[1]],file = out1_data,quote = F,col.names = T,row.names = F, sep = "\t")
-      write.table(x = final_blast_table$blast_table[[2]],file = out2_data,quote = F,col.names = T,row.names = F, sep = "\t")
-      write.table(x = final_blast_table$coverage,file = out_cov_data,quote = F,col.names = T,row.names = F, sep = "\t")
+    try(if(file.exists(in1_data) && file.exists(in2_data)){ #&& !file.exists(out1_data) && !file.exists(out2_data) && !file.exists(out_cov_data)
+      final_blast_table <- calculate_HSP_coverage(fw_blast_table = in1_data,bk_blast_table = in2_data,col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=23), group=paste(query,subject,sep="."),COMPLETE.format.ids = T,params_list = params_list, header = T,verbose = T, min_coverage_filter = params_list$MIN_COVERAGE_THRESHOLD) #transcript_region_lengths = tx_CDS_lengths
+      if(!is.null(unlist(sapply(final_blast_table, nrow))) && unlist(sapply(final_blast_table, nrow)) > 0){
+        write.table(x = final_blast_table$blast_table[[1]],file = out1_data,quote = F,col.names = T,row.names = F, sep = "\t")
+        write.table(x = final_blast_table$blast_table[[2]],file = out2_data,quote = F,col.names = T,row.names = F, sep = "\t")
+        write.table(x = final_blast_table$coverage,file = out_cov_data,quote = F,col.names = T,row.names = F, sep = "\t")
+      }
       return(final_blast_table)
-    }else{
-      stop(paste(out_data,"&",out_cov_data,"exists! OR",in_data, "does not exist!"))
-    })
+    } #else{
+    #   stop(paste(out1_data,",",out2_data,"&",out_cov_data,"exists! (OR)",in1_data,",",in2_data, "does not exist!"))
+    # }
+    )
   })
 
-  save(final_blast_tables, file="final_blast_tables.RData")
+  #save(final_blast_tables, file="final_blast_tables.RData") #DEBUG
 
   # ##PLOT_CODE
   # tmp2 <- c()
@@ -1335,9 +1428,10 @@ select_ref_org_groups <- function(params_list){
 #'
 #' @param params_list Output of load_params()
 #' @param id.col.index The index of Column of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN) to groups sequences into. Use id.col.index=1 for grouping sequences based on Transcript IDs, id.col.index=2 to group sequences into Organisms, id.col.index=3 for grouping sequences based on Gene Names and id.col.index=4 to groups sequences into Ortholog Clusters. Check COMPLETE$FORMAT_ID_INDEX for indices
+#' @param remove.invalid.files Remove files which do not have COMPLETE.format.ids? Default -FALSE. (Refer ?COMPLETE_PIPELINE_DESIGN to know about COMPLETE.format.ids)
 #' @param verbose Print DEBUG Messages?
 #' @export
-group_FASTA <- function(params_list, id.col.index, verbose=F){
+group_FASTA <- function(params_list, id.col.index, remove.invalid.files=F, verbose=T){
   if(!any(grepl(x = class(params_list), pattern = "COMPLETE-options"))){
     stop("Error: params_list is not a COMPLETE-options class. Use load_params()")
   }
@@ -1347,22 +1441,26 @@ group_FASTA <- function(params_list, id.col.index, verbose=F){
   tictoc::tic(msg = paste("Grouping FASTA into", grouping_by,"..."))
   unlink(x = params_list$GROUPS_PATH,recursive = T,force = T,expand = T)
   dir.create(path = params_list$GROUPS_PATH,showWarnings = F,recursive = T)
-  fasta_files <- list.files(path = params_list$FASTA_OUT_PATH,all.files = T,full.names = T,recursive = T,include.dirs = F)
-  parallel::mclapply(fasta_files, function(x){
+  fasta_files <- list.files(path = params_list$FASTA_OUT_PATH,all.files = F,full.names = T,recursive = T,include.dirs = F)
+  furrr::future_map(fasta_files, function(x){ #parallel::mclapply #lapply
     fasta_recs <- Biostrings::readDNAStringSet(filepath = x,use.names = T, format = "fasta")
     #print(names(fasta_recs)) #DEBUG
     split_recs <- stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
     if(ncol(split_recs)==length(COMPLETE$FORMAT_ID_INDEX)){ ##CHECKING IF FASTA IDs are COMPLETE.format.ids
       org_name <- unique( split_recs[, COMPLETE$FORMAT_ID_INDEX$ORG] )
       #print(org_name) #DEBUG
-      all_clusters <- unique(unlist(purrr::map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
+      all_clusters <- unique(unlist(furrr::future_map2(seq_along(fasta_recs),names(fasta_recs), function(rec_num, rec_name){
         split_rec <- stringi::stri_split(str = rec_name, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
         rec_clusters <- unique(stringi::stri_split(str = split_rec[, id.col.index], fixed = ",", simplify=T)) #ncol(split_rec)
         #print(rec_clusters) #DEBUG
-        lapply(rec_clusters, function(each_cluster){
-          #print(paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""))  #DEBUG
-          Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
-        })
+        parallel::mclapply(rec_clusters, function(each_cluster){
+          #print(fasta_recs[rec_num]) #DEBUG
+          #print(each_cluster) #DEBUG
+          #print( paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""),)  #DEBUG
+          if(!stringi::stri_isempty(each_cluster)){
+            Biostrings::writeXStringSet(x = fasta_recs[rec_num],filepath = paste(params_list$GROUPS_PATH,"/",each_cluster,".",tools::file_ext(x),sep = ""), append = T,format = "fasta")
+          }
+        }, mc.cores = params_list$numWorkers,mc.preschedule = T,mc.silent = !verbose)
         return(rec_clusters)
       })))
       write.table(x = all_clusters,file = paste(params_list$OUT_PATH,"/genes/",org_name,"/ORG_CLUSTERS.", grouping_by,sep=""),quote = F,row.names = F,col.names = F)
@@ -1371,8 +1469,11 @@ group_FASTA <- function(params_list, id.col.index, verbose=F){
       if(verbose){
         message(paste(x," : does not have COMPLETE.format.ids"))
       }
+      if(remove.invalid.files){
+        unlink(x = x,force = T, expand = T)
+      }
     } #DEBUG
-  }, mc.cores = params_list$numWorkers,mc.preschedule = T,mc.silent = !verbose)
+  }) #, mc.cores = params_list$numWorkers,mc.preschedule = T,mc.silent = !verbose)
   cat(print_toc(tictoc::toc(quiet = T)))
 
   # all_groups_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
@@ -1380,8 +1481,8 @@ group_FASTA <- function(params_list, id.col.index, verbose=F){
   #     return(scan(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""), character(), quiet = T))
   #   }
   # }, mc.cores =  params_list$numWorkers, mc.preschedule = T, mc.silent = !verbose)
-  all_groups <- unique((tools::file_path_sans_ext(list.files(path=params_list$GROUPS_PATH,full.names = F,recursive = F,include.dirs = F)))) #unique(unlist(all_groups_list,recursive = T)) #purrr::reduce(all_groups_list, union)
-  write.table(x = all_groups,file = paste(params_list$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-")
+  all_groups <- unique(basename(tools::file_path_sans_ext(list.files(path=params_list$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)))) #unique(unlist(all_groups_list,recursive = T)) #purrr::reduce(all_groups_list, union)
+  write.table(x = all_groups,file = paste(params_list$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F)
   return(all_groups)
 }
 
@@ -1481,25 +1582,38 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(params_list, blast_program=Sys.which("tbla
     #print(run.mode) #DEBUG
     available_clusters <- c()
     tryCatch({
+
       all_clusters <- scan(paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), character(),quiet = T)
-      clusters_in_dir <- unique((tools::file_path_sans_ext(list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = F,recursive = F,include.dirs = F)))) #unique(stringi::stri_split(str = list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = F,recursive = F,include.dirs = F), simplify=T, fixed = ".")[,1])
-      if(length(which(!is.na(match(all_clusters,clusters_in_dir)))) != length(which(!is.na(match(clusters_in_dir,all_clusters)))) || length(clusters_in_dir) < 1 || length(all_clusters) < 1){
-        stop("Regrouping sequences...")
+      all_clusters <- unique(all_clusters)
+      files_in_dir <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
+      clusters_in_dir <- unique(basename(tools::file_path_sans_ext(files_in_dir))) #unique(stringi::stri_split(str = list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = F,recursive = F,include.dirs = F), simplify=T, fixed = ".")[,1])
+      #print(head(all_clusters)) #DEBUG
+      #print(head(files_in_dir)) #DEBUG
+      #print(head(clusters_in_dir)) #DEBUG
+      #print(match(all_clusters,clusters_in_dir)) #DEBUG
+      if( any(is.na(match(all_clusters,clusters_in_dir))) || length(clusters_in_dir) == 0 || length(all_clusters) == 0 ){ #all_clusters[which(!is.na(match(all_clusters,clusters_in_dir)))] #|| length(which(!is.na(match(all_clusters,clusters_in_dir)))) != length(which(!is.na(match(clusters_in_dir,all_clusters)))) #any(is.na(match(all_clusters[which(!is.na(match(all_clusters,clusters_in_dir)))] ,clusters_in_dir[which(!is.na(match(clusters_in_dir,all_clusters)))])))
+        stop("Regrouping sequences...\n")
       }
     },error=function(cond){
-      message(cond)
-      tictoc::tic(msg = paste("Storing sequences into groups (",names(COMPLETE$FORMAT_ID_INDEX)[run.mode],") ..."))
-      all_clusters <- group_FASTA(params_list = loaded_PARAMS, id.col.index = as.numeric(run.mode))
+      message(cond) #paste(cond,":",loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""))
+      tictoc::tic(msg = paste("Storing sequences into groups (",names(COMPLETE$FORMAT_ID_INDEX)[as.numeric(run.mode)],") ..."))
+      unlink(paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""),force = T,expand = T)
+      all_clusters <- group_FASTA(params_list = loaded_PARAMS, id.col.index = as.numeric(run.mode),remove.invalid.files=T,verbose = T)
       #print(all_clusters) #DEBUG
       cat(print_toc(tictoc::toc(quiet = T)))
-      write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-")
+      #write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F)
     }, finally = {
       #print(all_clusters) #DEBUG
       #unlink(x = grep(x = list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F) , pattern = "cds", ignore.case = T,invert = T, value = T), recursive = F,force = T,expand = T)
-      non_cds_file_list <- grep(x = list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F) , pattern = "cds", ignore.case = T,invert = T, value = T)
-      dir.create(path = file.path(loaded_PARAMS$GROUPS_PATH,"groups_noncds"), showWarnings = F,recursive = T)
-      file.rename(non_cds_file_list,paste(loaded_PARAMS$GROUPS_PATH,"/groups_noncds/",basename(non_cds_file_list),sep = ""))
-      available_clusters <- all_clusters
+      files_in_dir <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
+      non_cds_file_list <- grep(x = files_in_dir , pattern = "cds", ignore.case = T,invert = T, value = T)
+      dir.create(path = file.path(loaded_PARAMS$GROUPS_PATH,"/../groups_noncds"), showWarnings = F,recursive = T)
+      if(length(non_cds_file_list) > 0){
+        file.rename(from = non_cds_file_list,to = paste(loaded_PARAMS$GROUPS_PATH,"/../groups_noncds/",basename(non_cds_file_list),sep = ""))
+        files_in_dir <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
+        write.table(x = unique(tools::file_path_sans_ext(basename(files_in_dir))),file = paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F)
+      }
+      available_clusters <- unique(tools::file_path_sans_ext(basename(files_in_dir)))#all_clusters
     })
     #}
 
@@ -1509,13 +1623,13 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(params_list, blast_program=Sys.which("tbla
       stop("No clusters were found!. Try other values for run.mode")
     }
 
-    #STEP 1 - ONLY for run.mode="cluster" - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters)
+    #STEP 1 - ONLY for run.mode="cluster" - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters) ##EG - ungrouped.1013114at2759.fw.all2all, 1013114at2759.ungrouped.bk.all2all
     #all2allblast and then wisard and then RBH for grouping ungrouped clusters
     if(any(grepl(pattern = "ungrouped",x = available_clusters,ignore.case = T))){
       message("STEP 1 - Placing ungrouped sequences into groups\n")
       tictoc::tic(msg = "Placing ungrouped sequences into groups...")
       parallel::mclapply(available_clusters, function(x){
-        extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = "ungrouped",clusters_right = x,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out)
+        extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = "ungrouped",clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out)
       }, mc.cores = loaded_PARAMS$numWorkers)
       cat(print_toc(tictoc::toc(quiet = T)))
     }else{
@@ -1538,7 +1652,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(params_list, blast_program=Sys.which("tbla
     message(paste("STEP 2 - Select transcript level orthologs between orgs/genes/clusters, based on minimum coverage\n"))
     tictoc::tic(msg = "Extracting Transcript Orthologs...")
     parallel::mclapply(available_clusters, function(x){
-      extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = x,clusters_right = x,input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out)
+      extract_transcript_orthologs(blast_program = blast_program, params_list = loaded_PARAMS,clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out)
     }, mc.cores = loaded_PARAMS$numWorkers)
     cat(print_toc(tictoc::toc(quiet = T)))
 
@@ -1575,7 +1689,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(params_list, blast_program=Sys.which("tbla
         }))
         tmp_cove$coverage$gene <- NA
         tmp_cove$coverage$gene[query_gene==subject_gene] <- factor(query_gene[query_gene==subject_gene])
-
+        tmp_cove$blast_table[[1]] <- dplyr::full_join(x = tmp_cove$coverage,y = tmp_cove$blast_table[[1]], by=c("query"="query_id","subject"="subject_id", "query_len"="query_len", "subject_len"="subject_len", "query_org"="query_org", "subject_org"="subject_org"))
+        tmp_cove$blast_table[[2]] <- dplyr::full_join(x = tmp_cove$coverage,y = tmp_cove$blast_table[[2]], by=c("query"="query_id","subject"="subject_id", "query_len"="query_len", "subject_len"="subject_len", "query_org"="query_org", "subject_org"="subject_org"))
         tmp_cove$coverage <- tmp_cove$coverage[tmp_cove$coverage$query_transcript_id!=tmp_cove$coverage$subject_transcript_id,]
         tmp_cove$coverage <- tmp_cove$coverage[tmp_cove$coverage$query_org!=tmp_cove$coverage$subject_org,]
         tmp_cove$coverage <- tmp_cove$coverage %>% mutate(query_cds_count=all_gtf_stats[match(tmp_cove$coverage$query_transcript_id,all_gtf_stats$transcript_id),c("cds_count")])
@@ -1594,35 +1709,60 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(params_list, blast_program=Sys.which("tbla
         }
 
         hit_combinations <- unique(tidyr::crossing(unique(tmp_cove$coverage$query),unique(tmp_cove$coverage$subject)))
-        purrr::map2(hit_combinations[,1],hit_combinations[,2],function(row_q,row_s){
-            if(!stringi::stri_cmp_eq(row_q,row_s)){
+        furrr::future_map2( .x=hit_combinations[,1],.y=hit_combinations[,2],.f=function(row_q,row_s){
+          print(row_q,row_s)   #DEBUG
+          if(!stringi::stri_cmp_eq(row_q,row_s)){
 
-              subset_data <- parallel::mclapply(tmp_cove$blast_table,function(b_table){
-                return(b_table[which(b_table$query_id==row_q & b_table$subject_id==row_s),])
-              }, mc.cores = 2)
+            subset_data1 <- tmp_cove$blast_table[[1]][which(!is.na(match(tmp_cove$blast_table[[1]]$query,row_q)) & !is.na(match(tmp_cove$blast_table[[1]]$subject,row_s))),] %>% mutate(blast_dir="forward") #dplyr::bind_rows( , tmp_cove$blast_table[[1]][which(!is.na(match(tmp_cove$blast_table[[1]]$subject,row_q)) & !is.na(match(tmp_cove$blast_table[[1]]$query,row_s))),]
+
+            subset_data2 <- tmp_cove$blast_table[[2]][which(!is.na(match(tmp_cove$blast_table[[2]]$query,row_q)) & !is.na(match(tmp_cove$blast_table[[2]]$subject,row_s))),] %>% mutate(blast_dir="backward") #dplyr::bind_rows( , tmp_cove$blast_table[[2]][which(!is.na(match(tmp_cove$blast_table[[2]]$subject,row_q)) & !is.na(match(tmp_cove$blast_table[[2]]$query,row_s))),]
+
+            #subset_data <- dplyr::bind_rows(subset_data1,subset_data2)
+
+            subset_data_plots <- parallel::mclapply(list(subset_data1,subset_data2),function(b_table){
+              if(nrow(b_table) > 0){
+
+                b_table <- b_table %>% mutate(group=1:nrow(b_table))
+
+                b_table <- b_table[order(b_table$start),]
+                b_table1_GO <- makeGRangesFromDataFrame(b_table,keep.extra.columns = T,seqnames.field = c("subject"), start.field = "start",end.field = "end")
+                b_table$start <- NULL
+                b_table$end <- NULL
+                b_table2_GO <- makeGRangesFromDataFrame(b_table,keep.extra.columns = T,seqnames.field = c("query"), start.field = "query_HSP_from",end.field = "query_HSP_to")
+
+                line_coords <- tidyr::pivot_longer(subset_data[,c("query","subject","start","end","query_HSP_from","query_HSP_to","pidentity","min","group","max")], cols = c("start","end","query_HSP_from","query_HSP_to") ,
+                                                   names_to = "direction", values_to = "coords")
+                line_coords$direction[which(line_coords$direction=="start" | line_coords$direction=="end")] <- "subject"
+                line_coords$direction[which(line_coords$direction=="query_HSP_from" | line_coords$direction=="query_HSP_to")] <- "query"
+                data_rows=nrow(subset_data)
+                #print(data_rows)
+                line_coords <- unique(data.frame(query=rep(unique(line_coords$query),2*data_rows),subject=rep(unique(line_coords$subject),2*data_rows),from=line_coords$coords[which(line_coords$direction=="query")],to=line_coords$coords[which(line_coords$direction=="subject")], groups=rep(1:data_rows,each=2),pident=rep(subset_data$pidentity,each=2),min_cov=rep(subset_data$min,each=2),max_cov=rep(subset_data$max,each=2)))
+                line_coords$groups <- factor(line_coords$groups)
+                #line_coords$min <- as.numeric(line_coords$min)
+                line_coords$to <- as.numeric(line_coords$to)
+                line_coords$from <- as.numeric(line_coords$from)
+                # plot_labels <- as.vector(t(apply(line_coords[,c("min_cov","max_cov")], MARGIN = c(1,2),FUN=function(x){
+                #   return(round(x*100,2))
+                # })))
+
+                line_coords <- unique( dplyr::bind_rows(parallel::mclapply(split(line_coords,line_coords$groups),function(line_coords_split){
+                  line_coords_split <- line_coords_split %>% mutate(plot_labels=NA)
+                  #print(which.min(line_coords_split$from)) #DEBUG
+                  #print(which.max(line_coords_split$to)) #DEBUG
+                  line_coords_split$plot_labels[which.min(line_coords_split$from)] <- round(line_coords_split$min_cov[which.min(line_coords_split$from)] * 100)
+                  line_coords_split$plot_labels[which.max(line_coords_split$to)] <- round(line_coords_split$max_cov[which.max(line_coords_split$to)] * 100)
+                  return(line_coords_split)
+                }, mc.cores = 2)) )
+
+                return(ggplot(line_coords,aes(x=from,y=to,group=groups,color=pident)) +geom_line(na.rm = T) + geom_point(na.rm = T) + geom_label(aes(label=plot_labels, group=factor(groups)), size=3.6, angle=45) ) #=as.numeric(plot_labels), fill# + ylim(0,unique(subset_data$query_len)) + xlim(0,unique(subset_data$subject_len)) +
+                #+ ylab(paste(unique(line_coords$query),"(",unique(subset_data[[1]]$query_len),")")) + xlab(paste(unique(line_coords$subject),"(",unique(subset_data[[1]]$subject_len),")"))))
+              }
+            }, mc.cores = 2)
+
             #print(subset_data)
-            if(all(lapply(subset_data, nrow) > 0)){
-              subset_data <- subset_data %>% mutate(group=1:nrow(subset_data))
-              line_coords <- pivot_longer(subset_data[,c("query_id","subject_id","start","end","query_HSP_from","query_HSP_to","pidentity","min_cov","group","max_cov")], cols = c("hit_from","hit_to","query_from","query_to") ,
-                                          names_to = "direction", values_to = "coords")
-              line_coords$direction[which(line_coords$direction=="hit_from" | line_coords$direction=="hit_to")] <- "hit"
-              line_coords$direction[which(line_coords$direction=="query_from" | line_coords$direction=="query_to")] <- "query"
-              data_rows=nrow(subset_data)
-              #print(data_rows)
-              line_coords <- data.frame(query=rep(unique(line_coords$query),2*data_rows),subject=rep(unique(line_coords$subject),2*data_rows),from=line_coords$coords[which(line_coords$direction=="query")],to=line_coords$coords[which(line_coords$direction=="hit")], groups=rep(1:data_rows,each=2),pident=rep(subset_data$pident,each=2),min_cov=rep(subset_data$min_cov,each=2),max_cov=rep(subset_data$max_cov,each=2))
-              line_coords$groups <- factor(line_coords$groups)
-              line_coords$min_cov <- as.numeric(line_coords$min_cov)
-              line_coords$to <- as.numeric(line_coords$to)
-              line_coords$from <- as.numeric(line_coords$from)
-              plot_labels <- as.vector(t(apply(subset_data[,c("min_cov","max_cov")], MARGIN = c(1,2),FUN=function(x){
-                return(round(x*100,2))
-              })))
-              try(print(ggplot(line_coords,aes(x=from,y=to,group=groups,color=pident)) + ylim(0,unique(subset_data$query_len)) + xlim(0,unique(subset_data$subject_len)) +
-                          geom_line(na.rm = T) + geom_point(na.rm = T) + geom_text(aes(label=plot_labels)) + ylab(paste(unique(line_coords$query),"(",unique(subset_data$query_len),")")) + xlab(paste(unique(line_coords$subject),"(",unique(subset_data$subject_len),")"))))
-              HSP <- rbind(HSP,subset_data)
-            }
-        }
-          })
+
+          }
+        })
 
       }, mc.cores = loaded_PARAMS$numWorkers)
     }
@@ -1631,7 +1771,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(params_list, blast_program=Sys.which("tbla
     ##Maybe write one for cluster conservation/coverage across organisms
 
   }else{
-    stop(paste(blast_program," NOT found."))
+    stop(paste(blast_program," NOT found (blast_program). Give the right path to blast_program."))
   }
 
 }
@@ -1742,7 +1882,7 @@ RBH <- function(in1,in2,sep="\t",header=F, transcript_ID_metadata=NULL, col.name
   in1_g <- data.frame(from=in_data[[1]][,col.indices[["qseqid"]]], to=in_data[[1]][,col.indices[["sseqid"]]], stringsAsFactors = T)
   in1_g <- in1_g[apply(in1_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
 
-  in2_g <- data.frame(from=in_data[[2]][,col.indices[["sseqid"]]], to=in_data[[2]][,col.indices[["qseqid"]]], stringsAsFactors = T)
+  in2_g <- data.frame(from=in_data[[2]][,col.indices[["qseqid"]]], to=in_data[[2]][,col.indices[["sseqid"]]], stringsAsFactors = T)
   in2_g <- in2_g[apply(in2_g, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),]
 
   #print(in1_g) #DEBUG
@@ -1786,7 +1926,7 @@ RBH <- function(in1,in2,sep="\t",header=F, transcript_ID_metadata=NULL, col.name
     weight_mats <- parallel::mclapply(col.indices[["weight.col"]], function(idx){
       weight_mat <- adj_mat
       weight_list <- dplyr::bind_rows( unlist(
-        purrr::map2(hit_combinations$in1_valid_hits,hit_combinations$in2_valid_hits, function(x,y){
+        furrr::future_map2(.x=hit_combinations$in1_valid_hits,.y=hit_combinations$in2_valid_hits,.f= function(x,y){
           #parallel::mclapply(in1_valid_hits, function(x){
           #return( parallel::mclapply(in2_valid_hits, function(y){
           if(!stringi::stri_cmp_eq(x,y)){
