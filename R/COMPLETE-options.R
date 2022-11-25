@@ -254,9 +254,6 @@ if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
 }
 
-COMPLETE$user_home <- fs::path_home()
-COMPLETE$parallel <- install_parallel()
-
 if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
   COMPLETE$SHELL <- Sys.getenv("SHELL")
   cat(paste("SHELL :",COMPLETE$SHELL,"\n"))
@@ -267,8 +264,10 @@ if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
   stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
 }
 
+COMPLETE$user_home <- fs::path_home()
+COMPLETE$parallel <- install_parallel()
 COMPLETE$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})
 COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
 COMPLETE$BLAST_BIN <- dirname(Sys.which("tblastx"))
 COMPLETE$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
-
+Sys.chmod(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"), "777", use_umask = FALSE)

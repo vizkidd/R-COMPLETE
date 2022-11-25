@@ -8,7 +8,8 @@
 (2) FIND_TRANSCRIPT_ORTHOLOGS()
 }
 \description{
-Design of R-COMPLETE
+The pipeline uses R and BASH. BASH functions are invoked through R.
+BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
 }
 \section{odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)}{
 

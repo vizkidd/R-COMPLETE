@@ -1,6 +1,7 @@
 suppressMessages(require(parallel))
 suppressMessages(require(Biostrings))
 suppressMessages(require(stringi))
+suppressMessages(require(furrr))
 #suppressMessages(require(COMPLETE))
 
 ##FUNCTIONS
@@ -9,16 +10,19 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
       odb_gene_map <- read.table(file = odb_gene_map,header = F,quote = "",sep = "\t")
       #local ortho_cluster=$(grep -w $gene_name $odb_clusters | awk -F'\t' '{if (length(c) == 0){c=$1;}else{c=c","$1;}}END{print c}')
+    }else{
+      warning(paste(odb_gene_map,"does not exist!"))
+      odb_gene_map <- NULL
     }
   }
   if (is.character(gene_list)) {
     genes <- factor(scan(gene_list, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
-    genes <- genes[grep("gene",tolower(genes), invert = T, fixed = T)]
+    genes <- tolower(genes[grep("gene",tolower(genes), invert = T, fixed = T)])
   }else{
-    genes <- as.vector(gene_list)
+    genes <- tolower(as.vector(gene_list))
   }
 
-  invisible(mclapply(genes, function(x){
+  invisible( future_map(genes, function(x){ #invisible(mclapply
     #print(x) #DEBUG
     safe_gene <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(x))
     #file_path <- paste(fasta_path,safe_gene,sep="")
@@ -30,20 +34,26 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
       }
     }
     #print(paste(x, safe_gene,odb_clusters)) #DEBUG
-    mclapply(list.files(path = fasta_path,pattern = safe_gene,full.names = T,ignore.case = T), function(y){
+    future_map(list.files(path = fasta_path,pattern = safe_gene,full.names = T,ignore.case = T), function(y){ #mclapply
       #if(file.exists(y)){
-        seq_set <- readDNAStringSet(filepath = y,format = "fasta",use.names = T)
-        if( ncol(stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T) ) != 4 ){ #length(COMPLETE$FORMAT_ID_INDEX)
+        seq_set <- Biostrings::readDNAStringSet(filepath = y,format = "fasta",use.names = T)
+        split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
+        if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)
           #print(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
           #print(names(seq_set)) #DEBUG
           names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
           writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
           #return(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
+        }else if( ncol(split_seq_names) > 4 || ncol(split_seq_names) >= 1){
+          names(seq_set) <- paste(split_seq_names[,1] ,org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM) #stringi::stri_split(str = split_seq_names, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
+          writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
+        }else if(ncol(split_seq_names) != 4){
+          message(paste("Error : Check sequence ID format of", y))
         }
       #}
-    }, mc.cores = params_list$numWorkers,mc.silent = T)
+    },.options = furrr::furrr_options(seed=T, scheduling=params_list$numWorkers))#, mc.cores = params_list$numWorkers,mc.silent = T)
 
-  }, mc.cores = params_list$numWorkers,mc.silent = T))
+  },.options = furrr::furrr_options(seed=T, scheduling=params_list$numWorkers)) ) #, mc.cores = params_list$numWorkers,mc.silent = T))
 
 }
 
@@ -104,4 +114,4 @@ if(is.na(params_list$numWorkers) || params_list$numWorkers > params_list$max_con
   params_list$numWorkers <- params_list$max_concurrent_jobs
 }
 
-label_sequenceIDs(fasta_path = org_fasta_path,org = org_name,gene_list = gene_list,odb_gene_map = odb_gene_map,params_list = params_list)
+invisible(label_sequenceIDs(fasta_path = org_fasta_path,org = org_name,gene_list = gene_list,odb_gene_map = odb_gene_map,params_list = params_list))

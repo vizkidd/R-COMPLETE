@@ -8,26 +8,28 @@ run_BLAST(
   query_path,
   subject_path,
   blast_DB_dir = tempdir(),
-  blast_out,
-  blast_program = COMPLETE$BLAST_BIN,
+  blast_out = NULL,
+  blast_program = Sys.which("tblastx"),
   run_name = "BLAST",
   blast_options = "",
   COMPLETE.format.ids = F,
   params_list = NULL,
-  keep.output.files = T,
-  verbose = T
+  blast.sequence.limit = 200,
+  n_threads = 16,
+  gzip.output = F,
+  verbose = F
 )
 }
 \arguments{
-\item{query_path}{Path to Query FASTA}
+\item{query_path}{Path to Query FASTA or Biostrings::DNAString|AAString|RNAString}
 
-\item{subject_path}{Path to Subject FASTA}
+\item{subject_path}{Path to Subject FASTA or or Biostrings::DNAString|AAString|RNAString}
 
 \item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed. Default is tempdir(). Can also be NULL}
 
-\item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object}
+\item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object. Default - NULL}
 
-\item{blast_program}{Give path to the BLAST program. eg, Sys.which("tblastx") if tblastx is in SHELL $PATH.}
+\item{blast_program}{Give path to the BLAST program. eg, Default - Sys.which("tblastx") if tblastx is in SHELL $PATH.}
 
 \item{run_name}{Name of the BLAST run. Only for logging (Optional)}
 
@@ -37,7 +39,11 @@ run_BLAST(
 
 \item{params_list}{Output from load_params() (Optional)}
 
-\item{keep.output.files}{TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)}
+\item{blast.sequence.limit}{Maximum number of sequences to BLAST at a time. Default - 200. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed}
+
+\item{n_threads}{Number of threads. Default - 16}
+
+\item{gzip.output}{Should the output files be Gzipped? Default - FALSE}
 
 \item{verbose}{Print DEBUG Messages?}
 }
@@ -51,6 +57,11 @@ BLAST between two FASTA files. BLAST output is saved temporarily in BLAST format
 ASSUMES Nucleotide FASTA sequences. Not checking/Not working for Protein/Peptide sequences and FASTQ files. Columns of GRanges BLAST 6 output are c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")
 }
 \examples{
-    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", run_name = "blast_positive",blast_options = "-strand plus")
+    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", run_name = "blast_positive",blast_options = "-strand plus", gzip.output=T)
+    run_BLAST(query_path = Biostrings::DNAString(gsub("[\r\n]", "", "ATTGTCGAAGTTGTCGCTCGAGAGGCGGGAGTTTACCGACACTTTTCCTCAGAAGTTTAC
+    CGTGAAGCTGACCGGAGAACGGCGGAGTCTGTGCTGAATCTGCCATCATGTCCAGGCGGA
+    ")), subject_path=Biostrings::DNAString(gsub("[\r\n]", "", "TTACCGACACTTTTCCTCAGAAGTTTACCGTGAAGCTGACCGGAGAACGGCGGAGTCTGT
+    GCTGAATCTGCCATCATGTCCAGGCGGAGCTCACTCATAGTGCCGATGAAGAGTATTGAG
+    ")))
 
 }

@@ -2,18 +2,18 @@
 % Please edit documentation in R/COMPLETE-data_extraction.R
 \name{label_sequenceIDs}
 \alias{label_sequenceIDs}
-\title{Label Sequence IDs in FASTA Files}
+\title{Label Sequence IDs of A FASTA File (Refer ?COMPLETE_PIPELINE_DESIGN about COMPLETE.format.IDs)}
 \usage{
-label_sequenceIDs(fasta_path, org, gene_list, odb_gene_map = NULL, params_list)
+label_sequenceIDs(fasta_path, org, gene, odb_clusters, params_list)
 }
 \arguments{
-\item{fasta_path}{Path of FASTA Files}
+\item{fasta_path}{Path to FASTA File}
 
 \item{org}{Name of the organism}
 
-\item{gene_list}{Filename of gene list or Vector of gene names}
+\item{gene}{Filename of gene list or Vector of gene names}
 
-\item{odb_gene_map}{Filename of OrthoDB Ortholog Clusters mapped to gene names  (Optional). If not provided, sequences cluster ID/name "ungrouped" is used}
+\item{odb_clusters}{ODB Clusters}
 
 \item{params_list}{Output of load_params()}
 }

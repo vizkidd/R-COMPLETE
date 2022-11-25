@@ -7,7 +7,6 @@
 FIND_TRANSCRIPT_ORTHOLOGS(
   params_list,
   blast_program = Sys.which("tblastx"),
-  gene_list,
   run.mode = COMPLETE$FORMAT_ID_INDEX$CLUSTERS
 )
 }
@@ -15,8 +14,6 @@ FIND_TRANSCRIPT_ORTHOLOGS(
 \item{params_list}{Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().}
 
 \item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list. Default is Sys.which("tblastx")}
-
-\item{gene_list}{Vector or File with a list of genes to extract data for(check the github repo for an example).}
 
 \item{run.mode}{A value from COMPLETE$FORMAT_ID_INDEX. Default - COMPLETE$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE$FORMAT_ID_INDEX$CLUSTERS groups sequences based on protein identity.}
 }

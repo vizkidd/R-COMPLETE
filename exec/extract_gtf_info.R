@@ -169,7 +169,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
     #gtf$ranges <- IRanges(gtf$start, gtf$end)
     gtf$gene_id <- get_gtf_attributes(gtf,"gene_id")
     gtf$transcript_id <- get_gtf_attributes(gtf,"transcript_id")
-    gtf$gene_name <- get_gtf_attributes(gtf,"gene_name")
+    gtf$gene_name <- tolower(get_gtf_attributes(gtf,"gene_name"))
     #g_name <- unique(gtf$gene_name)
     return(gtf)
   }, list.files(path=slice_file_path, pattern = "*.gtf_slice",full.names = T), USE.NAMES = F, mc.cores = n_cores, SIMPLIFY = F)
@@ -217,6 +217,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
 
   if(nrow(utr_len_df) > 0 || length(utr_len_df) > 0 || !is.null(utr_len_df)){
     utr_len_df <- utr_len_df %>% mutate(org=org_name)
+    utr_len_df$gene_name <- tolower(utr_len_df$gene_name)
     write.table(utr_len_df, file(output_file, open = "w"), sep = ",", quote = F,row.names = F, col.names = T,na = "-")
 
     bed_df <- bind_rows(mclapply(seq_along(utr_len_list), function(x){
@@ -326,7 +327,7 @@ tryCatch({
   utr_len_df <- read.table(file = file(output_file, open = "r"), sep = ",",header = T)
 
   bed_df <- read.table(file = file(paste(BED_PATH_PREFIX,"bed",sep="."), open = "r"), sep = "\t",header = T)
-  bed_genes <- bed_df$gene_name #sapply(stri_split(bed_df[bed_df$feature=="gene",c("name")], fixed = TRANSCRIPT_ID_DELIM), function(x){return(x[[1]])})
+  bed_genes <- tolower(bed_df$gene_name) #sapply(stri_split(bed_df[bed_df$feature=="gene",c("name")], fixed = TRANSCRIPT_ID_DELIM), function(x){return(x[[1]])})
   if(!all(!is.na(match(unique(bed_genes),unique(utr_len_df$gene_name)))) || !all(!is.na(match(unique(utr_len_df$gene_name),unique(bed_genes))))){
     print("Some genes were missing, re-extracting")
     get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)

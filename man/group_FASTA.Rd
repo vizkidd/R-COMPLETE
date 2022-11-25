@@ -4,12 +4,14 @@
 \alias{group_FASTA}
 \title{Group FASTA Sequences Based on a column index of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN)}
 \usage{
-group_FASTA(params_list, id.col.index, verbose = F)
+group_FASTA(params_list, id.col.index, remove.invalid.files = F, verbose = T)
 }
 \arguments{
 \item{params_list}{Output of load_params()}
 
 \item{id.col.index}{The index of Column of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN) to groups sequences into. Use id.col.index=1 for grouping sequences based on Transcript IDs, id.col.index=2 to group sequences into Organisms, id.col.index=3 for grouping sequences based on Gene Names and id.col.index=4 to groups sequences into Ortholog Clusters. Check COMPLETE$FORMAT_ID_INDEX for indices}
+
+\item{remove.invalid.files}{Remove files which do not have COMPLETE.format.ids? Default - FALSE . (Refer ?COMPLETE_PIPELINE_DESIGN to know about COMPLETE.format.ids)}
 
 \item{verbose}{Print DEBUG Messages?}
 }

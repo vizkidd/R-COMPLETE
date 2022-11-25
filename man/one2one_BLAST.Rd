@@ -15,7 +15,7 @@ one2one_BLAST(
   input_prefix_path = NULL,
   params_list = NULL,
   COMPLETE.format.ids = F,
-  keep.output.files = T,
+  gzip.output = T,
   verbose = F
 )
 }
@@ -40,7 +40,7 @@ one2one_BLAST(
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)}
 
-\item{keep.output.files}{TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)}
+\item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
 
 \item{verbose}{Print DEBUG Messages?}
 }
@@ -51,6 +51,6 @@ Executes One-to-One BLAST between two lists of organisms/genes/clusters.
 ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
 }
 \examples{
-one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, keep.output.files=keep.output.files, verbose=verbose)
+one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, verbose=verbose)
 
 }

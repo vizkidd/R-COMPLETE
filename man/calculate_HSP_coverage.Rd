@@ -2,33 +2,48 @@
 % Please edit documentation in R/COMPLETE-find_orthologs.R
 \name{calculate_HSP_coverage}
 \alias{calculate_HSP_coverage}
-\title{Calculate HSP Coverage}
+\title{Calculate HSP Coverage of Bi-Directional BLAST Tables}
 \usage{
 calculate_HSP_coverage(
-  blast_table,
-  transcript_region_lengths,
+  fw_blast_table,
+  bk_blast_table,
   col.indices,
+  group = "ungrouped",
+  run.mode = "coverage_distance",
   min_coverage_filter = 0.5,
   COMPLETE.format.ids = F,
-  params_list
+  params_list,
+  sep = "\\t",
+  header = F,
+  verbose = T
 )
 }
 \arguments{
-\item{blast_table}{BLAST Table with Query->Subject Hits}
+\item{fw_blast_table}{Filename or BLAST Table with Query->Subject Hits (Forward)}
 
-\item{transcript_region_lengths}{A data.frame (with one column for regional lengths and BLAST/Transcript IDs/Transcript Names as row.names) or a Named Vector or a Named List. Assumed to have short IDs}
+\item{bk_blast_table}{Filename or BLAST Table with Query<-Subject Hits (Backward)}
 
-\item{col.indices}{A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid). Eg col.indices=list(qseqid=1,sseqid=2,qstart=10,qend=11,sstart=15,send=16)}
+\item{col.indices}{A Named List with indices of columns Query sequence ID (qseqid) and Subject sequence ID (sseqid), Query Length (query_len), Subject Length (subject_len) and Alignment Length (HSP alignment length in our case)(align_len). Eg col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=23)}
+
+\item{group}{Name of the group/BLAST Run. Default -  "ungrouped"}
+
+\item{run.mode}{"both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits}
 
 \item{min_coverage_filter}{Minimum HSP Coverage value to filter out Hits (Default - 0.5)}
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, Default - FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (ONLY FOR blast_table,transcript_region_lengths are assumed to have short IDs)}
 
 \item{params_list}{Output of load_params()}
+
+\item{sep}{Delimiter for the input Files. Only valid if blast_table is a file. Default - '\t'}
+
+\item{header}{Does the input files have header?. Only valid if blast_table is a file. Default - FALSE}
+
+\item{verbose}{Print Output Messages?}
 }
 \value{
 BLAST table with Hits which pass min_coverage_filter
 }
 \description{
-This function calculates the coverage of HSPs (sum(HSP Alignment lengths)/mRNA CDS Length) between each Query->Subject Hits. Hits are filtered based on the minimum coverage filter value.
+This function calculates the coverage of HSPs (sum(HSP Alignment lengths)/mRNA CDS Length) between each Query<->Subject Hits (Bi-directional). Hits are filtered based on run.mode option of this function.
 }

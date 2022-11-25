@@ -25,3 +25,7 @@ This function checks if all the genes (and the transcript regions (cds,3utr,5utr
 in the given folder path. The FASTA files should be of the format {gene}.{transcript region} for this
 function to work.
 }
+\examples{
+  check_files("files/fasta/notechis_scutatus",org = "notechis_scutatus",genes = "data/genelist.txt",verbose =T, params_list = load_params("data/parameters.txt"))
+
+}

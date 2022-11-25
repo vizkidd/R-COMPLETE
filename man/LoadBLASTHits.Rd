@@ -9,7 +9,8 @@ LoadBLASTHits(
   transcript_ID_metadata = NULL,
   col.names = NULL,
   sep = "\\t",
-  header = F
+  header = F,
+  gzipped = F
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ LoadBLASTHits(
 \item{sep}{Delimiter of the BLAST File columns. Default - '\t'}
 
 \item{header}{Does the file have a header? . Default - FALSE}
+
+\item{gzipped}{Is the input file Gzipped? . Default - FALSE}
 }
 \value{
 Data Frame with BLAST Results

@@ -915,8 +915,8 @@ function extract_genomic_regions(){
 	  time zgrep -i $MODE -A 0 --group-separator='>' -f <(echo "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
 	  fi
 	  
-	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/1.list
-	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/genes/$f_org_name/1.list)))} | awk 'NF' > $OUT_PATH/genes/$f_org_name/2.list
+	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/1.list
+	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/genes/$f_org_name/1.list)))} | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/2.list
 	fi
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/1.list || -s $OUT_PATH/genes/$f_org_name/2.list ]]; then
@@ -935,8 +935,8 @@ function extract_genomic_regions(){
 	fi
 
 	if [[ $(awk 'END{print NR;}' "$OUT_PATH/genes/$f_org_name/odb.list" | awk '{print $1}') !=  0 ]] ; then
-	    local odb_gene_list=($(cat "$OUT_PATH/genes/$f_org_name/odb.list" | grep -v -w -i "gene"))
-	    local existing_list=($(cat $OUT_PATH/genes/$f_org_name/1.list | sort | uniq)) 
+	    local odb_gene_list=($(cat "$OUT_PATH/genes/$f_org_name/odb.list" | grep -v -w -i "gene" | awk '{print tolower($0)}'))
+	    local existing_list=($(cat $OUT_PATH/genes/$f_org_name/1.list | sort | uniq | awk '{print tolower($0)}')) 
 	    local short_list=($(echo ${odb_gene_list[@]/${existing_list[@]}}))
 
 	  if [[ "${#short_list[@]}" > 0 ]] ; then
@@ -945,7 +945,7 @@ function extract_genomic_regions(){
 	  fi
 
 	  ##REFRESH geene list based on file names
-	  cat $OUT_PATH/genes/$f_org_name/1.list $OUT_PATH/genes/$f_org_name/2.list $OUT_PATH/genes/$f_org_name/odb.list | awk 'NF' > $OUT_PATH/genes/$f_org_name/full.list
+	  cat $OUT_PATH/genes/$f_org_name/1.list $OUT_PATH/genes/$f_org_name/2.list $OUT_PATH/genes/$f_org_name/odb.list | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/full.list
 
 	  >&1 echo $(color_FG $Green "2. DONE : Full List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/full.list")$(color_FG $Green ", List from ODB : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/odb.list")$(color_FG $Green ", ODB Cluster to Genes Map : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/odb.final_map")
 
@@ -969,7 +969,7 @@ function extract_genomic_regions(){
 	  exit 255
 	fi
 
-	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' > $OUT_PATH/genes/$f_org_name/final.list
+	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/final.list
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/gtf_stats.csv")
@@ -980,8 +980,8 @@ function extract_genomic_regions(){
 
 	#######################################################################################################
 
-	local gene_list=($(cat $OUT_PATH/genes/$f_org_name/final.list | awk 'NF' ))
-	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo ${gene_list[@]})))
+	local gene_list=($(cat $OUT_PATH/genes/$f_org_name/final.list | awk 'NF' | awk '{print tolower($0)}'))
+	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo ${gene_list[@]}) | awk '{print tolower($0)}'))
 
 	if [[ ! -z $genome_index_proc ]]; then
 	  wait $genome_index_proc
@@ -1006,15 +1006,18 @@ function extract_genomic_regions(){
 	  >&1 color_FG_BG_Bold $Black $BG_Yellow "4.1 Labelling sequences..."
 	  #local tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
 	  #time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/genes/$f_org_name/odb.final_map" 
-	  time Rscript --vanilla --verbose $(echo $(dirname $0))/label_sequenceIDs.R $FASTA_PATH/$f_org_name/ $f_org_name $OUT_PATH/genes/$f_org_name/final.list $param_file $OUT_PATH/genes/$f_org_name/odb.final_map
+	  time Rscript --vanilla --verbose $(echo $(dirname $0))/label_FASTA_files.R $FASTA_PATH/$f_org_name/ $f_org_name $OUT_PATH/genes/$f_org_name/final.list $param_file $OUT_PATH/genes/$f_org_name/odb.final_map
 	#fi
 
 	#######################################################################################################
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "5. Generating Metadata and Cleaning up..."
 
-	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1}' | sort | uniq >  $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES 
-	grep -v -i -f $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES $GENE_LIST | sort | uniq > $OUT_PATH/genes/$f_org_name/MISSING_GENES
+	find $FASTA_PATH/$f_org_name/ -type f  -empty -delete
+
+	#sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1}' | sort | uniq >  $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES 
+	ls -1 $FASTA_PATH/$f_org_name/ | sed -e 's/\.[^.]*$//' | sort -u | awk '{print tolower($0)}' >  $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES 
+	grep -v -i -f $OUT_PATH/genes/$f_org_name/AVAILABLE_GENES $GENE_LIST | sort | uniq | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/MISSING_GENES
 
 	find $FASTA_PATH/$f_org_name/ -type f -name "*.fai" -exec rm -f {} +
 
@@ -1101,9 +1104,9 @@ function check_OrthoDB(){
 
 	readarray refs < $REF_ORGS
 
-	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo "${gene_list[@]}")))
+	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo "${gene_list[@]}") | awk '{print tolower($0)}'))
 	local genes_strip=($(awk -F'_' '{print $1;}' <(echo "${s_names[@]}")))
-	local lookup_genes=($(echo "${genes_strip[@]}" "${gene_list[@]}" | sort | uniq | awk 'NF' ))
+	local lookup_genes=($(echo "${genes_strip[@]}" "${gene_list[@]}" | sort | uniq | awk 'NF' | awk '{print tolower($0)}' ))
 	local org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0) } 1;' | awk -F" " '{print $1" "$2}')
 
 	#Find ODB ORGANISM ID for the organism
@@ -1135,7 +1138,7 @@ function check_OrthoDB(){
 		zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u > $out_gene_list
 	else
 		#ODB GENE IDs and GENE NAMES are delimited with || which I am splitting with awk regexp \|/|, and selecting the elements which match the organisms and genes
-		zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | grep -i $MODE -f <(printf -- '%s\n' "${lookup_genes[@]}") - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u > $out_gene_list
+		zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | grep -i $MODE -f <(printf -- '%s\n' "${lookup_genes[@]}") - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u | awk '{print tolower($0)}' > $out_gene_list
 	fi
 
 	if [[ -s $out_gene_list ]]; then
@@ -1163,6 +1166,15 @@ function check_OrthoDB(){
 	fi
 
 	#exit 0
+}
+
+function cat_files(){
+	local script_args=($(echo $@))
+	local output_file=${script_args[0]}
+	local infiles=$(echo "${script_args[@]: 1:${#script_args[@]}}")
+
+	cat "${infiles[@]}" > $output_file
+
 }
 
 function convert_BLAST_format(){
@@ -1229,7 +1241,7 @@ function install_parallel(){
 # }
 
 export -f install_parallel
-
+export -f cat_files
 ##DATA EXTRACTION FUNCTIONS
 #export -f group_FASTA_clusters
 export -f number_to_fastaID

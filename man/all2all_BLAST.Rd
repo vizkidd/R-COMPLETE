@@ -14,7 +14,7 @@ all2all_BLAST(
   input_prefix_path = NULL,
   params_list = NULL,
   COMPLETE.format.ids = F,
-  keep.output.files = T,
+  gzip.output = T,
   verbose = F
 )
 }
@@ -37,7 +37,7 @@ all2all_BLAST(
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)}
 
-\item{keep.output.files}{TRUE(Default)/FALSE - Keep Output and BLAST DB Files? (Optional)}
+\item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
 
 \item{verbose}{Print DEBUG Messages?}
 }
