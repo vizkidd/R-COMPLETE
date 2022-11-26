@@ -48,14 +48,7 @@ Imports:
     tidyverse (>= 1.3.1),
     IRanges (>= 2.26.0),
     S4Vectors (>= 0.30.2),
-<<<<<<< HEAD
     R.utils (>= 2.11),
-=======
-    ggforce (>= 0.3.3),
-    ggplot2 (>= 3.3.6),
-    future (>= 1.29.0),
-    furrr (>= 0.3.0),
->>>>>>> 3f2f6db92db150e0136a0481a6c3d3cb6f3cd56e
     wisard,
     future (>= 1.29.0),
     furrr (>= 0.3.0),

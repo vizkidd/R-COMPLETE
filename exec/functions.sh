@@ -560,9 +560,9 @@ function do_BLAST() {
 		echo "$run_name is done"
 		else
 			>&2 echo "($run_name) Error: Either ($query)/($DB) is empty/not found"
-			exit 255
+			return 255
 		fi
-		exit 0
+		return 0
 }
 
 function all2allblast() {
@@ -1171,10 +1171,10 @@ function check_OrthoDB(){
 function cat_files(){
 	local script_args=($(echo $@))
 	local output_file=${script_args[0]}
-	local infiles=$(echo "${script_args[@]: 1:${#script_args[@]}}")
+	local infiles=($(echo "${script_args[@]: 1:${#script_args[@]}}"))
 
 	cat "${infiles[@]}" > $output_file
-
+return 0
 }
 
 function convert_BLAST_format(){
