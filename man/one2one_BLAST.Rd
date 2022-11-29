@@ -16,6 +16,7 @@ one2one_BLAST(
   params_list = NULL,
   COMPLETE.format.ids = F,
   gzip.output = T,
+  blast.sequence.limit = 10000,
   verbose = F
 )
 }
@@ -42,7 +43,12 @@ one2one_BLAST(
 
 \item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
 
+\item{blast.sequence.limit}{Maximum number of sequences to BLAST at a time. Default - 10000. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed}
+
 \item{verbose}{Print DEBUG Messages?}
+}
+\value{
+A GRObject of BLAST Hits
 }
 \description{
 Executes One-to-One BLAST between two lists of organisms/genes/clusters.

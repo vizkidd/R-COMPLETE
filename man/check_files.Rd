@@ -22,7 +22,7 @@ TRUE if check passed, FALSE if check failed
 }
 \description{
 This function checks if all the genes (and the transcript regions (cds,3utr,5utr)) are present
-in the given folder path. The FASTA files should be of the format {gene}.{transcript region} for this
+in the given folder path. The FASTA filenames should be of the format {gene}.{transcript region} for this
 function to work.
 }
 \examples{

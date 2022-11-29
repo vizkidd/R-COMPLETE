@@ -63,15 +63,19 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
 #' @param param_id ID of the paramter to be extracted from parameter file
 #' @param gene_list File with a list of genes to extract data for(check the github repo for an example)
 check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,create_dir=F){
-  if(is.character(param_table)){
+  if(length(param_table) == 1 && file.exists(param_table)){
     param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T) #Convert multibyte seperator to one byte sep
   }
   param_index <- which(param_table==param_id)
   if(is.null(param_index) || is.na(param_index)){
     stop(paste("Parameter :",param_id,"is missing!"))
   }
+
+  if(nrow(param_table[param_index,]) > 1){
+    stop(paste("Parameter :",param_id,"has multiple entries!"))
+  }
   param_value <- param_table[param_index,c(2)]
-  #print(CAST_FUN(param_value))
+
   if(create_dir){
     dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
   }
@@ -112,6 +116,11 @@ load_params <- function(param_file){
 
   #param_file <<- param_file
   param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T) #Convert multibyte seperator to one byte sep
+
+  param_dups <- duplicated(param_table$param_id)
+  if(any(param_dups)){
+    stop(paste("Duplicate entries in parameter file :", paste(unique(param_table$param_id[param_dups]),collapse=",") ))
+  }
 
   GENOMES_PATH <- tools::file_path_as_absolute(check_param(param_table,"genomes_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="genomes_path"),c(2)]
   ANNOS_PATH <- tools::file_path_as_absolute(check_param(param_table,"annos_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="annos_path"),c(2)]

@@ -521,6 +521,25 @@ function index_genome(){
 # 	done
 # }
 
+function group_FASTA_seqs(){
+	local script_args=($(echo $@))
+	local PARALLEL_PATH=${script_args[0]} 
+	local FASTA_FILE=${script_args[1]} 
+	local GROUPS_PATH=${script_args[2]} 
+	local seqID_delimiter=${script_args[3]} 
+	local n_threads=${script_args[4]} 
+	local OUT_PATH=${script_args[5]} 
+	local run_mode=${script_args[6]}
+	local FASTA_PATH=${script_args[7]}
+
+	local f_org_name=$(basename $(dirname $FASTA_FILE))
+	grep ">" $FASTA_FILE | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS.$run_mode
+	grep ">" $FASTA_FILE | awk -F">" -v s_delim="::" -v run_mode=4 -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH  --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} >> $GROUPS_PATH/\"{4}\".\"{5}\""
+
+	return 0
+
+}
+
 function do_BLAST() {
 	# $1 - Name of the BLAST run
 	# $2 - Query FASTA
@@ -969,7 +988,7 @@ function extract_genomic_regions(){
 	  exit 255
 	fi
 
-	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/final.list
+	#sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/final.list
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/gtf_stats.csv")
@@ -1209,6 +1228,15 @@ elif [[ $any_or_all_refs == "ALL" ]]; then
 fi
 }
 
+function get_all_odb_genes(){
+	local script_args=($(echo $@))
+	local gene_list=${script_args[0]}
+	local odb_files_path=${script_args[1]} #($(echo "${script_args[@]: 1:${#script_args[@]}}"))
+	#parallel --max-procs 8 --keep-order "grep -o -h -i -f $gene_list {}" ::: "${odb_map_path[@]}"
+	grep -h -i -f $gene_list <(cat "$odb_files_path") | awk '{print $2}' | sed 's/,/\n/g'
+	return 0
+}
+
 function install_parallel(){
 	if [[ -z $(which parallel) || $(which parallel | awk '{print NR}') == 0 ]] ; then
 		#(wget -O - pi.dk/3 || lynx -source pi.dk/3 || curl pi.dk/3/ || fetch -o - http://pi.dk/3 ) > $(dirname $0)/install.sh
@@ -1241,9 +1269,11 @@ function install_parallel(){
 # }
 
 export -f install_parallel
+export -f get_all_odb_genes
 export -f cat_files
 ##DATA EXTRACTION FUNCTIONS
 #export -f group_FASTA_clusters
+export -f group_FASTA_seqs
 export -f number_to_fastaID
 export -f fastaID_to_number
 export -f index_fastaIDs

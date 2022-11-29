@@ -5,12 +5,15 @@
 \title{(2) - Find Transcript Orthologs}
 \usage{
 FIND_TRANSCRIPT_ORTHOLOGS(
+  gene_list,
   params_list,
   blast_program = Sys.which("tblastx"),
   run.mode = COMPLETE$FORMAT_ID_INDEX$CLUSTERS
 )
 }
 \arguments{
+\item{gene_list}{Vector/Filename of gene names. (essentially Filenames of FASTA sequences)}
+
 \item{params_list}{Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().}
 
 \item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list. Default is Sys.which("tblastx")}

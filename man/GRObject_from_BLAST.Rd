@@ -16,7 +16,7 @@ GRObject_from_BLAST(
 )
 }
 \arguments{
-\item{blast_input}{Filename with BLAST hits or a BLAST table}
+\item{blast_input}{Filename with BLAST hits or a BLAST table (not a connection) (Gzipped files supported)}
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN)}
 

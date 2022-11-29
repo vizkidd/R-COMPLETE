@@ -9,12 +9,11 @@ LoadBLASTHits(
   transcript_ID_metadata = NULL,
   col.names = NULL,
   sep = "\\t",
-  header = F,
-  gzipped = F
+  header = F
 )
 }
 \arguments{
-\item{infile}{BLAST hits filename}
+\item{infile}{BLAST hits filename (not a connection) (Gzipped files supported)}
 
 \item{transcript_ID_metadata}{Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.}
 
@@ -23,8 +22,6 @@ LoadBLASTHits(
 \item{sep}{Delimiter of the BLAST File columns. Default - '\t'}
 
 \item{header}{Does the file have a header? . Default - FALSE}
-
-\item{gzipped}{Is the input file Gzipped? . Default - FALSE}
 }
 \value{
 Data Frame with BLAST Results

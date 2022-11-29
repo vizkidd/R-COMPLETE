@@ -301,7 +301,7 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
     # }
   }
 
-  proc <- processx::process$new(command=p_cmd,args = p_args, supervise = TRUE,stdout = logfile,stderr = "2>&1" ) #stderr = T, stdout =  T
+  proc <- processx::process$new(command=p_cmd,args = p_args, cleanup = T, cleanup_tree = T,supervise = TRUE,stdout = logfile,stderr = "2>&1" ) #stderr = T, stdout =  T
   #proc$wait(timeout=-1)
   COMPLETE$process_list <- append(COMPLETE$process_list,proc)
 
@@ -311,7 +311,7 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
 #' Checks FASTA files in a folder
 #'
 #' This function checks if all the genes (and the transcript regions (cds,3utr,5utr)) are present
-#' in the given folder path. The FASTA files should be of the format {gene}.{transcript region} for this
+#' in the given folder path. The FASTA filenames should be of the format {gene}.{transcript region} for this
 #' function to work.
 #'
 #' @examples
@@ -331,7 +331,7 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
 
   #if (!is.vector(genes)) {
   if(length(genes) == 1 && file.exists(genes)){
-    genes <- factor(scan(genes, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
+    genes <- gsub('[[:punct:]]+','_', factor(scan(genes, character(), quiet = T)))#factor(scan(genes, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- tolower(genes[grep("gene",tolower(genes), invert = T, fixed = T)])
     #}#else{
     #  stop(paste(genes,"does not exist!"))
@@ -344,14 +344,25 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
     if(dir.exists(fasta_path) && length(dir(fasta_path,all.files = F)) > 0){ # && length(grep(list.files(path=fasta_path), pattern="tmp", invert=T, value=TRUE)) > 0
       missing_genes <- c()
       available_genes <- c()
+      # final_genes <- c()
+      # if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","final.list",sep=""))){
+      #    final_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(paste(params_list$OUT_PATH,"/genes/",org,"/","final.list",sep="")), character(), quiet = T))))
+      # }
+      odb_genes <- c()
+      if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","odb.list",sep=""))){
+         odb_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(paste(params_list$OUT_PATH,"/genes/",org,"/","odb.list",sep="")), character(), quiet = T))))
+      }
       if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","MISSING_GENES",sep=""))){
-        missing_genes <- tolower(gsub('[[:punct:] ]+','_', factor(scan(paste(params_list$OUT_PATH,"/genes/",org,"/","MISSING_GENES",sep=""), character(), quiet = T))))
+        missing_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(params_list$OUT_PATH,"/genes/",org,"/","MISSING_GENES",sep=""), character(), quiet = T))))
       }
       if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","AVAILABLE_GENES",sep=""))){
         available_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(params_list$OUT_PATH,"/genes/",org,"/","AVAILABLE_GENES",sep=""), character(), quiet = T))))
       }
-      files_in_dir <- tolower(unique(sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){stringi::stri_split(str = x, fixed='.',simplify = T)[,1]})))
+      files_in_dir <- tolower(unique(gsub('[[:punct:]]+','_',sapply(list.files(fasta_path,no.. = T,recursive = F), FUN=function(x){stringi::stri_split(str = x, fixed='.',simplify = T)[,1]}))))
       missing_genes <- tolower(missing_genes[is.na(match(missing_genes, available_genes))])
+
+      #final_genes <- c(genes,odb_genes)
+
       #if(verbose){
       # cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes),"\n"))
       # message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)))
@@ -364,14 +375,19 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
       #   return(FALSE)
       # }
 
-      if( all(!is.na(match(available_genes,files_in_dir))) && all(is.na(match(available_genes,missing_genes))) ){ #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
+      if( all(!is.na(match(available_genes,files_in_dir))) && all(is.na(match(available_genes,missing_genes))) ){ #all(!is.na(match(final_genes,files_in_dir))) && #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
         if(verbose){
-          cat(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check PASSED!\n"))
+          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir[!is.na(match(files_in_dir,genes))]),"+",length(files_in_dir[!is.na(match(files_in_dir,odb_genes))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))]),", User Genes:",length(genes)," : Check PASSED!\n")) #
         }
+
+        # data.table::fwrite(x= list(unique(files_in_dir[match(files_in_dir,final_genes)])) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-", nThread = params_list$numWorkers )
+        # data.table::fwrite(x= list(unique(files_in_dir[match(files_in_dir,final_genes)])) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/final.list",sep=""),quote=F,row.names=F,col.names=F,na = "-", nThread = params_list$numWorkers )
+        # data.table::fwrite(x= list(tolower(unique(final_genes[is.na(match( tolower(final_genes),files_in_dir ))]))) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/MISSING_GENES",sep=""),quote=F,row.names=F,col.names=F ,na = "-", nThread = params_list$numWorkers )
+
         return(TRUE)
       }
       if(verbose){
-        message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", Available:",length(available_genes),", Missing:",length(missing_genes),", User Genes:",length(genes)," : Check FAILED!"))
+        message(paste("Org:",org,", Genes in Dir:",length(files_in_dir),", User Genes:",length(genes)," : Check FAILED!")) #", Available:",length(available_genes),", Missing:",length(missing_genes)
         #print(org,":",setdiff(available_genes,files_in_dir)) #DEBUG
       }
       return(FALSE)
@@ -650,7 +666,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
     message(paste("(Some) Data missing for : ",org,": Stored in :",paste(params_list$OUT_PATH,"/genes/",org,"/non_coding.csv",sep=""),". Maybe CDS or all regions are missing for the transcripts. This could happen for non-protein coding transcripts or retained introns"))
 
     non_coding_data <- unique(gtf_stats[which(!is.na(match(gtf_stats$transcript_id,final_unavailable_transcripts))),c("gene_name","transcript_id")])
-    write.table(non_coding_data,file = paste(params_list$OUT_PATH,"/genes/",org,"/non_coding_biomart.csv",sep=""),quote = F,row.names = F,col.names = T,sep = ",",na = "-")
+    data.table::fwrite(list(non_coding_data),file = paste(params_list$OUT_PATH,"/genes/",org,"/non_coding_biomart.csv",sep=""),quote = F,row.names = F,col.names = T,sep = ",",na = "-", nThread = params_list$numWorkers)
   }
 
   #print(head(bm_df))
@@ -739,7 +755,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
     }else{
       genes <- tolower(as.vector(gene_list))
       tmp_gene_list <- tempfile(pattern="genelist",tmpdir = params_list$TEMP_PATH)
-      write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
+      data.table::fwrite(x = list(gene_list),file = tmp_gene_list ,quote = F,row.names = F,col.names = F, nThread = params_list$numWorkers)
       gene_list <- tmp_gene_list
     }
 
@@ -797,7 +813,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   }else{
     genes <- tolower(as.vector(gene_list))
     tmp_gene_list <- tempfile(pattern="genelist",tmpdir = params_list$TEMP_PATH)
-    write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
+    data.table::fwrite(x = list(gene_list),file = tmp_gene_list ,quote = F,row.names = F,col.names = F, nThread = params_list$numWorkers)
     gene_list <- tmp_gene_list
   }
 
@@ -920,7 +936,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   gtf_stats <- gtf_stats[,c("gene_name","gene_id","transcript_id","total_cds_len","five_len","three_len","exon_count","cds_count","five_flank","three_flank","transcript_length.estimated","transcript_length.annotated","org")]
   gtf_stats$gene_name <- tolower(gtf_stats$gene_name)
 
-  write.table(x = gtf_stats,file = gtf_stats_file,quote = F,sep = ",",row.names = F,col.names = T,na = "-")
+  data.table::fwrite(x = list(gtf_stats),file = gtf_stats_file,quote = F,sep = ",",row.names = F,col.names = T,na = "-", nThread = params_list$numWorkers)
   #write.table(x= unique(tolower(gtf_stats$gene_name)),file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-" )
 
   unlink( unlist(parallel::mclapply(list.dirs(path = org_fasta_path, full.names=TRUE,recursive = F), function(x) {
@@ -929,8 +945,9 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     }
   }, mc.cores = params_list$numWorkers, mc.silent = T, mc.preschedule = T)) ,recursive = F, force = T, expand =T)
 
-  write.table(x= tolower(unique(tools::file_path_sans_ext(list.files(org_fasta_path,no.. = T,recursive = F)))),file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-" )
-  write.table(x= tolower(unique(genes[is.na(match( tolower(genes),tolower(unique(gtf_stats$gene_name)) ))])) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/MISSING_GENES",sep=""),quote=F,row.names=F,col.names=F ,na = "-")
+  orgs_files <- tolower(unique(tools::file_path_sans_ext(list.files(org_fasta_path,no.. = T,recursive = F))))
+  data.table::fwrite(x= list(orgs_files),file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-" , nThread = params_list$numWorkers )
+  data.table::fwrite(x= list(tolower(unique(genes[is.na(match( tolower(genes), orgs_files ))]))) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/MISSING_GENES",sep=""),quote=F,row.names=F,col.names=F ,na = "-", nThread = params_list$numWorkers ) #tolower(unique(gtf_stats$gene_name))
 
   cat(print_toc(tictoc::toc(quiet = T, log = T)))
   return(c(org_row, source="r-biomaRt"))
@@ -967,7 +984,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
     genes <- tolower(genes[grep("gene",tolower(genes), invert = T, fixed = T)])
   }else{
     genes <- tolower(as.vector(gene_list))
-    write.table(x = gene_list,file = paste(params_list$TEMP_PATH,"/gene_list.txt",sep = ""),quote = F,row.names = F,col.names = F)
+    data.table::fwrite(x = list(gene_list),file = paste(params_list$TEMP_PATH,"/gene_list.txt",sep = ""),quote = F,row.names = F,col.names = F, nThread = params_list$numWorkers)
     gene_list <- paste(params_list$TEMP_PATH,"/gene_list.txt",sep = "")
   }
 
@@ -1307,7 +1324,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   }else{
     genes <- tolower(as.vector(gene_list))
     tmp_gene_list <- tempfile(pattern="genelist",tmpdir = params_list$TEMP_PATH)
-    write.table(x = gene_list,file = tmp_gene_list ,quote = F,row.names = F,col.names = F)
+    data.table::fwrite(x = list(gene_list),file = tmp_gene_list ,quote = F,row.names = F,col.names = F, nThread = loaded_PARAMS$numWorkers)
     gene_list <- tmp_gene_list
   }
 
@@ -1376,18 +1393,19 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   #write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
   #write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
-  user_saved_meta[which(sapply(user_saved_meta, is.null))] <- NULL
   if(!COMPLETE$SKIP_USER_DATA && !is.null(user_saved_meta)){
+    user_saved_meta[sapply(user_saved_meta, is.null)] <- NULL
     user_saved_meta <- data.frame(t(user_saved_meta))
     colnames(user_saved_meta) <- c("org","genome","gtf")
-    write.table(x = user_saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
+    data.table::fwrite(x = list(user_saved_meta),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-", nThread = loaded_PARAMS$numWorkers)
   }
-  saved_meta[which(sapply(saved_meta, is.null))] <- NULL
+
   #print(saved_meta) #DEBUG
   #save(saved_meta, file ="saved_meta.RData") #DEBUG
   if(!is.null(saved_meta) && length(saved_meta) > 0){
+    saved_meta[sapply(saved_meta, is.null)] <- NULL
     saved_meta <- t(saved_meta) #dplyr::bind_rows(t(saved_meta))
-    write.table(x = saved_meta,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
+    data.table::fwrite(x = list(saved_meta),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-", nThread = loaded_PARAMS$numWorkers)
   }
   #parallel::mclapply(saved_meta, function(x){
   #  write.table(x = x,file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = T,append = T,na = "-")
@@ -1421,7 +1439,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   available_genes <- tolower(purrr::reduce(available_genes_list, unique))
 
   available_orgs <- list.dirs(path= loaded_PARAMS$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt
-  write.table(x = available_orgs ,file = paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), quote = F, row.names = F,col.names = F)
+  data.table::fwrite(x = list(available_orgs) ,file = paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), quote = F, row.names = F,col.names = F, nThread = loaded_PARAMS$numWorkers)
 
   if(length(available_orgs) > 0){ #file.exists(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep="")) && file.info(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""))$size > 0
     #available_orgs <- list.dirs(path= loaded_PARAMS$FASTA_OUT_PATH, full.names = F,recursive = F) #factor(scan(paste(loaded_PARAMS$OUT_PATH,"/available_orgs.txt",sep=""), character(), quiet = T))
@@ -1432,10 +1450,10 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     stop("No organisms were available!. Rety with other options or a different gene list.")
   }
 
-  write.table(x = unavailable_orgs,file = paste(loaded_PARAMS$OUT_PATH,"/unavailable_orgs.txt",sep=""), quote = F, row.names = F,col.names = F)
+  data.table::fwrite(x = list(unavailable_orgs),file = paste(loaded_PARAMS$OUT_PATH,"/unavailable_orgs.txt",sep=""), quote = F, row.names = F,col.names = F, nThread = loaded_PARAMS$numWorkers)
 
   #if(loaded_PARAMS$CLEAN_EXTRACT || (!file.exists("files/selected_ORGS.txt") && is.na(file.info("files/selected_ORGS.txt")$size)) ){
-  write.table(x = list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=F),file = paste(loaded_PARAMS$OUT_PATH,"/selected_ORGS.txt",sep=""), quote = F, row.names = F, col.names = F)
+  data.table::fwrite(x = list(list.files(path = loaded_PARAMS$FASTA_OUT_PATH,include.dirs=TRUE, full.names=F)),file = paste(loaded_PARAMS$OUT_PATH,"/selected_ORGS.txt",sep=""), quote = F, row.names = F, col.names = F, nThread = loaded_PARAMS$numWorkers)
   #}
   selected_orgs <-  factor(scan( paste(loaded_PARAMS$OUT_PATH,"/selected_ORGS.txt",sep=""), character(), quiet = T))
 
@@ -1450,7 +1468,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       }
     }
   }, mc.cores =  loaded_PARAMS$numWorkers, mc.preschedule = T))
-  write.table(x = all_gtf_stats,file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),sep = ",", quote = F, row.names = F,col.names = T,na = "-")
+  data.table::fwrite(x = list(all_gtf_stats),file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),sep = ",", quote = F, row.names = F,col.names = T,na = "-", nThread = loaded_PARAMS$numWorkers)
 
   # time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
   # time ./align_seqs.sh $1
