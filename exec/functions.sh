@@ -414,7 +414,7 @@ function get_FASTA() {
 
 	  if [[ -s $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed || -L $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed ]]; then
 	    #if [[ $LABEL_FASTA ==  "TRUE" ]] ; then
-	      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
+	      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #-split #NOTUSING name+ because it also gives coordinates
 	    #else
 	    #  bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
 	    #fi
@@ -535,6 +535,7 @@ function group_FASTA_seqs(){
 	local f_org_name=$(basename $(dirname $FASTA_FILE))
 	grep ">" $FASTA_FILE | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS.$run_mode
 	grep ">" $FASTA_FILE | awk -F">" -v s_delim="::" -v run_mode=4 -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH  --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} >> $GROUPS_PATH/\"{4}\".\"{5}\""
+	rm -f $FASTA_FILE.fai
 
 	return 0
 
@@ -841,6 +842,11 @@ function extract_genomic_regions(){
 
 	#chmod a+x $GENOME_FILE
 	#chmod a+x $ANNO_FILE
+	if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]]; then
+		echo $(color_FG_BG_Bold $Red $BG_White "Error : Genome or Annotation missing!.") #| tee >(cat >&2)
+		exit 1
+	fi
+
 
 	local GENOMES_PATH=$(grep -i -w "genomes_path" $param_file | check_param)
 	local ANNOS_PATH=$(grep -i -w "annos_path" $param_file | check_param)

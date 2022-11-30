@@ -37,6 +37,22 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     future_map(list.files(path = fasta_path,pattern = safe_gene,full.names = T,ignore.case = T), function(y){ #mclapply
       #if(file.exists(y)){
         seq_set <- Biostrings::readDNAStringSet(filepath = y,format = "fasta",use.names = T)
+        #save(seq_set, file="seq_set.RData") #DEBUG
+        ##duplicate sequences are merged
+        # seq_set <-  Biostrings::DNAStringSet(unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+        #   merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+        #   merged_seq_name <- unique(names(x))
+        #   return(seq_name=merged_seq_name, seq=merged_seq)
+        # }, mc.cores = params_list$numWorkers,mc.silent = T)), use.names = T)
+        seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+          merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+          merged_seq_name <- unique(names(x))
+          return(list(seq_name=merged_seq_name, seq=merged_seq))
+        }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
+        seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
+        names(seq_set_tmp) <- seq_set[[1]]
+        seq_set <- seq_set_tmp
+
         split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
         if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)
           #print(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
@@ -44,7 +60,7 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
           names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
           writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
           #return(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
-        }else if( ncol(split_seq_names) > 4 || ncol(split_seq_names) >= 1){
+        }else if( ncol(split_seq_names) < 4 && ncol(split_seq_names) >= 1){
           names(seq_set) <- paste(split_seq_names[,1] ,org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM) #stringi::stri_split(str = split_seq_names, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
           writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
         }else if(ncol(split_seq_names) != 4){

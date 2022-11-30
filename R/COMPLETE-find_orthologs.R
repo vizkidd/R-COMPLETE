@@ -1627,7 +1627,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   tmp_p2 <- processx::process$new(command = Sys.which("grep"), args=c("-i","-f", safe_genes_tmp), stdin= tmp_p1$get_output_connection(), stdout = "|")
 #tmp_p2$wait()
 fasta_files <- tmp_p2$read_all_output_lines()
-
+fasta_files <- grep(pattern = "*.fai", x = fasta_files,ignore.case = T,value = T,invert = T)
 #fasta_files <- c(fasta_files,tmp_p3$read_all_output())
 #print(fasta_files)
 
@@ -1696,7 +1696,7 @@ fasta_files <- tmp_p2$read_all_output_lines()
   # cat(print_toc(tictoc::toc(quiet = T)))
 
 furrr::future_map(fasta_files, function(x){
-processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_seqs",COMPLETE$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = "")
+processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_seqs",COMPLETE$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL)
 }, .options = furrr::furrr_options(seed = TRUE, scheduling=params_list$numWorkers))
   # all_groups_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
   #   if(file.exists(paste(x,"/ORG_CLUSTERS.",grouping_by,sep="")) && file.info(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""))$size > 0 ){

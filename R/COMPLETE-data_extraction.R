@@ -350,7 +350,7 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
       # }
       odb_genes <- c()
       if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","odb.list",sep=""))){
-         odb_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(paste(params_list$OUT_PATH,"/genes/",org,"/","odb.list",sep="")), character(), quiet = T))))
+        odb_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(paste(params_list$OUT_PATH,"/genes/",org,"/","odb.list",sep="")), character(), quiet = T))))
       }
       if(file.exists(paste(params_list$OUT_PATH,"/genes/",org,"/","MISSING_GENES",sep=""))){
         missing_genes <- tolower(gsub('[[:punct:]]+','_', factor(scan(paste(params_list$OUT_PATH,"/genes/",org,"/","MISSING_GENES",sep=""), character(), quiet = T))))
@@ -375,9 +375,9 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
       #   return(FALSE)
       # }
 
-      if( all(!is.na(match(available_genes,files_in_dir))) && all(is.na(match(available_genes,missing_genes))) ){ #all(!is.na(match(final_genes,files_in_dir))) && #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
+      if(all(!is.na(match(intersect(available_genes,genes),files_in_dir))) && all(is.na(match(intersect(available_genes,genes),missing_genes))) ){ #all(!is.na(match(final_genes,files_in_dir))) && #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
         if(verbose){
-          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir[!is.na(match(files_in_dir,genes))]),"+",length(files_in_dir[!is.na(match(files_in_dir,odb_genes))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))]),", User Genes:",length(genes)," : Check PASSED!\n")) #
+          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir[!is.na(match(files_in_dir,genes))]),"+",length(files_in_dir[!is.na(match(files_in_dir,setdiff(odb_genes,genes)))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))]),", User Genes:",length(genes)," : Check PASSED!\n")) #
         }
 
         # data.table::fwrite(x= list(unique(files_in_dir[match(files_in_dir,final_genes)])) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-", nThread = params_list$numWorkers )
@@ -827,18 +827,18 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   tryCatch(check_mart_dataset(org),
            error=function(cond1){
              #message(cond)
-             return(
-               tryCatch({
-                 org_biomartr <- fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F)
-                 return(org_biomartr)
-               }, error=function(cond2){
-                 message(print_toc(tictoc::toc(quiet = T, log = T)))
-                 message(cond1)
-                 stop(cond2)
-               }) )
+
+             tryCatch({
+               fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = gene_list, verbose = F)
+             }, error=function(cond2){
+               message(print_toc(tictoc::toc(quiet = T, log = T)))
+               #message(cond1)
+               stop(cond2)
+             })
              message(print_toc(tictoc::toc(quiet = T, log = T)))
-             message(cond1)
-             return(org_row)
+             #message(cond1)
+             #return(org_row)
+             stop(cond1)
            })
 
   odb_list <- paste(params_list$OUT_PATH,"/genes/",org,"/odb.list",sep = "")
@@ -869,16 +869,20 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
     message(paste("ODB gene list could not be found for : ",org))
   }
 
-  gtf_data <- invisible( tryCatch(get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes))),error=function(cond){
-    #message(cond)
-    #message(print_toc(tictoc::toc(quiet = T, log = T)))
-    tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
+  gtf_data <- invisible( tryCatch(
+    get_gtf_mart(org = org, gene_list = unique(c(genes,odb_list_genes)))
+    ,error=function(cond1){
+      #message(cond)
+      #message(print_toc(tictoc::toc(quiet = T, log = T)))
+      return(tryCatch(
+        fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F)
+        , error=function(cond2){
+          message(print_toc(tictoc::toc(quiet = T, log = T)))
+          stop(cond2)
+        }))
       message(print_toc(tictoc::toc(quiet = T, log = T)))
-      stop(cond)
-    })
-    message(print_toc(tictoc::toc(quiet = T, log = T)))
-    stop(cond)
-  }) )
+      stop(cond1)
+    }) )
 
   gtf_stats <- calculate_stats(gtf_data,allow_strand = params_list$STRAND, n_threads = params_list$numWorkers)
   gtf_stats <- dplyr::bind_rows(gtf_stats)
@@ -894,13 +898,13 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   }
 
   gtf_stats <- invisible( tryCatch(fetch_FASTA_mart(org = org,gtf_stats = gtf_stats,fasta_path = org_fasta_path, params_list = params_list),error=function(cond){
-    message(cond)
+    message(cond1)
     ##message(print_toc(tictoc::toc(quiet = T, log = T)))
-    tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond){
+    tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, verbose = F), error=function(cond2){
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
-      stop(cond)
+      stop(cond2)
     })
-    stop()
+    stop(cond1)
   }) )
 
   if(nrow(gtf_stats)==0){
@@ -1122,14 +1126,60 @@ index_FASTA_IDs <- function(path, index_out){
 #'
 #' Convert short sequence IDs into longer COMPLETE format IDs
 #'
+#' @note
+#'   Warning : Duplicate sequences are assumed to be exon blocks and merged into one. Consider this before using the function.
+#'
 #' @param fasta_path Path to FASTA File
 #' @param org Name of the organism
 #' @param gene Filename of gene list or Vector of gene names
 #' @param odb_clusters ODB Clusters
+#' @param duplicates.method merge/delete/make_unique. Default - merge. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge, for Exon blocks - make_unique, delete - for deleting all duplicate sequences (first seq is kept). NOT IMPLEMENTED
 #' @param params_list Output of load_params()
 #' @export
-label_sequenceIDs <- function(fasta_path, org, gene, odb_clusters, params_list) {
+label_sequenceIDs <- function(fasta_path, org, gene, odb_clusters, duplicates.method="merge", params_list) {
+
+  if(is.null(duplicates.method) || !grepl(pattern = c("merge|delete|make_unique"), x = duplicates.method,ignore.case = T)){
+    stop(paste("duplicates.method must be one of merge|delete|make_uniqu"))
+  }
+
   seq_set <- Biostrings::readDNAStringSet(filepath = fasta_path,format = "fasta",use.names = T)
+
+  ##duplicate sequences are merged
+  # seq_set <-  Biostrings::DNAStringSet(unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+  #   merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+  #   merged_seq_name <- unique(names(x))
+  #   return(seq_name=merged_seq_name, seq=merged_seq)
+  # }, mc.cores = params_list$numWorkers,mc.silent = T)), use.names = T)
+  if(stringi::stri_cmp_eq(duplicates.method,"merge")){
+    seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+      merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+      merged_seq_name <- unique(names(x))
+      return(list(seq_name=merged_seq_name, seq=merged_seq))
+    }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
+    seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
+    names(seq_set_tmp) <- seq_set[[1]]
+    seq_set <- seq_set_tmp
+  }
+  # else if(stringi::stri_cmp_eq(duplicates.method,"make_unique")){
+  #   seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+  #     merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+  #     merged_seq_name <- unique(names(x))
+  #     return(list(seq_name=merged_seq_name, seq=merged_seq))
+  #   }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
+  #   seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
+  #   names(seq_set_tmp) <- seq_set[[1]]
+  #   seq_set <- seq_set_tmp
+  # }else if(stringi::stri_cmp_eq(duplicates.method,"delete")){
+  #   seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+  #     merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+  #     merged_seq_name <- unique(names(x))
+  #     return(list(seq_name=merged_seq_name, seq=merged_seq))
+  #   }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
+  #   seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
+  #   names(seq_set_tmp) <- seq_set[[1]]
+  #   seq_set <- seq_set_tmp
+  # }
+
   split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
   if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)
     #print(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
@@ -1377,7 +1427,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       ) } )
   }
 
-  try(parallel::mclapply(COMPLETE$process_list, function(x){
+  try(parallel::mclapply(COMPLETE$process_list, function(x){ #parallel::mclapply
     if(!is.null(x) && x$is_alive()){
       x$wait(timeout=-1)
     }
