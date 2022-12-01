@@ -646,7 +646,7 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
 #'
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program.
 #' @param blast_options BLAST options for the BLAST program
-#' @param transcript_region Transcript region (cds,3utr,5utr,exon, and other gtf regions(not tested)) (eg, .cds/*.cds/cds/*cds). Essentially this would be the file extensions of the input FASTA file(names)
+#' @param transcript_region Transcript region (.cds, .3utr, .5utr, .exon, and other gtf regions(not tested)) (eg, ".cds" or ".fa"). Essentially this would be the file extensions of the input FASTA file(names)
 #' @param params_list Output of load_params()
 #' @param clusters_left Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right). This would be the FASTA file name(s) (without file extension)
 #' @param clusters_right Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left). This would be the FASTA file name(s) (without file extension)
@@ -655,7 +655,7 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
 #' @param clean_extract Delete Output file if exists? (Optional). Default - F
 #' @param verbose Print DEBUG Messages?. Default - F
 #' @export
-extract_transcript_orthologs <- function(blast_program, blast_options, transcript_region, params_list, clusters_left, clusters_right, input_dir,output_dir,clean_extract=F,verbose=F){ #all_gtf_stats
+extract_transcript_orthologs <- function(blast_program, blast_options, transcript_region=".cds", params_list, clusters_left, clusters_right, input_dir,output_dir,clean_extract=F,verbose=F){ #all_gtf_stats
 
   if(!any(grepl(x = class(params_list), pattern = "COMPLETE-options"))){
     stop("Error: params_list is not a COMPLETE-options class. Use load_params()")
@@ -668,7 +668,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
 
   #blast_DB_dir <- params_list$BLAST_DB_PATH
 
-  all2all_GRObjects <- all2all_BLAST(first_list = clusters_left, second_list = clusters_right, file_ext_pattern=transcript_region, blast_program = blast_program,output_dir =output_dir,blast_options = blast_options, blast.sequence.limit = 5000, input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose ) #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+  all2all_GRObjects <- all2all_BLAST(first_list = clusters_left, second_list = clusters_right, file_ext=transcript_region, blast_program = blast_program,output_dir =output_dir,blast_options = blast_options, blast.sequence.limit = 5000, input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose ) #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
   #all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
   save(all2all_GRObjects, file="all2all_GRObjects.RData") #DEBUG
   # parallel::mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
