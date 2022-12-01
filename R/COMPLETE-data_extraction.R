@@ -1161,8 +1161,9 @@ deduplicate_FASTA <- function(fasta_path, duplicates.method, n_threads=4) {
         return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
       }
     }else if(stringi::stri_cmp_eq(duplicates.method,"delete")){
-      x <- x[!which(duplicated(paste(x)))]
-      x <- x[!which(duplicated(names(x)))]
+      #x <- x[!which(duplicated(paste(x)))]
+      #x <- x[!which(duplicated(names(x)))]
+      x <- x[!intersect(which(duplicated(paste(x))),which(duplicated(names(x))))]
       if(nrow(x) > 0){
         return(data.frame(seq_name=names(x), seq=paste(x)))
       }

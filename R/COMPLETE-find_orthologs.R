@@ -170,16 +170,16 @@ run_WISARD <- function(blast_hits, score_col,n_threads=4, verbose=F){
   gr <- split(gr,f = gr$num_factors)
 
   child_results <- parallel::mclapply(gr,function(x){
-      result <- suppressMessages(invisible(wisard::get_wis(GenomicRanges::GRanges(x),max_score = score_col,overlap = 0)))
-      #print("here3")
-      if(result$max_score > 0 && length(result$alignments) > 0){
-        #result_list <- c(result_list, result)
-        return(result)
-        #print(result_list)
-      }
+    result <- suppressMessages(invisible(wisard::get_wis(GenomicRanges::GRanges(x),max_score = score_col,overlap = 0)))
+    #print("here3")
+    if(result$max_score > 0 && length(result$alignments) > 0){
+      #result_list <- c(result_list, result)
+      return(result)
       #print(result_list)
+    }
+    #print(result_list)
 
-    }, mc.cores = n_threads, mc.silent = !verbose)
+  }, mc.cores = n_threads, mc.silent = !verbose)
 
   # all_results <- list()
   # if(COMPLETE.format.ids && !is.null(params_list)){
@@ -646,15 +646,16 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
 #'
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program.
 #' @param blast_options BLAST options for the BLAST program
+#' @param transcript_region Transcript region (cds,3utr,5utr,exon, and other gtf regions(not tested)) (eg, .cds/*.cds/cds/*cds). Essentially this would be the file extensions of the input FASTA file(names)
 #' @param params_list Output of load_params()
-#' @param clusters_left Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right)
-#' @param clusters_right Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left)
+#' @param clusters_left Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right). This would be the FASTA file name(s) (without file extension)
+#' @param clusters_right Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left). This would be the FASTA file name(s) (without file extension)
 #' @param input_dir Give the directory with FASTA files (to BLAST between them using blast_program)
 #' @param output_dir Directory for saving output files (\*.out, \*.all2all, \*.wis_out,\*.rbh_out)
 #' @param clean_extract Delete Output file if exists? (Optional). Default - F
 #' @param verbose Print DEBUG Messages?. Default - F
 #' @export
-extract_transcript_orthologs <- function(blast_program, blast_options, params_list, clusters_left, clusters_right, input_dir,output_dir,clean_extract=F,verbose=F){ #all_gtf_stats
+extract_transcript_orthologs <- function(blast_program, blast_options, transcript_region, params_list, clusters_left, clusters_right, input_dir,output_dir,clean_extract=F,verbose=F){ #all_gtf_stats
 
   if(!any(grepl(x = class(params_list), pattern = "COMPLETE-options"))){
     stop("Error: params_list is not a COMPLETE-options class. Use load_params()")
@@ -667,7 +668,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, params_li
 
   #blast_DB_dir <- params_list$BLAST_DB_PATH
 
-  all2all_GRObjects <- all2all_BLAST(first_list = clusters_left, second_list = clusters_right,blast_program = blast_program,output_dir =output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose ) #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
+  all2all_GRObjects <- all2all_BLAST(first_list = clusters_left, second_list = clusters_right, file_ext_pattern=transcript_region, blast_program = blast_program,output_dir =output_dir,blast_options = blast_options, blast.sequence.limit = 5000, input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose ) #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
   #all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
   save(all2all_GRObjects, file="all2all_GRObjects.RData") #DEBUG
   # parallel::mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
@@ -707,31 +708,32 @@ extract_transcript_orthologs <- function(blast_program, blast_options, params_li
     return(parallel::mclapply(all2all_blast_hit, function(blast_hit){
 
       if(is.null(blast_hit)){
-      return(NULL)
-        }
-        blast_hit <- unlist(blast_hit, recursive = T)
-        blast_GO <- blast_hit$BLAST_Hits
+        return(NULL)
+      }
+      blast_hit <- unlist(blast_hit, recursive = T)
+      blast_GO <- blast_hit$BLAST_Hits
 
-        if(is.null(blast_GO) || length(blast_GO)==0){
-          return(NULL)
-        }
+      if(is.null(blast_GO) || length(blast_GO)==0){
+        return(NULL)
+      }
 
-        out_file <- paste(dirname(blast_hit$BLAST_File),"/",tools::file_path_sans_ext(blast_hit$run_name),".wis_out",sep="")
-        blast_GO <- blast_GO[blast_GO$query.frame==1]
-        blast_GO <- blast_GO[blast_GO$subject.frame==1]
+      out_file <- paste(dirname(blast_hit$BLAST_File),"/",tools::file_path_sans_ext(blast_hit$run_name),".wis_out",sep="")
+      blast_GO <- blast_GO[blast_GO$query.frame==1]
+      blast_GO <- blast_GO[blast_GO$subject.frame==1]
 
-        wis_GO <- invisible(run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",n_threads = params_list$numWorkers, verbose = verbose)) #score_col=16)
-        wis_GO <- melt_wisard_list(wis_GO)
-        wis_GO$num_factors <- NULL
+      wis_GO <- invisible(run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",n_threads = params_list$numWorkers, verbose = verbose)) #score_col=16)
+      wis_GO <- melt_wisard_list(wis_GO)
+      wis_GO$num_factors <- NULL
 
-        #factor_cols <- which(sapply(seq_along(1:ncol(wis_GO)),function(x){is.factor(wis_GO[,x])}))
-        #wis_GO[,factor_cols] <- data.frame(lapply(wis_GO[,factor_cols], as.character),stringsAsFactors=FALSE)
-        #data.table::fwrite(x = list(wis_GO),file = out_file,quote = F,col.names = T,row.names = F,sep = "\t", nThread = params_list$numWorkers)
-        return(list(wis_out=wis_GO,run_name=blast_hit$run_name,BLAST_file=blast_hit$BLAST_File))
+      if(verbose) {print(out_file)}
+      #factor_cols <- which(sapply(seq_along(1:ncol(wis_GO)),function(x){is.factor(wis_GO[,x])}))
+      #wis_GO[,factor_cols] <- data.frame(lapply(wis_GO[,factor_cols], as.character),stringsAsFactors=FALSE)
+      #data.table::fwrite(x = list(wis_GO),file = out_file,quote = F,col.names = T,row.names = F,sep = "\t", nThread = params_list$numWorkers)
+      return(list(wis_out=wis_GO,run_name=blast_hit$run_name,BLAST_file=blast_hit$BLAST_File))
 
     }, mc.cores = 2,mc.silent = !verbose))
   }, mc.cores = ceiling(params_list$numWorkers/2),mc.silent = !verbose)
-
+  rm(all2all_GRObjects)
   save(all2all_wis_out, file="wisard_results.RData")
   #load("files/all2all/wisard_results.RData")
 
@@ -775,13 +777,10 @@ extract_transcript_orthologs <- function(blast_program, blast_options, params_li
 
     return(list(rbh_out=RBH_out,run_name=paste(r_name,collapse = "-"),BLAST_files=c(blast_hit[[1]]$BLAST_file,blast_hit[[2]]$BLAST_file)))
   }, mc.cores = params_list$numWorkers, mc.silent = !verbose)
-
+  rm(all2all_wis_out)
   save(all2all_rbh_out, file="all2all_rbh_out.RData")
 
   all2all_final_out <- parallel::mclapply(all2all_rbh_out, function(rbh_tup){
-    if(is.null(rbh_out[[1]]) || is.null(rbh_out[[2]])){
-      return(NULL)
-    }
     final_blast_table <- calculate_HSP_coverage(fw_blast_table = rbh_tup$rbh_out$in1,bk_blast_table = rbh_tup$rbh_out$in2,col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=23), group=rbh_tup$run_name,COMPLETE.format.ids = T,params_list = params_list, header = T,verbose = verbose, min_coverage_filter = params_list$MIN_COVERAGE_THRESHOLD) #transcript_region_lengths = tx_CDS_lengths
     # if(!is.null(unlist(sapply(final_blast_table, nrow))) && unlist(sapply(final_blast_table, nrow)) > 0){
     #   data.table::fwrite(x = list(final_blast_table$blast_table[[1]]),file = out1_data,quote = F,col.names = T,row.names = F, sep = "\t",nThread = params_list$numWorkers)
@@ -790,7 +789,10 @@ extract_transcript_orthologs <- function(blast_program, blast_options, params_li
     # }
     return(list(coverage=final_blast_table, run_name=rbh_tup$run_name, BLAST_files=rbh_tup$BLAST_files))
   }, mc.cores = params_list$numWorkers, mc.silent = !verbose)
+  rm(all2all_rbh_out)
   save(all2all_final_out, file="all2all_final_out.RData")
+#gc()
+  return(all2all_final_out)
   # final_blast_tables <- furrr::future_map2(.x=group_combinations$clusters_left,.y=group_combinations$clusters_right ,.f=function(query,subject){
   #   in1_data <- paste(output_dir,query,".",subject,".fw.rbh_out",sep="")
   #   in2_data <- paste(output_dir,query,".",subject,".bk.rbh_out",sep="")
@@ -1165,6 +1167,13 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
 FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.which("tblastx"), run.mode=COMPLETE$FORMAT_ID_INDEX$CLUSTERS, verbose=F){ #gene_list
   set.seed(123)
 
+  if(stringi::stri_isempty(blast_program)){
+    stop("BLAST+ not found in $PATH. Provide blast_program")
+  }
+  else{
+    BLAST_BIN <- dirname(blast_program)
+  }
+
   if(is.na(match(run.mode,COMPLETE$FORMAT_ID_INDEX)) || is.null(run.mode)) {
     stop(paste("run.mode must be one of COMPLETE$FORMAT_ID_INDEX"))
   }
@@ -1297,11 +1306,11 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 
 
       file.copy(paste(loaded_PARAMS$GROUPS_PATH,"/ungrouped.cds",sep=""), paste(tempdir(),"/ungrouped.cds",sep=""))
-      make_BLAST_DB(fasta_file=paste(tempdir(),"/ungrouped.cds",sep=""), verbose= verbose)
+      make_BLAST_DB(fasta_file=paste(tempdir(),"/ungrouped.cds",sep=""), blast_bin=BLAST_BIN,clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose= verbose)
 
       parallel::mclapply(available_clusters, function(x){
-        extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS,clusters_left = x,clusters_right = "ungrouped", input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out,clean_extract = loaded_PARAMS$CLEAN_EXTRACT,verbose = verbose)
-      }, mc.cores = loaded_PARAMS$numWorkers, mc.silent = !verbose)
+        extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = "*.cds",clusters_left = "ungrouped",clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out,clean_extract = loaded_PARAMS$CLEAN_EXTRACT,verbose = verbose)
+      }, mc.cores = ceiling(pracma::nthroot(loaded_PARAMS$numWorkers,3)), mc.silent = !verbose) #loaded_PARAMS$numWorkers
       cat(print_toc(tictoc::toc(quiet = T)))
     }else{
       message("STEP 1 - Skipped because all sequences are grouped or run.mode != COMPLETE$FORMAT_ID_INDEX$CLUSTERS\n")
@@ -1323,8 +1332,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     message(paste("STEP 2 - Select transcript level orthologs between orgs/genes/clusters, based on minimum coverage\n"))
     tictoc::tic(msg = "Extracting Transcript Orthologs...")
     parallel::mclapply(available_clusters, function(x){
-      extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS,clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out, clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose = verbose)
-    }, mc.cores = loaded_PARAMS$numWorkers)
+      extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = "*.cds", clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out, clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose = verbose)
+    }, mc.cores = ceiling(pracma::nthroot(loaded_PARAMS$numWorkers,3)), mc.silent = !verbose) #loaded_PARAMS$numWorkers
     cat(print_toc(tictoc::toc(quiet = T)))
 
     cat(paste("Run-Time Log:\n"))

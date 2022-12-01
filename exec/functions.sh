@@ -191,19 +191,20 @@ function num_to_fID_parallel() {
 function check_DB(){
 	local script_args=($(echo $@))
 	local fasta_file=${script_args[0]}
-	blastdb_path -db $fasta_file
+	local blast_bin=${script_args[1]}
+	$blast_bin/blastdb_path -db $fasta_file
 	return 0
 }
 
-function make_BLAST_db() {
+function make_BLAST_DB() {
 	# $1 - FASTA file
 	# $2 - path to BLAST bin
 	local script_args=($(echo $@))
 	local fasta_file=${script_args[0]}
-	#local blast_bin=${script_args[1]}
+	local blast_bin=${script_args[1]}
 	#echo "$1"
-	if [[ ! -s "$(blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
-		makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
+	if [[ ! -s "$($blast_bin/blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
+		$blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
 	elif [[ ! -s $fasta_file ]]; then
 		echo "$fasta_file empty..."
 		exit 255
@@ -223,7 +224,7 @@ function collate_fasta() {
 		if [[ ! -s $(blastdb_path -db "$out_dir/$safe_gene_name.$reg") ]]; then
 			touch "$out_dir/$safe_gene_name.$reg"
 			cat $(find $path/*/ -name "$safe_gene_name*" -type f ! -size 0 | grep -w -i "$reg" ) > "$out_dir/$safe_gene_name.$reg"
-			make_BLAST_db "$out_dir/$safe_gene_name.$reg"
+			make_BLAST_DB "$out_dir/$safe_gene_name.$reg"
 		fi
 	fi
 }
@@ -541,7 +542,7 @@ function group_FASTA_seqs(){
 
 	local f_org_name=$(basename $(dirname $FASTA_FILE))
 	grep ">" $FASTA_FILE | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS.$run_mode
-	grep ">" $FASTA_FILE | awk -F">" -v s_delim="::" -v run_mode=4 -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH  --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} >> $GROUPS_PATH/\"{4}\".\"{5}\""
+	grep ">" $FASTA_FILE | awk -F">" -v s_delim="$seqID_delimiter" -v run_mode=$run_mode -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH  --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} >> $GROUPS_PATH/\"{4}\".\"{5}\""
 	rm -f $FASTA_FILE.fai
 
 	return 0
@@ -582,7 +583,11 @@ function do_BLAST() {
 
 		if [[ -s "$query" && -s "$DB" ]]; then
  
-		$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+ 	if [[ -z $parallel_path ]]; then
+ 		$prog -query $query -db $DB -outfmt 11 $blast_options -out $BLAST_output 
+ 	else
+ 		$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+ 	fi
 		
 		echo "$run_name is done"
 		else
@@ -1319,7 +1324,7 @@ export -f all2all_refblast
 export -f oneway_RBH
 export -f twoway_RBH
 export -f do_BLAST
-export -f make_BLAST_db
+export -f make_BLAST_DB
 export -f convert_BLAST_format
 export -f select_ref_org_groups
 

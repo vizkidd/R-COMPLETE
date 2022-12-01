@@ -54,6 +54,7 @@ Imports:
     furrr (>= 0.3.0),
     ggforce (>= 0.3.3),
     ggplot2 (>= 3.3.6),
+    pracma (>= 2.4.2),
     showtext
 Remotes:
     github::robbueck/wisard
