@@ -15,7 +15,9 @@ all2all_BLAST(
   params_list = NULL,
   COMPLETE.format.ids = F,
   gzip.output = T,
-  blast.sequence.limit = 10000,
+  blast.sequence.limit = 0,
+  clean_extract = F,
+  n_threads = 8,
   verbose = F
 )
 }
@@ -40,7 +42,11 @@ all2all_BLAST(
 
 \item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
 
-\item{blast.sequence.limit}{Maximum number of sequences to BLAST at a time. Default - 10000. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed}
+\item{blast.sequence.limit}{Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files}
+
+\item{clean_extract}{Delete Output file if exists? (Optional). Default - F}
+
+\item{n_threads}{Number of Threads}
 
 \item{verbose}{Print DEBUG Messages?}
 }
@@ -48,7 +54,7 @@ all2all_BLAST(
 Named List of GRObjects (of BLAST Hits)
 }
 \description{
-Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are stored in the format filename1.filename2.all2all under output_dir. (All-to-All is simply Many-to-Many association)
+Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are bi-directional and are stored in the format filename1.filename2.all2all under output_dir. (All-to-All is simply Many-to-Many association)
 }
 \note{
 ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.

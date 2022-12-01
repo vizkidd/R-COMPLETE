@@ -377,7 +377,7 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
 
       if(all(!is.na(match(intersect(available_genes,genes),files_in_dir))) && all(is.na(match(intersect(available_genes,genes),missing_genes))) ){ #all(!is.na(match(final_genes,files_in_dir))) && #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
         if(verbose){
-          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir[!is.na(match(files_in_dir,genes))]),"+",length(files_in_dir[!is.na(match(files_in_dir,setdiff(odb_genes,genes)))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))]),", User Genes:",length(genes)," : Check PASSED!\n")) #
+          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir[!is.na(match(files_in_dir,genes))]),"+",length(files_in_dir[!is.na(match(files_in_dir,setdiff(odb_genes,genes)))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(genes[is.na(match(genes,files_in_dir))]),", User Genes:",length(genes)," : Check PASSED!\n")) #", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))])
         }
 
         # data.table::fwrite(x= list(unique(files_in_dir[match(files_in_dir,final_genes)])) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-", nThread = params_list$numWorkers )
@@ -932,7 +932,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   #   x$kill(close_connections = TRUE)
   # }, mc.cores = params_list$numWorkers))
   #print(paste(org_fasta_path,org,genes,odb_gene_map,params_list)) #DEBUG
-  label_FASTA_files(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list)
+  label_FASTA_files(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list, duplicates.method = "merge")
 
   names(gtf_stats)[grep(pattern="transcript_length",names(gtf_stats))] <- "transcript_length.annotated"
   gtf_stats <- gtf_stats %>% mutate(org=org)
@@ -1122,63 +1122,77 @@ index_FASTA_IDs <- function(path, index_out){
   }
 }
 
+#' Deduplicate FASTA Sequence
+#'
+#' Merge, Make Unique or Delete FASTA sequences with duplicated names. IF the duplicate sequence names are CDS blocks, merge them. If the duplicate seq names are EXON blocks, make them unique. If duplicate seq names are sequence duplicates, delete them.
+#'
+#' @param fasta_path Path to FASTA File
+#' @param duplicates.method merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).
+#' @param n_threads Number of Threads
+#' @export
+deduplicate_FASTA <- function(fasta_path, duplicates.method, n_threads=4) {
+  seq_set <- Biostrings::readDNAStringSet(filepath = fasta_path,format = "fasta",use.names = T)
+
+  seq_set <- dplyr::bind_rows(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+   if(stringi::stri_cmp_eq(duplicates.method,"merge")){
+
+      merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+      merged_seq_name <- unique(names(x))
+      return(data.frame(seq_name=merged_seq_name, seq=merged_seq))
+    }else if(stringi::stri_cmp_eq(duplicates.method,"make_unique")){
+      if(length(x)==1){
+        return(data.frame(seq_name=names(x), seq=paste(x)))
+      }
+      uniq_seqs <- unique(paste(x))
+      seq_match_val <- match(uniq_seqs,x) #match(x,uniq_seqs)
+
+      if(any(!is.na(seq_match_val)) && length(unique(seq_match_val)) == 1){ #length(uniq_seqs) == 1
+        uniq_seqs <- gsub("[[:space:]]", "", paste(uniq_seqs)) # Biostrings::DNAString(
+        uniq_seq_name <- unique(names(uniq_seqs))
+        names(uniq_seqs) <- uniq_seq_name
+        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
+      }else{
+        uniq_seq_name <- names(x)[seq_match_val]
+        if(any(duplicated(uniq_seq_name))){
+          uniq_seq_name <- paste(paste("block",1:length(uniq_seq_name),sep=""),uniq_seq_name,sep=".")
+        }
+        #uniq_seqs <- list(uniq_seqs)
+        names(uniq_seqs) <- uniq_seq_name
+        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
+      }
+    }else if(stringi::stri_cmp_eq(duplicates.method,"delete")){
+      x <- x[!which(duplicated(paste(x)))]
+      x <- x[!which(duplicated(names(x)))]
+      if(nrow(x) > 0){
+        return(data.frame(seq_name=names(x), seq=paste(x)))
+      }
+    }
+  }, mc.cores = n_threads,mc.silent = T))
+
+  seq_set_tmp <- Biostrings::DNAStringSet(seq_set[,2], use.names = F)
+  names(seq_set_tmp) <- seq_set[,1]
+  seq_set <- seq_set_tmp
+  return(seq_set)
+}
+
 #' Label Sequence IDs of A FASTA File (Refer ?COMPLETE_PIPELINE_DESIGN about COMPLETE.format.IDs)
 #'
 #' Convert short sequence IDs into longer COMPLETE format IDs
-#'
-#' @note
-#'   Warning : Duplicate sequences are assumed to be exon blocks and merged into one. Consider this before using the function.
 #'
 #' @param fasta_path Path to FASTA File
 #' @param org Name of the organism
 #' @param gene Filename of gene list or Vector of gene names
 #' @param odb_clusters ODB Clusters
-#' @param duplicates.method merge/delete/make_unique. Default - merge. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge, for Exon blocks - make_unique, delete - for deleting all duplicate sequences (first seq is kept). NOT IMPLEMENTED
+#' @param duplicates.method merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).
 #' @param params_list Output of load_params()
 #' @export
-label_sequenceIDs <- function(fasta_path, org, gene, odb_clusters, duplicates.method="merge", params_list) {
+label_sequenceIDs <- function(fasta_path, org, gene, odb_clusters, duplicates.method, params_list) {
 
   if(is.null(duplicates.method) || !grepl(pattern = c("merge|delete|make_unique"), x = duplicates.method,ignore.case = T)){
-    stop(paste("duplicates.method must be one of merge|delete|make_uniqu"))
+    stop(paste("duplicates.method must be one of merge|delete|make_unique"))
   }
 
-  seq_set <- Biostrings::readDNAStringSet(filepath = fasta_path,format = "fasta",use.names = T)
-
-  ##duplicate sequences are merged
-  # seq_set <-  Biostrings::DNAStringSet(unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
-  #   merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-  #   merged_seq_name <- unique(names(x))
-  #   return(seq_name=merged_seq_name, seq=merged_seq)
-  # }, mc.cores = params_list$numWorkers,mc.silent = T)), use.names = T)
-  if(stringi::stri_cmp_eq(duplicates.method,"merge")){
-    seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
-      merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-      merged_seq_name <- unique(names(x))
-      return(list(seq_name=merged_seq_name, seq=merged_seq))
-    }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
-    seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
-    names(seq_set_tmp) <- seq_set[[1]]
-    seq_set <- seq_set_tmp
-  }
-  # else if(stringi::stri_cmp_eq(duplicates.method,"make_unique")){
-  #   seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
-  #     merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-  #     merged_seq_name <- unique(names(x))
-  #     return(list(seq_name=merged_seq_name, seq=merged_seq))
-  #   }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
-  #   seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
-  #   names(seq_set_tmp) <- seq_set[[1]]
-  #   seq_set <- seq_set_tmp
-  # }else if(stringi::stri_cmp_eq(duplicates.method,"delete")){
-  #   seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
-  #     merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-  #     merged_seq_name <- unique(names(x))
-  #     return(list(seq_name=merged_seq_name, seq=merged_seq))
-  #   }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
-  #   seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
-  #   names(seq_set_tmp) <- seq_set[[1]]
-  #   seq_set <- seq_set_tmp
-  # }
+  seq_set <- deduplicate_FASTA(fasta_path=fasta_path, duplicates.method=duplicates.method, n_threads=params_list$numWorkers)
 
   split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
   if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)
@@ -1203,9 +1217,14 @@ label_sequenceIDs <- function(fasta_path, org, gene, odb_clusters, duplicates.me
 #' @param org Name of the organism
 #' @param gene_list Filename of gene list or Vector of gene names
 #' @param odb_gene_map Filename of OrthoDB Ortholog Clusters mapped to gene names  (Optional). If not provided, sequences cluster ID/name "ungrouped" is used
+#' @param duplicates.method merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).
 #' @param params_list Output of load_params()
 #' @export
-label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list){
+label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list, duplicates.method){
+
+  if(is.null(duplicates.method) || !grepl(pattern = c("merge|delete|make_unique"), x = duplicates.method,ignore.case = T)){
+    stop(paste("duplicates.method must be one of merge|delete|make_unique"))
+  }
 
   tictoc::tic(msg = "Labelling Sequence IDs...")
   if(!is.null(odb_gene_map)){
@@ -1233,7 +1252,7 @@ label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
       odb_clusters <- "ungrouped"
     }
     furrr::future_map(list.files(path = fasta_path,pattern = safe_gene,full.names = T), function(y){ #lapply
-      label_sequenceIDs(y, org, x, odb_clusters, params_list)
+      label_sequenceIDs(fasta_path = y, org = org, gene = x, odb_clusters = odb_clusters, params_list = params_list, duplicates.method = duplicates.method)
 
       # Biostrings::writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
     }, .options = furrr::furrr_options(seed=T, scheduling=params_list$numWorkers))
@@ -1399,6 +1418,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
         #user_proc <- fetch_FASTA_user(x)
         #user_proc$wait()
         #tictoc::tic.clear();
+        #print(x)
         return( tryCatch({
           fetch_FASTA_user(data = x,params_list = loaded_PARAMS, gene_list = genes);
           #cat(paste("DONE :", x["org"],"\n"));

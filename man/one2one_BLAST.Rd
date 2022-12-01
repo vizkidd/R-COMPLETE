@@ -16,7 +16,9 @@ one2one_BLAST(
   params_list = NULL,
   COMPLETE.format.ids = F,
   gzip.output = T,
-  blast.sequence.limit = 10000,
+  blast.sequence.limit = 0,
+  clean_extract = F,
+  n_threads = 8,
   verbose = F
 )
 }
@@ -43,7 +45,11 @@ one2one_BLAST(
 
 \item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
 
-\item{blast.sequence.limit}{Maximum number of sequences to BLAST at a time. Default - 10000. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed}
+\item{blast.sequence.limit}{Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files}
+
+\item{clean_extract}{Delete Output file if exists? (Optional). Default - F}
+
+\item{n_threads}{Number of Threads}
 
 \item{verbose}{Print DEBUG Messages?}
 }
@@ -51,7 +57,7 @@ one2one_BLAST(
 A GRObject of BLAST Hits
 }
 \description{
-Executes One-to-One BLAST between two lists of organisms/genes/clusters.
+Executes One-to-One BLAST between two lists of organisms/genes/clusters. The BLAST Hits are
 }
 \note{
 ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.

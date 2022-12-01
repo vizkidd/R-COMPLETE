@@ -2,10 +2,61 @@ suppressMessages(require(parallel))
 suppressMessages(require(Biostrings))
 suppressMessages(require(stringi))
 suppressMessages(require(furrr))
+suppressMessages(require(purrr))
 #suppressMessages(require(COMPLETE))
 
 ##FUNCTIONS
-label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list){
+deduplicate_FASTA <- function(fasta_file, duplicates.method, n_threads=4) {
+  seq_set <- Biostrings::readDNAStringSet(filepath = fasta_file,format = "fasta",use.names = T)
+
+  seq_set <- dplyr::bind_rows(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+    if(stringi::stri_cmp_eq(duplicates.method,"merge")){
+
+      merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
+      merged_seq_name <- unique(names(x))
+      return(data.frame(seq_name=merged_seq_name, seq=merged_seq))
+    }else if(stringi::stri_cmp_eq(duplicates.method,"make_unique")){
+      if(length(x)==1){
+        return(data.frame(seq_name=names(x), seq=paste(x)))
+      }
+      uniq_seqs <- unique(paste(x))
+      seq_match_val <- match(uniq_seqs,x) #match(x,uniq_seqs)
+
+      if(any(!is.na(seq_match_val)) && length(unique(seq_match_val)) == 1){ #length(uniq_seqs) == 1
+        uniq_seqs <- gsub("[[:space:]]", "", paste(uniq_seqs)) # Biostrings::DNAString(
+        uniq_seq_name <- unique(names(uniq_seqs))
+        names(uniq_seqs) <- uniq_seq_name
+        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
+      }else{
+        uniq_seq_name <- names(x)[seq_match_val]
+        if(any(duplicated(uniq_seq_name))){
+          uniq_seq_name <- paste(paste("block",1:length(uniq_seq_name),sep=""),uniq_seq_name,sep=".")
+        }
+        #uniq_seqs <- list(uniq_seqs)
+        names(uniq_seqs) <- uniq_seq_name
+        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
+      }
+    }else if(stringi::stri_cmp_eq(duplicates.method,"delete")){
+      x <- x[!which(duplicated(paste(x)))]
+      x <- x[!which(duplicated(names(x)))]
+      if(nrow(x) > 0){
+        return(data.frame(seq_name=names(x), seq=paste(x)))
+      }
+    }
+  }, mc.cores = n_threads,mc.silent = T))
+
+  seq_set_tmp <- Biostrings::DNAStringSet(seq_set[,2], use.names = F)
+  names(seq_set_tmp) <- seq_set[,1]
+  seq_set <- seq_set_tmp
+  return(seq_set)
+}
+
+label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list, duplicates.method="merge"){
+
+  if(is.null(duplicates.method) || !grepl(pattern = c("merge|delete|make_unique"), x = duplicates.method,ignore.case = T)){
+    stop(paste("duplicates.method must be one of merge|delete|make_unique"))
+  }
+
   if(!is.null(odb_gene_map)){
     if(file.exists(odb_gene_map) && file.info(odb_gene_map)$size > 0){
       odb_gene_map <- read.table(file = odb_gene_map,header = F,quote = "",sep = "\t")
@@ -36,22 +87,7 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     #print(paste(x, safe_gene,odb_clusters)) #DEBUG
     future_map(list.files(path = fasta_path,pattern = safe_gene,full.names = T,ignore.case = T), function(y){ #mclapply
       #if(file.exists(y)){
-        seq_set <- Biostrings::readDNAStringSet(filepath = y,format = "fasta",use.names = T)
-        #save(seq_set, file="seq_set.RData") #DEBUG
-        ##duplicate sequences are merged
-        # seq_set <-  Biostrings::DNAStringSet(unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
-        #   merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-        #   merged_seq_name <- unique(names(x))
-        #   return(seq_name=merged_seq_name, seq=merged_seq)
-        # }, mc.cores = params_list$numWorkers,mc.silent = T)), use.names = T)
-        seq_set <- unlist(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
-          merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-          merged_seq_name <- unique(names(x))
-          return(list(seq_name=merged_seq_name, seq=merged_seq))
-        }, mc.cores = params_list$numWorkers,mc.silent = T), recursive = T, use.names = F)
-        seq_set_tmp <- Biostrings::DNAStringSet(seq_set[[2]], use.names = F)
-        names(seq_set_tmp) <- seq_set[[1]]
-        seq_set <- seq_set_tmp
+      seq_set <- deduplicate_FASTA(fasta_path=fasta_path, duplicates.method=duplicates.method, n_threads=params_list$numWorkers)
 
         split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
         if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)
@@ -130,4 +166,4 @@ if(is.na(params_list$numWorkers) || params_list$numWorkers > params_list$max_con
   params_list$numWorkers <- params_list$max_concurrent_jobs
 }
 
-invisible(label_sequenceIDs(fasta_path = org_fasta_path,org = org_name,gene_list = gene_list,odb_gene_map = odb_gene_map,params_list = params_list))
+invisible(label_sequenceIDs(fasta_path = org_fasta_path,org = org_name,gene_list = gene_list,odb_gene_map = odb_gene_map,params_list = params_list,duplicates.method="merge"))

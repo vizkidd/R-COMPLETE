@@ -188,15 +188,22 @@ function num_to_fID_parallel() {
 	done
 }
 
+function check_DB(){
+	local script_args=($(echo $@))
+	local fasta_file=${script_args[0]}
+	blastdb_path -db $fasta_file
+	return 0
+}
+
 function make_BLAST_db() {
 	# $1 - FASTA file
 	# $2 - path to BLAST bin
 	local script_args=($(echo $@))
 	local fasta_file=${script_args[0]}
-	local blast_bin=${script_args[1]}
+	#local blast_bin=${script_args[1]}
 	#echo "$1"
-	if [[ ! -s $("$blast_bin"/blastdb_path -db "$fasta_file") ]]; then #if [ -s "$1" ]; then
-		"$blast_bin"/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
+	if [[ ! -s "$(blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
+		makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
 	elif [[ ! -s $fasta_file ]]; then
 		echo "$fasta_file empty..."
 		exit 255

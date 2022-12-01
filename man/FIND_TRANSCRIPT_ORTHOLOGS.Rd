@@ -8,7 +8,8 @@ FIND_TRANSCRIPT_ORTHOLOGS(
   gene_list,
   params_list,
   blast_program = Sys.which("tblastx"),
-  run.mode = COMPLETE$FORMAT_ID_INDEX$CLUSTERS
+  run.mode = COMPLETE$FORMAT_ID_INDEX$CLUSTERS,
+  verbose = F
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ FIND_TRANSCRIPT_ORTHOLOGS(
 \item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list. Default is Sys.which("tblastx")}
 
 \item{run.mode}{A value from COMPLETE$FORMAT_ID_INDEX. Default - COMPLETE$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE$FORMAT_ID_INDEX$CLUSTERS groups sequences based on protein identity.}
+
+\item{verbose}{Print DEBUG Messages?}
 }
 \description{
 This function can be executed after COMPLETE::EXTRACT_DATA() and is the continuation of R-COMPLETE pipeline

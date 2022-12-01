@@ -4,7 +4,14 @@
 \alias{label_FASTA_files}
 \title{Label Sequence IDs of all FASTA Files in a folder (Refer ?COMPLETE_PIPELINE_DESIGN about COMPLETE.format.IDs)}
 \usage{
-label_FASTA_files(fasta_path, org, gene_list, odb_gene_map = NULL, params_list)
+label_FASTA_files(
+  fasta_path,
+  org,
+  gene_list,
+  odb_gene_map = NULL,
+  params_list,
+  duplicates.method
+)
 }
 \arguments{
 \item{fasta_path}{Path of FASTA Files}
@@ -16,6 +23,8 @@ label_FASTA_files(fasta_path, org, gene_list, odb_gene_map = NULL, params_list)
 \item{odb_gene_map}{Filename of OrthoDB Ortholog Clusters mapped to gene names  (Optional). If not provided, sequences cluster ID/name "ungrouped" is used}
 
 \item{params_list}{Output of load_params()}
+
+\item{duplicates.method}{merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).}
 }
 \description{
 Convert short sequence IDs into longer COMPLETE format IDs

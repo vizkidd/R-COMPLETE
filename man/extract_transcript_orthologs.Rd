@@ -6,15 +6,20 @@
 \usage{
 extract_transcript_orthologs(
   blast_program,
+  blast_options,
   params_list,
   clusters_left,
   clusters_right,
   input_dir,
-  output_dir
+  output_dir,
+  clean_extract = F,
+  verbose = F
 )
 }
 \arguments{
-\item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list$BLAST_OPTIONS}
+\item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program.}
+
+\item{blast_options}{BLAST options for the BLAST program}
 
 \item{params_list}{Output of load_params()}
 
@@ -25,6 +30,10 @@ extract_transcript_orthologs(
 \item{input_dir}{Give the directory with FASTA files (to BLAST between them using blast_program)}
 
 \item{output_dir}{Directory for saving output files (\*.out, \*.all2all, \*.wis_out,\*.rbh_out)}
+
+\item{clean_extract}{Delete Output file if exists? (Optional). Default - F}
+
+\item{verbose}{Print DEBUG Messages?. Default - F}
 }
 \description{
 This function calls the Transcript Ortholog Extraction pipeline which is used to reduce the pool of genes (step 1), reduce the pool of organisms and create sets of organisms (step 2), find transcript level orthologs (step 3). It takes only one argument which is the path/name of the BLAST program to use and refers to the values from the parameters file for other variables.

@@ -14,10 +14,11 @@ run_BLAST(
   blast_options = "",
   COMPLETE.format.ids = F,
   params_list = NULL,
-  blast.sequence.limit = 10000,
+  blast.sequence.limit = 0,
   n_threads = 8,
   gzip.output = F,
-  verbose = T
+  clean_extract = F,
+  verbose = F
 )
 }
 \arguments{
@@ -25,9 +26,9 @@ run_BLAST(
 
 \item{subject_path}{Path to Subject FASTA or or Biostrings::DNAString|AAString|RNAString}
 
-\item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed. Default is tempdir(). Can also be NULL}
+\item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed. Default is NULL}
 
-\item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object. Default - NULL}
+\item{blast_out}{Path to BLAST output file, Default BLAST FORMAT is 11. It is converted internally to BLAST Format 6 and returned as a GRanges Object. Default is tempdir(). Can also be NULL}
 
 \item{blast_program}{Give path to the BLAST program. eg, Default - Sys.which("tblastx") if tblastx is in SHELL $PATH.}
 
@@ -39,11 +40,13 @@ run_BLAST(
 
 \item{params_list}{Output from load_params() (Optional)}
 
-\item{blast.sequence.limit}{Maximum number of sequences to BLAST at a time. Default - 10000. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed}
+\item{blast.sequence.limit}{Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files}
 
 \item{n_threads}{Number of threads. Default - 8}
 
 \item{gzip.output}{Should the output files be Gzipped? Default - FALSE}
+
+\item{clean_extract}{Delete Output file if exists? (Optional). Default - F}
 
 \item{verbose}{Print DEBUG Messages?}
 }
