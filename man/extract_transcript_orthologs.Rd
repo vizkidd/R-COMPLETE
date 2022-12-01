@@ -7,13 +7,16 @@
 extract_transcript_orthologs(
   blast_program,
   blast_options,
+  transcript_region = ".cds",
+  run.mode,
   params_list,
   clusters_left,
   clusters_right,
   input_dir,
   output_dir,
   clean_extract = F,
-  verbose = F
+  verbose = F,
+  seed = 123
 )
 }
 \arguments{
@@ -21,11 +24,15 @@ extract_transcript_orthologs(
 
 \item{blast_options}{BLAST options for the BLAST program}
 
+\item{transcript_region}{Transcript region (.cds, .3utr, .5utr, .exon, and other gtf regions(not tested)) (eg, ".cds" or ".fa"). Essentially this would be the file extensions of the input FASTA file(names)}
+
+\item{run.mode}{"both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits (Argument used for calculate_HSP_coverage())}
+
 \item{params_list}{Output of load_params()}
 
-\item{clusters_left}{Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right)}
+\item{clusters_left}{Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_right with (Can be same as clusters_right). This would be the FASTA file name(s) (without file extension)}
 
-\item{clusters_right}{Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left)}
+\item{clusters_right}{Vector of file names (Set/Subset) in input_dir (OG Clusters/Genes) to BLAST clusters_left with (Can be same as clusters_left). This would be the FASTA file name(s) (without file extension)}
 
 \item{input_dir}{Give the directory with FASTA files (to BLAST between them using blast_program)}
 

@@ -4,10 +4,17 @@
 \alias{make_BLAST_DB}
 \title{Make BLAST DB}
 \usage{
-make_BLAST_DB(fasta_file, clean_extract = F, verbose = F)
+make_BLAST_DB(
+  fasta_file,
+  blast_bin = dirname(Sys.which("tblastx")),
+  clean_extract = F,
+  verbose = F
+)
 }
 \arguments{
 \item{fasta_file}{Path to FASTA File}
+
+\item{blast_bin}{Path to directory of BLAST+ programs makeblastdb and blastdb_path}
 
 \item{clean_extract}{Remove existing BLAST DB?}
 

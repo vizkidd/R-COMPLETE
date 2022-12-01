@@ -11,7 +11,7 @@ convert_BLAST_format(
   cols = c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart",
     "qend", "sstart", "send", "evalue", "bitscore", "score", "gaps", "frames", "qcovhsp",
     "sstrand", "qlen", "slen", "qseq", "sseq", "nident", "positive"),
-  conversion_prg = Sys.which("blast_formatter"),
+  conversion_prg_dir = dirname(Sys.which("blast_formatter")),
   verbose = F
 )
 }
@@ -24,7 +24,7 @@ convert_BLAST_format(
 
 \item{cols}{BLAST Columns to output. Check BLAST Output formats for more details}
 
-\item{conversion_prg}{Path to blast_formatter if not found in $PATH}
+\item{conversion_prg_dir}{Path to directory of blast_formatter if not found in $PATH}
 
 \item{verbose}{Print DEBUG Messages?}
 }

@@ -18,7 +18,8 @@ run_BLAST(
   n_threads = 8,
   gzip.output = F,
   clean_extract = F,
-  verbose = F
+  verbose = F,
+  seed = 123
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ run_BLAST(
 \item{clean_extract}{Delete Output file if exists? (Optional). Default - F}
 
 \item{verbose}{Print DEBUG Messages?}
+
+\item{seed}{Seed value for reproducibility. Default - 123}
 }
 \value{
 BLAST Hits as GRanges Object

@@ -7,6 +7,7 @@
 one2one_BLAST(
   first_list,
   second_list,
+  file_ext = ".fa",
   run_name = "BLAST.one2one",
   blast_DB_dir = tempdir(),
   blast_program,
@@ -19,13 +20,16 @@ one2one_BLAST(
   blast.sequence.limit = 0,
   clean_extract = F,
   n_threads = 8,
-  verbose = F
+  verbose = F,
+  seed = 123
 )
 }
 \arguments{
 \item{first_list}{Vector of PATHS to FASTA}
 
 \item{second_list}{Vector of PATHS to FASTA}
+
+\item{file_ext}{File extension of input files. eg- ".cds" or ".fa"}
 
 \item{run_name}{Name of the BLAST run and name of the output file}
 
@@ -52,6 +56,8 @@ one2one_BLAST(
 \item{n_threads}{Number of Threads}
 
 \item{verbose}{Print DEBUG Messages?}
+
+\item{seed}{Seed value for reproducibility. Default - 123}
 }
 \value{
 A GRObject of BLAST Hits

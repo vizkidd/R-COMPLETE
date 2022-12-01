@@ -9,7 +9,8 @@ LoadBLASTHits(
   transcript_ID_metadata = NULL,
   col.names = NULL,
   sep = "\\t",
-  header = F
+  header = F,
+  n_threads = 2
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ LoadBLASTHits(
 \item{sep}{Delimiter of the BLAST File columns. Default - '\t'}
 
 \item{header}{Does the file have a header? . Default - FALSE}
+
+\item{n_threads}{Number of Threads}
 }
 \value{
 Data Frame with BLAST Results
