@@ -1216,7 +1216,8 @@ return 0
 
 function convert_BLAST_format(){
 	local script_args=($(echo $@))
-	local blast_formatter_path=${script_args[0]}
+	local blast_bin_path=${script_args[0]}
+	local blast_formatter_path=$(echo "$blast_bin_path/blast_formatter")
 	local blast_archive=${script_args[1]}  
 	local out_file=${script_args[2]} 
 	local out_fmt=${script_args[3]}  
@@ -1224,6 +1225,9 @@ function convert_BLAST_format(){
 
 	if [[ -s $blast_archive && -s $blast_formatter_path ]]; then
 		$blast_formatter_path -archive $blast_archive -outfmt "$out_fmt $blast_cols" -out $out_file #&> /dev/null
+	else
+		echo "blast_formatter not found in $blast_formatter_path"
+		exit 1
 	fi
 }
 
