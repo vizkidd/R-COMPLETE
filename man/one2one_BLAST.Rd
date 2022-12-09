@@ -21,7 +21,8 @@ one2one_BLAST(
   clean_extract = F,
   n_threads = 8,
   verbose = F,
-  seed = 123
+  seed = 123,
+  return_data = TRUE
 )
 }
 \arguments{
@@ -58,6 +59,8 @@ one2one_BLAST(
 \item{verbose}{Print DEBUG Messages?}
 
 \item{seed}{Seed value for reproducibility. Default - 123}
+
+\item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
 }
 \value{
 A GRObject of BLAST Hits

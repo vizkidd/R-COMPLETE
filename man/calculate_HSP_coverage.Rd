@@ -15,7 +15,9 @@ calculate_HSP_coverage(
   params_list,
   sep = "\\t",
   header = F,
-  verbose = T
+  n_threads = 8,
+  verbose = T,
+  seed = 123
 )
 }
 \arguments{
@@ -39,7 +41,11 @@ calculate_HSP_coverage(
 
 \item{header}{Does the input files have header?. Only valid if blast_table is a file. Default - FALSE}
 
+\item{n_threads}{Number of threads}
+
 \item{verbose}{Print Output Messages?}
+
+\item{seed}{Seed Value}
 }
 \value{
 BLAST table with Hits which pass min_coverage_filter

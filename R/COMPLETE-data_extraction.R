@@ -1539,7 +1539,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       }
     }
   }, mc.cores =  loaded_PARAMS$numWorkers, mc.preschedule = T))
-  data.table::fwrite(x = list(all_gtf_stats),file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),sep = ",", quote = F, row.names = F,col.names = T,na = "-", nThread = loaded_PARAMS$numWorkers)
+  write.table(x = list(all_gtf_stats),file = paste(loaded_PARAMS$OUT_PATH,"/all_gtf_stats.csv",sep=""),sep = ",", quote = F, row.names = F,col.names = T,na = "-") #, nThread = loaded_PARAMS$numWorkers)
 
   # time ./find_orthologs.sh files/selected_ORGS.txt $1 #100 ##This also selects the transcripts
   # time ./align_seqs.sh $1

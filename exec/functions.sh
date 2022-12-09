@@ -565,10 +565,11 @@ function do_BLAST() {
 	local DB=${script_args[3]}
 	local BLAST_output=${script_args[4]}
 	local prog=${script_args[5]}
+	local n_threads=${script_args[6]}
 	local prog_path=$(dirname $prog)
-	local blast_options=$(echo "${script_args[@]: 6:${#script_args[@]}}")
+	local blast_options=$(echo "${script_args[@]: 7:${#script_args[@]}}")
 
-		if [ -s "$BLAST_output" ]; then
+		if [[ -s "$BLAST_output" ]]; then
 			rm $BLAST_output
 		fi
 		if [[ ! -s $($prog_path/blastdb_path -db $DB) ]]; then
@@ -586,7 +587,8 @@ function do_BLAST() {
  	if [[ -z $parallel_path ]]; then
  		$prog -query $query -db $DB -outfmt 11 $blast_options -out $BLAST_output 
  	else
- 		$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+ 		#$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
+ 		$parallel_path -j 1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " 
  	fi
 		
 		echo "$run_name is done"

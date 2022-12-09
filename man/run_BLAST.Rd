@@ -19,7 +19,8 @@ run_BLAST(
   gzip.output = F,
   clean_extract = F,
   verbose = F,
-  seed = 123
+  seed = 123,
+  return_data = TRUE
 )
 }
 \arguments{
@@ -52,6 +53,8 @@ run_BLAST(
 \item{verbose}{Print DEBUG Messages?}
 
 \item{seed}{Seed value for reproducibility. Default - 123}
+
+\item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
 }
 \value{
 BLAST Hits as GRanges Object
