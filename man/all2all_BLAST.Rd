@@ -7,7 +7,7 @@
 all2all_BLAST(
   first_list,
   second_list,
-  file_ext = ".fa",
+  file_ext = "fa",
   blast_DB_dir = tempdir(),
   blast_program,
   output_dir = "./",
@@ -29,7 +29,7 @@ all2all_BLAST(
 
 \item{second_list}{Vector of PATHS to FASTA}
 
-\item{file_ext}{File extension of input files. eg- ".cds" or ".fa"}
+\item{file_ext}{File extension of input files. eg- "cds" or "fa"}
 
 \item{blast_DB_dir}{Path to BLAST DBs, if provided, The Query and Subject FASTA are copied into this directory and then BLASTed}
 

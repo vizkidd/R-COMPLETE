@@ -7,7 +7,7 @@
 one2one_BLAST(
   first_list,
   second_list,
-  file_ext = ".fa",
+  file_ext = "fa",
   run_name = "BLAST.one2one",
   blast_DB_dir = tempdir(),
   blast_program,
@@ -30,7 +30,7 @@ one2one_BLAST(
 
 \item{second_list}{Vector of PATHS to FASTA}
 
-\item{file_ext}{File extension of input files. eg- ".cds" or ".fa"}
+\item{file_ext}{File extension of input files. eg- "cds" or "fa"}
 
 \item{run_name}{Name of the BLAST run and name of the output file}
 

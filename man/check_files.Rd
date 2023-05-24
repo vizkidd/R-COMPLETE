@@ -26,6 +26,6 @@ in the given folder path. The FASTA filenames should be of the format {gene}.{tr
 function to work.
 }
 \examples{
-  check_files("files/fasta/notechis_scutatus",org = "notechis_scutatus",genes = "data/genelist.txt",verbose =T, params_list = load_params("data/parameters.txt"))
+  check_files("files/fasta/notechis_scutatus",org = "notechis_scutatus",genes = "data/genelist.txt",verbose =T, params_list = load_params("pkg_data/parameters.txt"))
 
 }

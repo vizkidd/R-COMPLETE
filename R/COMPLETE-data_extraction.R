@@ -315,7 +315,7 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
 #' function to work.
 #'
 #' @examples
-#'   check_files("files/fasta/notechis_scutatus",org = "notechis_scutatus",genes = "data/genelist.txt",verbose =T, params_list = load_params("data/parameters.txt"))
+#'   check_files("files/fasta/notechis_scutatus",org = "notechis_scutatus",genes = "data/genelist.txt",verbose =T, params_list = load_params("pkg_data/parameters.txt"))
 #'
 #' @param fasta_path Path of folder to check
 #' @param org Name of the organism (format important, eg. "danio_rerio")

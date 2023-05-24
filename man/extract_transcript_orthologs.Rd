@@ -8,7 +8,7 @@ extract_transcript_orthologs(
   blast_program,
   blast_options,
   transcript_region = ".cds",
-  run.mode,
+  run.mode = "both",
   params_list,
   clusters_left,
   clusters_right,
