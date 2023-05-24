@@ -1216,6 +1216,15 @@ function cat_files(){
 return 0
 }
 
+function sed_replace(){
+	local script_args=($(echo $@))
+	local input_file=${script_args[0]}
+	local old_name=${script_args[1]}
+	local new_name=${script_args[2]}
+
+	sed -i "s/$old_name/$new_name/g" $input_file
+}
+
 function convert_BLAST_format(){
 	local script_args=($(echo $@))
 	local blast_bin_path=${script_args[0]}
@@ -1295,6 +1304,7 @@ function install_parallel(){
 export -f install_parallel
 export -f get_all_odb_genes
 export -f cat_files
+export -f sed_replace
 ##DATA EXTRACTION FUNCTIONS
 #export -f group_FASTA_clusters
 export -f group_FASTA_seqs

@@ -823,8 +823,8 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
   # file.copy(paste(loaded_PARAMS$GROUPS_PATH,"/ungrouped.cds",sep=""), paste(tempdir(),"/ungrouped.cds",sep=""))
   # make_BLAST_DB(fasta_file=paste(tempdir(),"/ungrouped.cds",sep=""), blast_bin=BLAST_BIN,clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose= verbose)
 
-  file.copy(paste(input_dir,"/",clusters_right,transcript_region,sep=""), paste(tempdir(),"/",clusters_right,transcript_region,sep=""), overwrite = F)
-  make_BLAST_DB(fasta_file= paste(tempdir(),"/",clusters_right,transcript_region,sep=""), blast_bin=BLAST_BIN,clean_extract = params_list$CLEAN_EXTRACT, verbose= verbose)
+  file.copy(paste(input_dir,"/",clusters_right,".",transcript_region,sep=""), paste(tempdir(),"/",clusters_right,".",transcript_region,sep=""), overwrite = F)
+  make_BLAST_DB(fasta_file= paste(tempdir(),"/",clusters_right,".",transcript_region,sep=""), blast_bin=BLAST_BIN,clean_extract = params_list$CLEAN_EXTRACT, verbose= verbose)
 
   all2all_BLAST(first_list = clusters_left, second_list = clusters_right, file_ext=transcript_region, blast_program = blast_program,output_dir =output_dir,blast_options = blast_options, blast.sequence.limit = 5000, input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose, seed=seed,return_data=FALSE ) # return_f_callback = NULL #all2all_GRObjects <-  #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
   #all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
@@ -961,12 +961,12 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
     out_cov_data <- paste(output_dir,query,".",subject,".all2all.coverage.gz",sep="")
     run_name <-  paste(query,subject,sep=".")
     try(
-      if (file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 || clean_extract ) {
+      if (!file.exists(out_cov_data) && !file.exists(out1) && file.exists(in1) && file.exists(in2) && file.info(in1)$size > 0 && file.info(in2)$size > 0 || clean_extract ) {
 
         final_blast_table <- NULL
 
         #all2all_final_out <- parallel::mclapply(all2all_rbh_out, function(rbh_tup){
-        try(final_blast_table <- calculate_HSP_coverage(fw_blast_table =in1,bk_blast_table = in2,col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=23), group=run_name,COMPLETE.format.ids = T,params_list = params_list, header = T,verbose = verbose, min_coverage_filter = params_list$MIN_COVERAGE_THRESHOLD, run.mode = run.mode)) #transcript_region_lengths = tx_CDS_lengths
+        try(final_blast_table <- calculate_HSP_coverage(fw_blast_table =in1,bk_blast_table = in2,col.indices=list(qseqid=12,sseqid=1,query_len=13,subject_len=14,align_len=23), group=run_name,COMPLETE.format.ids = T,params_list = params_list, header = T,verbose = verbose, min_coverage_filter = params_list$MIN_COVERAGE_THRESHOLD, run.mode = run.mode,n_threads=ceiling(params_list$numWorkers/2))) #transcript_region_lengths = tx_CDS_lengths
         if(!is.null(final_blast_table) && all(unlist(sapply(final_blast_table, nrow)) > 0)){
           write.table(x = final_blast_table$blast_table$BLAST_hits,file = gzfile(out1, open = "w"),quote = F,col.names = T,row.names = F, sep = "\t") #,nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
           #data.table::fwrite(x = list(final_blast_table$blast_table[[2]]),file = out2_data,quote = F,col.names = T,row.names = F, sep = "\t",nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
@@ -1332,7 +1332,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   #   }
   # }, mc.cores =  params_list$numWorkers, mc.preschedule = T, mc.silent = !verbose)
   all_groups <- unique(basename(tools::file_path_sans_ext(list.files(path=params_list$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)))) #unique(unlist(all_groups_list,recursive = T)) #purrr::reduce(all_groups_list, union)
-  data.table::fwrite(x = list(all_groups,file), file = paste(params_list$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F, nThread = params_list$numWorkers)
+  data.table::fwrite(x = list(all_groups), file = paste(params_list$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F, nThread = params_list$numWorkers)
   return(all_groups)
 }
 
@@ -1495,10 +1495,99 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 
       parallel::mclapply(available_clusters, function(x){
         extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = ".cds",clusters_left = "ungrouped",clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out,clean_extract = loaded_PARAMS$CLEAN_EXTRACT,verbose = verbose, seed=seed, run.mode="both")
-      }, mc.cores = loaded_PARAMS$numWorkers, mc.silent = !verbose, mc.set.seed = seed) #loaded_PARAMS$numWorkers
+      }, mc.cores = ceiling(loaded_PARAMS$numWorkers/2), mc.silent = !verbose, mc.set.seed = seed) #loaded_PARAMS$numWorkers
+
+      if(length(available_clusters)>1){
+    parallel::mclapply(list.files(path = all2all_out, pattern = ".final_out.gz", ignore.case = T,include.dirs = F,full.names = T), function(x){
+      final_hits <- LoadBLASTHits(infile = x,header = T)
+      #final_hits <- split(final_hits,f=factor(final_hits$direction))
+      #lapply(final_hits, function(y){
+      #  id_clusters_all <- unique(stringi::stri_split(str = unique(c(y$query_id,y$subject_id)), fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T))
+      id_clusters_all <- unique(stringi::stri_split(str = unique(c(final_hits$query_id,final_hits$subject_id)), fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T))
+        id_clusters_sub <- NULL
+         id_clusters_sub <- unique(purrr::reduce(stringi::stri_split(str = grep(pattern = "ungrouped", ignore.case = T, x=id_clusters_all, value = T, invert = T), fixed=",", simplify=F),intersect))
+         if(is.null(id_clusters_sub)){
+           id_clusters_sub <- unique(purrr::reduce(stringi::stri_split(str = grep(pattern = "ungrouped", ignore.case = T, x=id_clusters_all, value = T, invert = T), fixed=",", simplify=F),union))
+         }
+         if(is.null(id_clusters_sub)){
+           return(NULL)
+         }
+        ids_nogrp <- grep(pattern = "ungrouped", x = unique(c(y$query_id,y$subject_id)),ignore.case = T,value = T)
+        #ids_grp <- grep(pattern = paste(id_clusters_sub,collapse ="|"), x = unique(c(y$query_id,y$subject_id)),ignore.case = T,value = T)
+
+          split_id <- stringi::stri_split(str = ids_nogrp, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
+          old_id <- split_id
+          in_file <- paste(loaded_PARAMS$FASTA_OUT_PATH,"/",split_id[,COMPLETE$FORMAT_ID_INDEX$ORG],"/",gsub('[[:punct:]]+','_', split_id[,COMPLETE$FORMAT_ID_INDEX$GENE]), sep="")
+          split_id[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- paste(paste("-",id_clusters_sub,sep=""),collapse = ",") #paste("(,",paste(id_clusters_sub,collapse = ","),",)",sep="")
+          #new_id <- paste(split_id,sep=loaded_PARAMS$SEQUENCE_ID_DELIM)
+          invisible( lapply(seq_along(1:nrow(split_id)), function(idx){
+            parallel::mclapply(loaded_PARAMS$TRANSCRIPT_REGIONS, function(reg){
+              if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
+                return(NULL)
+              }
+              processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+            }, mc.cores = 3)
+          })) #, mc.cores = loaded_PARAMS$numWorkers)
+
+      #})
+    })
+      }else{#create custom clusters for the ungrouped sequences
+      #  parallel::mclapply(list.files(path = all2all_out, pattern = ".final_out.gz", ignore.case = T,include.dirs = F,full.names = T), function(x){
+          final_hits <- LoadBLASTHits(infile = paste(all2all_out,"/","ungrouped.ungrouped.all2all.final_out.gz",sep=""),header = T)
+          final_coverage <- read.table(file = paste(all2all_out,"/","ungrouped.ungrouped.all2all.coverage.gz",sep=""),header = T)
+          final_coverage <- final_coverage[final_coverage$min>loaded_PARAMS$MIN_COVERAGE_THRESHOLD,]
+          final_coverage <- final_coverage %>% mutate(cluster=kmeans(final_coverage$min,centers = ceiling(sd(final_coverage$min)))$cluster)
+          #final_coverage <- split(final_coverage,f=factor(final_coverage$cluster))
+            id_clusters_q <- stringi::stri_split(str = final_coverage$query_id, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
+            id_clusters_s <- stringi::stri_split(str = final_coverage$subject_id, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
+            id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- final_coverage$cluster
+            id_clusters_q <- unique(id_clusters_q)
+            id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- final_coverage$cluster
+            id_clusters_s <- unique(id_clusters_s)
+            id_clusters_q <- data.frame(seq_id=paste(id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$ORG],id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS])
+            id_clusters_s <- data.frame(seq_id=paste(id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$ORG],id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS])
+            id_clusters_q <- unique(id_clusters_q %>% group_by(seq_id) %>% mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
+            id_clusters_s <- unique(id_clusters_s %>% group_by(seq_id) %>% mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
+            id_clusters_q <- unlist(apply(id_clusters_q, MARGIN = 1, FUN=function(x){
+              return(paste(x,collapse = loaded_PARAMS$SEQUENCE_ID_DELIM,sep=loaded_PARAMS$SEQUENCE_ID_DELIM))
+            }))
+            id_clusters_s <- unlist(apply(id_clusters_s, MARGIN = 1, FUN=function(x){
+              return(paste(x,collapse = loaded_PARAMS$SEQUENCE_ID_DELIM,sep=loaded_PARAMS$SEQUENCE_ID_DELIM))
+            }))
+            id_clusters_all <- unique(stringi::stri_split(str = unique(c(id_clusters_q,id_clusters_s)), fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T))
+            split_id <- id_clusters_all
+            old_id <- id_clusters_all
+            old_id[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- "ungrouped"
+            in_file <- paste(loaded_PARAMS$FASTA_OUT_PATH,"/",split_id[,COMPLETE$FORMAT_ID_INDEX$ORG],"/",gsub('[[:punct:]]+','_', split_id[,COMPLETE$FORMAT_ID_INDEX$GENE]), sep="")
+            split_id[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- paste(paste("-",id_clusters_sub,sep=""),collapse = ",") #paste("(,",paste(id_clusters_sub,collapse = ","),",)",sep="")
+            #new_id <- paste(split_id,sep=loaded_PARAMS$SEQUENCE_ID_DELIM)
+            invisible( lapply(seq_along(1:nrow(split_id)), function(idx){
+              parallel::mclapply(loaded_PARAMS$TRANSCRIPT_REGIONS, function(reg){
+                if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
+                  return(NULL)
+                }
+                processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+              }, mc.cores = 3)
+            })) #, mc.cores = loaded_PARAMS$numWorkers)
+
+          #})
+         #})
+      }
+    all_clusters <- group_FASTA(gene_list=gene_list, params_list = loaded_PARAMS, id.col.index = as.numeric(run.mode),remove.invalid.files=T,verbose = T)
+
+    files_in_dir <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
+    non_cds_file_list <- grep(x = files_in_dir , pattern = "cds", ignore.case = T,invert = T, value = T)
+    dir.create(path = file.path(loaded_PARAMS$GROUPS_PATH,"/../groups_noncds"), showWarnings = F,recursive = T)
+    if(length(non_cds_file_list) > 0){
+      file.rename(from = non_cds_file_list,to = paste(loaded_PARAMS$GROUPS_PATH,"/../groups_noncds/",basename(non_cds_file_list),sep = ""))
+      files_in_dir <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
+      data.table::fwrite(x = list(unique(tools::file_path_sans_ext(basename(files_in_dir)))),file = paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F, nThread = loaded_PARAMS$numWorkers)
+    }
+    available_clusters <- unique(tools::file_path_sans_ext(basename(files_in_dir)))#all_clusters
+
       cat(print_toc(tictoc::toc(quiet = T, log=T)))
     }else{
-      message("STEP 1 - Skipped because all sequences are grouped or run.mode != COMPLETE$FORMAT_ID_INDEX$CLUSTERS\n")
+      message("STEP 1 - Skipped because all sequences are grouped\n") # or run.mode != COMPLETE$FORMAT_ID_INDEX$CLUSTERS
     }
     # }else{
     #   message("STEP 1 - Skipped because run.mode='gene'\n")
@@ -1517,8 +1606,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     message(paste("STEP 2 - Select transcript level orthologs between orgs/genes/clusters, based on minimum coverage\n"))
     tictoc::tic(msg = "Extracting Transcript Orthologs...")
     parallel::mclapply(available_clusters, function(x){
-      extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = ".cds", clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out, clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose = verbose, seed=seed, run.mode="both")
-    }, mc.cores = loaded_PARAMS$numWorkers, mc.silent = !verbose, mc.set.seed = seed) #loaded_PARAMS$numWorkers
+      extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = "cds", clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out, clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose = verbose, seed=seed, run.mode="both")
+    }, mc.cores = ceiling(loaded_PARAMS$numWorkers), mc.silent = !verbose, mc.set.seed = seed) #loaded_PARAMS$numWorkers
     cat(print_toc(tictoc::toc(quiet = T,log=T)))
 
     cat(paste("Run-Time Log:\n"))
