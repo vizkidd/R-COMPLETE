@@ -48,11 +48,11 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
      + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
      + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 
-### Tools
+### Tools - (Paths for parameters file)
 + [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
 + [MAFFT](https://mafft.cbrc.jp/alignment/software/installation_without_root.html) (Compile from sources <b>with extensions</b> because <b>*mafft-qinsi*</b> is required)
 + [TRANSAT](https://e-rna.org/transat/help.cgi#data) (Download preferred tarball and check INSTALL file)
-+ [RNADECODER](https://github.com/jujubix/rnadecoder) (Compiled program is in the bin/ of the repo)
++ [RNADECODER](https://github.com/jujubix/rnadecoder) (Compiled program is in the bin/ of the repo) <b>(Give path to the folder containing the binary)</b>
 + [Python3](https://www.python.org/download/releases/3.0/)
 + [FastTree](www.microbesonline.org/fasttree)
 
