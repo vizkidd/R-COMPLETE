@@ -11,17 +11,17 @@ EXTRACT_DATA(params_list, gene_list, user_data = NULL, only.user.data = F)
 
 \item{gene_list}{Vector or File with a list of genes to extract data for(check the github repo for an example)}
 
-\item{user_data}{File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.}
+\item{user_data}{File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.}
 
 \item{only.user.data}{Process only user data and not process all available organisms in Ensembl? (TRUE/FALSE). Default FALSE}
 }
 \description{
-This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE").
+This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE").
 }
 \note{
 If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 }
 \examples{
-    COMPLETE::EXTRACT_DATA(param_file = system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"), gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"), user_data = system.file("pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
+    COMPLETE::EXTRACT_DATA(param_file = system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"), gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
 
 }

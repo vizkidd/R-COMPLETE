@@ -25,8 +25,8 @@ Function to download FASTA data for user data. fetch_FASTA() is invoked if a gen
 Use "-" in Genome/GTF to check for the organism in BIOMART
 }
 \examples{
-    params_list <- load_params(system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-    fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
-    fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+    params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
 
 }

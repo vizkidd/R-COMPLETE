@@ -25,7 +25,7 @@ Main function to download FASTA data.
 This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf are not provided)
 }
 \examples{
-    params_list <- load_params(system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-    fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+    params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+    fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
 
 }
