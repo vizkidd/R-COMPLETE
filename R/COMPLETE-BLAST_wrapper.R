@@ -115,25 +115,25 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
     blast_input <- blast_input %>% mutate(subject_gene=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       genes <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      return(genes[,COMPLETE$FORMAT_ID_INDEX$GENE])
+      return(genes[,COMPLETE_vars$FORMAT_ID_INDEX$GENE])
     })) )
 
     blast_input <- blast_input %>% mutate(query_gene=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       genes <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      return(genes[,COMPLETE$FORMAT_ID_INDEX$GENE])
+      return(genes[,COMPLETE_vars$FORMAT_ID_INDEX$GENE])
     })) )
 
     blast_input <- blast_input %>% mutate(subject_transcript_id=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      return(stringi::stri_split_fixed(tx_id[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
+      return(stringi::stri_split_fixed(tx_id[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
     })) )
 
     blast_input <- blast_input %>% mutate(query_transcript_id=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      return(stringi::stri_split_fixed(tx_id[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
+      return(stringi::stri_split_fixed(tx_id[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
     })) )
 
     if(!is.null(col.indices[["evalue"]])) blast_input <- blast_input[which(blast_input[,col.indices[["evalue"]]] < params_list$E_VALUE_THRESH),]
@@ -202,12 +202,12 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
     tmp_df <- mutate(tmp_df, query_org = unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
       #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      return(org[,COMPLETE$FORMAT_ID_INDEX$ORG])
+      return(org[,COMPLETE_vars$FORMAT_ID_INDEX$ORG])
     })) )
     tmp_df <- mutate(tmp_df, subject_org = unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
       #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-      return(org[,COMPLETE$FORMAT_ID_INDEX$ORG])
+      return(org[,COMPLETE_vars$FORMAT_ID_INDEX$ORG])
     })) )
   }#else{
   #warning("Parameter file not loaded with load_params & COMPLETE.format.ids==FALSE")
@@ -260,7 +260,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
     cmd_verbose <- NULL
   }
 
-  processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"convert_BLAST_format",conversion_prg_dir,infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+  processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"convert_BLAST_format",conversion_prg_dir,infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
 
 }
 
@@ -279,10 +279,10 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
       cmd_verbose <- NULL
     }
 
-    db_check <- processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"check_DB",fasta_file,blast_bin), stdout = "")
+    db_check <- processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"check_DB",fasta_file,blast_bin), stdout = "")
 
     if(is.null(db_check$stdout) || clean_extract){
-      processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+      processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
     }
   }else{
     if(verbose){ message(paste("BLAST DB exists for",fasta_file)) }
@@ -429,7 +429,7 @@ set.seed(seed)
   subject_path <- fasta_in_paths[[2]]
 
   tryCatch({
-    if (stringi::stri_isempty(COMPLETE$parallel)) {
+    if (stringi::stri_isempty(COMPLETE_vars$parallel)) {
       stop("Problem with GNU parallel installation. Reload R-COMPLETE")
     }
 
@@ -485,7 +485,7 @@ set.seed(seed)
 
     #MAKE BLAST DB of FASTA files
     #Only subject fasta files needs to be a BLAST DB
-    #processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
+    #processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
     invisible( furrr::future_map(subject_path,.f = function(x){
       make_BLAST_DB(fasta_file=x,blast_bin=BLAST_BIN, verbose=verbose)
     }, .options = furrr::furrr_options(seed = seed, scheduling=F)) ) #n_threads
@@ -504,9 +504,9 @@ set.seed(seed)
       #}
 
       #if(!is.null(params_list)){
-      #  add_to_process(p_cmd =  COMPLETE$SHELL,p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE$parallel,run_name,q_x,s_y,blast_out[i],blast_program,blast_options), verbose = verbose,logfile = cmd_verbose, params_list = params_list)
+      #  add_to_process(p_cmd =  COMPLETE_vars$SHELL,p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_vars$parallel,run_name,q_x,s_y,blast_out[i],blast_program,blast_options), verbose = verbose,logfile = cmd_verbose, params_list = params_list)
       #}else{
-      processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE$parallel,run_name,q_x,s_y,blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+      processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_vars$parallel,run_name,q_x,s_y,blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
       #}
 
       if(verbose){
@@ -529,7 +529,7 @@ set.seed(seed)
     }
     print(blast_outfile) #DEBUG
     print(final_blast_out) #DEBUG
-    processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+    processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
     # unlink(x = c(final_blast_out,blast_out), recursive = T,force = T,expand = T)
 
 #   if(!is.null(blast_DB_dir)){

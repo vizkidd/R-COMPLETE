@@ -6,7 +6,7 @@
 #' @return Path to GNU parallel
 install_parallel <- function(){
   if (stringi::stri_isempty(Sys.which("parallel")) && !file.exists(paste(fs::path_home(),"/bin/parallel",sep=""))) {
-    install_status <- processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
+    install_status <- processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
     if(install_status$status>0){
       stop("Problem installing GNU parallel. Is $SHELL set? check permissions in $HOME directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
     }else{
@@ -194,10 +194,10 @@ load_params <- function(param_file){
   ALIGNMENT_GAP_THRESHOLD  <- check_param(param_table,"aln_gap_thres",optional=F,CAST_FUN=as.double)
   MIN_COVERAGE_THRESHOLD <- check_param(param_table,"min_coverage_thres",optional=F,CAST_FUN=as.double)
 
-  COMPLETE$numWorkers <- max_concurrent_jobs
+  COMPLETE_vars$numWorkers <- max_concurrent_jobs
 
-  #COMPLETE <- new.env(parent=emptyenv())
-  #COMPLETE$PARAMS <-
+  #COMPLETE_vars <- new.env(parent=emptyenv())
+  #COMPLETE_vars$PARAMS <-
   param_list <- list(param_file=param_file,
                      GENOMES_PATH=GENOMES_PATH,
                      ANNOS_PATH=ANNOS_PATH,
@@ -237,7 +237,7 @@ load_params <- function(param_file){
                      MIN_COVERAGE_THRESHOLD=MIN_COVERAGE_THRESHOLD,
                      PARAMETERS_LOADED=TRUE)
 
-  #return(COMPLETE$PARAMS)
+  #return(COMPLETE_vars$PARAMS)
   class(param_list) <- c(class(param_list), "COMPLETE-options")
   return(param_list)
 }
@@ -245,38 +245,38 @@ load_params <- function(param_file){
 options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
 #options(download.file.method="curl")
 
-COMPLETE <<- new.env(parent=emptyenv())
+COMPLETE_vars <<- new.env(parent=emptyenv())
 
 if (!curl::has_internet()) {
   stop("Check if there is an internet connection")
 }
 
-COMPLETE$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
-COMPLETE$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE$ENSEMBL_MART)) #For biomaRt
-COMPLETE$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE$using.mart)) #For biomaRt
-COMPLETE$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
-COMPLETE$curl_handle <- RCurl::getCurlMultiHandle()
-COMPLETE$process_list <- c()
-COMPLETE$SKIP_USER_DATA <- FALSE
+COMPLETE_vars$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
+COMPLETE_vars$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_vars$ENSEMBL_MART)) #For biomaRt
+COMPLETE_vars$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_vars$using.mart)) #For biomaRt
+COMPLETE_vars$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+COMPLETE_vars$curl_handle <- RCurl::getCurlMultiHandle()
+COMPLETE_vars$process_list <- c()
+COMPLETE_vars$SKIP_USER_DATA <- FALSE
 
-if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
-  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
-}
+#if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
+#  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
+#}
 
 if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
-  COMPLETE$SHELL <- Sys.getenv("SHELL")
-  cat(paste("SHELL :",COMPLETE$SHELL,"\n"))
+  COMPLETE_vars$SHELL <- Sys.getenv("SHELL")
+  cat(paste("SHELL :",COMPLETE_vars$SHELL,"\n"))
 }else if(file.exists("/bin/bash")){
-  COMPLETE$SHELL <- "/bin/bash"
-  cat(paste("SHELL :",COMPLETE$SHELL,"\n"))
+  COMPLETE_vars$SHELL <- "/bin/bash"
+  cat(paste("SHELL :",COMPLETE_vars$SHELL,"\n"))
 }else{
   stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
 }
 
-COMPLETE$user_home <- fs::path_home()
-COMPLETE$parallel <- install_parallel()
-COMPLETE$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})
-COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
-COMPLETE$BLAST_BIN <- dirname(Sys.which("tblastx"))
-COMPLETE$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
+COMPLETE_vars$user_home <- fs::path_home()
+COMPLETE_vars$parallel <- install_parallel()
+COMPLETE_vars$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})
+COMPLETE_vars$max_file_handles <- as.numeric(processx::run(command = COMPLETE_vars$SHELL, args = c("-c","ulimit -n"))$stdout)
+COMPLETE_vars$BLAST_BIN <- dirname(Sys.which("tblastx"))
+COMPLETE_vars$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
 Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)

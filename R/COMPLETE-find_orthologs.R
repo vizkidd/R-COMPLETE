@@ -95,7 +95,7 @@ index_BLAST_tables <- function(blast_tables, query_index_cols, subject_index_col
     colnames(tmp_tbl)[subject_index_cols[[x]]] <- paste("indexed",old_subject_cols[[x]],sep="_")
     colnames(tmp_tbl)[ncol(tmp_tbl)] <- old_subject_cols[[x]]
     return(tmp_tbl)
-  },mc.silent = T,mc.cores = COMPLETE$numWorkers)
+  },mc.silent = T,mc.cores = COMPLETE_vars$numWorkers)
 
   return(blast_tables)
 
@@ -270,8 +270,8 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   dir.create(identities_out_path,showWarnings = F,recursive = T)
   dir.create(oinfo_out_path)
 
-  blast_table <- blast_table %>% mutate(from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE$FORMAT_ID_INDEX$ORG])})))
-  blast_table <- blast_table %>% mutate(to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE$FORMAT_ID_INDEX$ORG])})))
+  blast_table <- blast_table %>% mutate(from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE_vars$FORMAT_ID_INDEX$ORG])})))
+  blast_table <- blast_table %>% mutate(to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE_vars$FORMAT_ID_INDEX$ORG])})))
 
   blast_table[,1] <- factor(blast_table[,1])
   blast_table[,2] <- factor(blast_table[,2])
@@ -368,7 +368,7 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   warning("These organisms are semi-orthologous (ie, they are not orthologous to all reference species):")
   print(semi_ortho_orgs)
   print(semi_orths)
-  data.table::fwrite(list(semi_orths), file = file.path(identities_out_path,paste(gene,".semiorgs",sep = "")),quote = F, row.names = T, col.names = T, nThread = COMPLETE$numWorkers)
+  data.table::fwrite(list(semi_orths), file = file.path(identities_out_path,paste(gene,".semiorgs",sep = "")),quote = F, row.names = T, col.names = T, nThread = COMPLETE_vars$numWorkers)
 
   ##Correct isoform representation, for all reference species
   ##As in, we do not care about the similarity of the reference sequence and it's isoforms. So we make it 0
@@ -410,8 +410,8 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   if(length(nref_orgs) > 0){
     data.table::fwrite(list(nref_orgs), file = file.path(oinfo_out_path,paste(gene,".nref",sep = "")))
   }
-  data.table::fwrite(min_seq_identity, file = file.path(identities_out_path,paste(gene,".min",sep = "")), quote = F, row.names = T, col.names = T, nThread = COMPLETE$numWorkers)
-  data.table::fwrite(max_seq_identity, file = file.path(identities_out_path,paste(gene,".max",sep = "")), quote = F, row.names = T, col.names = T, nThread = COMPLETE$numWorkers)
+  data.table::fwrite(min_seq_identity, file = file.path(identities_out_path,paste(gene,".min",sep = "")), quote = F, row.names = T, col.names = T, nThread = COMPLETE_vars$numWorkers)
+  data.table::fwrite(max_seq_identity, file = file.path(identities_out_path,paste(gene,".max",sep = "")), quote = F, row.names = T, col.names = T, nThread = COMPLETE_vars$numWorkers)
 
   #fileConn<-file(thres_out,open = "at")
   #writeLines(paste(gene, min_gene_conservation,length(nref_orgs)==0,num_transcripts,sep = ","), fileConn)
@@ -623,9 +623,9 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
   #   bk_y <- id_combinations[idx,2]
   #   if(COMPLETE.format.ids){
   #     tx_x <- stringi::stri_split(str = fw_x,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
-  #     x_short <- stringi::stri_split(str = tx_x, fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID]
+  #     x_short <- stringi::stri_split(str = tx_x, fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID]
   #     tx_y <- stringi::stri_split(str = bk_y,fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
-  #     y_short <- stringi::stri_split(str = tx_y, fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID]
+  #     y_short <- stringi::stri_split(str = tx_y, fixed = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID]
   #   }else{
   #     x_short <- unlist(fw_x)
   #     y_short <- unlist(bk_y)
@@ -1158,7 +1158,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
 #'
 #' @param params_list Output of load_params()
 select_ref_org_groups <- function(params_list){
-  run_status <- processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"select_ref_org_groups",params_list$REF_ORGS_FILE, params_list$GROUPS_PATH,COMPLETE$parallel, params_list$SELECT_REF_ORG_GROUPS_METHOD, params_list$numWorkers) ,spinner = T,stdout = "",stderr = "")
+  run_status <- processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"select_ref_org_groups",params_list$REF_ORGS_FILE, params_list$GROUPS_PATH,COMPLETE_vars$parallel, params_list$SELECT_REF_ORG_GROUPS_METHOD, params_list$numWorkers) ,spinner = T,stdout = "",stderr = "")
   if(run_status$status>0){
     stop("Error in select_ref_org_groups()")
   }else{
@@ -1217,7 +1217,7 @@ select_ref_org_groups <- function(params_list){
 #'
 #' @param gene_list Vector/Filename of Gene names (FASTA Filenames where the sequences are stored)
 #' @param params_list Output of load_params()
-#' @param id.col.index The index of Column of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN) to groups sequences into. Use id.col.index=1 for grouping sequences based on Transcript IDs, id.col.index=2 to group sequences into Organisms, id.col.index=3 for grouping sequences based on Gene Names and id.col.index=4 to groups sequences into Ortholog Clusters. Check COMPLETE$FORMAT_ID_INDEX for indices
+#' @param id.col.index The index of Column of COMPLETE.format.ids (?COMPLETE_PIPELINE_DESIGN) to groups sequences into. Use id.col.index=1 for grouping sequences based on Transcript IDs, id.col.index=2 to group sequences into Organisms, id.col.index=3 for grouping sequences based on Gene Names and id.col.index=4 to groups sequences into Ortholog Clusters. Check COMPLETE_vars$FORMAT_ID_INDEX for indices
 #' @param remove.invalid.files Remove files which do not have COMPLETE.format.ids? Default - FALSE . (Refer ?COMPLETE_PIPELINE_DESIGN to know about COMPLETE.format.ids)
 #' @param verbose Print DEBUG Messages?
 #' @export
@@ -1237,7 +1237,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   # }
   dir.create(params_list$GROUPS_PATH,showWarnings = F, recursive = T)
   id.col.index <- as.numeric(id.col.index)
-  grouping_by <- names(COMPLETE$FORMAT_ID_INDEX[id.col.index])
+  grouping_by <- names(COMPLETE_vars$FORMAT_ID_INDEX[id.col.index])
   tictoc::tic(msg = paste("Grouping FASTA into", grouping_by,"..."))
   unlink(x = params_list$GROUPS_PATH,recursive = T,force = T,expand = T)
   try(unlink(x = paste(params_list$GROUPS_PATH,"/../groups_noncds",sep=""),recursive = T,force = T,expand = T))
@@ -1246,7 +1246,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
 
   tmp_p1 <- processx::process$new(command = Sys.which("find"),args = c(params_list$FASTA_OUT_PATH),stdout = "|", supervise = T, cleanup = T)
   odb_file <- paste(params_list$OUT_PATH,"/genes/*/odb.final_map",sep="") #list.files(path =paste(params_list$OUT_PATH,"/genes/",sep=""), pattern = "odb.final_map", recursive = T,include.dirs = F,full.names = T) #processx::process$new(command = Sys.which("find"),args = c(paste(params_list$OUT_PATH,"/genes/*/odb.final_map",sep="")),stdout = "")
-  tmp_p3 <- processx::process$new(command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"get_all_odb_genes", gene_list,odb_file), stdout = "|",stderr=NULL)
+  tmp_p3 <- processx::process$new(command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"get_all_odb_genes", gene_list,odb_file), stdout = "|",stderr=NULL)
   tmp_p3$wait()
   genes <- unique(c(genes,tolower(gsub('[[:punct:]]+','_', tmp_p3$read_all_output_lines()))))
   safe_genes_tmp <- tempfile(pattern="safe_names")
@@ -1267,9 +1267,9 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   #   #print(names(fasta_recs)) #DEBUG
   #   split_recs <- stringi::stri_split(str = names(fasta_recs), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
   #   tryCatch({
-  #     org_name <- unique( split_recs[, COMPLETE$FORMAT_ID_INDEX$ORG] )
-  #     #gene_name <- unique( split_recs[, COMPLETE$FORMAT_ID_INDEX$GENE] )
-  #     #odb_clusters <- unique( split_recs[, COMPLETE$FORMAT_ID_INDEX$CLUSTERS] )
+  #     org_name <- unique( split_recs[, COMPLETE_vars$FORMAT_ID_INDEX$ORG] )
+  #     #gene_name <- unique( split_recs[, COMPLETE_vars$FORMAT_ID_INDEX$GENE] )
+  #     #odb_clusters <- unique( split_recs[, COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS] )
   #   }, error=function(cond){
   #     org_name <- basename(dirname(x))
   #     if(verbose){
@@ -1280,7 +1280,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   #   #  org_name <- basename(dirname(x))
   #   #}
   #
-  #   if(ncol(split_recs)!=length(COMPLETE$FORMAT_ID_INDEX)){ ##CHECKING IF FASTA IDs are COMPLETE.format.ids
+  #   if(ncol(split_recs)!=length(COMPLETE_vars$FORMAT_ID_INDEX)){ ##CHECKING IF FASTA IDs are COMPLETE.format.ids
   #     #print(x) #DEBUG
   #     if(verbose){
   #       message(paste(x," : does not have COMPLETE.format.ids"))
@@ -1324,7 +1324,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   # cat(print_toc(tictoc::toc(quiet = T)))
 
   furrr::future_map(fasta_files, function(x){
-    processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"group_FASTA_seqs",COMPLETE$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL)
+    processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"group_FASTA_seqs",COMPLETE_vars$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL)
   }, .options = furrr::furrr_options(seed = TRUE, scheduling=params_list$numWorkers))
   # all_groups_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
   #   if(file.exists(paste(x,"/ORG_CLUSTERS.",grouping_by,sep="")) && file.info(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""))$size > 0 ){
@@ -1348,11 +1348,11 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
 #' @param gene_list Vector/Filename of gene names. (essentially Filenames of FASTA sequences)
 #' @param params_list Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list. Default is Sys.which("tblastx")
-#' @param run.mode A value from COMPLETE$FORMAT_ID_INDEX. Default - COMPLETE$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE$FORMAT_ID_INDEX$CLUSTERS groups sequences based on protein identity.
+#' @param run.mode A value from COMPLETE_vars$FORMAT_ID_INDEX. Default - COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE_vars$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS groups sequences based on protein identity.
 #' @param verbose Print DEBUG Messages?
 #' @param seed Seed value for reproducibility. Default - 123
 #' @export
-FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.which("tblastx"), run.mode=COMPLETE$FORMAT_ID_INDEX$CLUSTERS, verbose=F, seed=123){ #gene_list
+FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.which("tblastx"), run.mode=COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS, verbose=F, seed=123){ #gene_list
   set.seed(seed)
 
   if(stringi::stri_isempty(blast_program)){
@@ -1362,8 +1362,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     BLAST_BIN <- dirname(blast_program)
   }
 
-  if(is.na(match(run.mode,COMPLETE$FORMAT_ID_INDEX)) || is.null(run.mode)) {
-    stop(paste("run.mode must be one of COMPLETE$FORMAT_ID_INDEX"))
+  if(is.na(match(run.mode,COMPLETE_vars$FORMAT_ID_INDEX)) || is.null(run.mode)) {
+    stop(paste("run.mode must be one of COMPLETE_vars$FORMAT_ID_INDEX"))
   }
 
   if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
@@ -1459,7 +1459,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
       }
     },error=function(cond){
       message(cond) #paste(cond,":",loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""))
-      tictoc::tic(msg = paste("Storing sequences into groups (",names(COMPLETE$FORMAT_ID_INDEX)[as.numeric(run.mode)],") ..."))
+      tictoc::tic(msg = paste("Storing sequences into groups (",names(COMPLETE_vars$FORMAT_ID_INDEX)[as.numeric(run.mode)],") ..."))
       #print("here1")
       unlink(paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""),force = T,expand = T)
       all_clusters <- group_FASTA(gene_list=gene_list, params_list = loaded_PARAMS, id.col.index = as.numeric(run.mode),remove.invalid.files=T,verbose = T) # fix.invalid.labels = T
@@ -1517,15 +1517,15 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 
           split_id <- stringi::stri_split(str = ids_nogrp, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
           old_id <- split_id
-          in_file <- paste(loaded_PARAMS$FASTA_OUT_PATH,"/",split_id[,COMPLETE$FORMAT_ID_INDEX$ORG],"/",gsub('[[:punct:]]+','_', split_id[,COMPLETE$FORMAT_ID_INDEX$GENE]), sep="")
-          split_id[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- paste(paste("-",id_clusters_sub,sep=""),collapse = ",") #paste("(,",paste(id_clusters_sub,collapse = ","),",)",sep="")
+          in_file <- paste(loaded_PARAMS$FASTA_OUT_PATH,"/",split_id[,COMPLETE_vars$FORMAT_ID_INDEX$ORG],"/",gsub('[[:punct:]]+','_', split_id[,COMPLETE_vars$FORMAT_ID_INDEX$GENE]), sep="")
+          split_id[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS] <- paste(paste("-",id_clusters_sub,sep=""),collapse = ",") #paste("(,",paste(id_clusters_sub,collapse = ","),",)",sep="")
           #new_id <- paste(split_id,sep=loaded_PARAMS$SEQUENCE_ID_DELIM)
           invisible( lapply(seq_along(1:nrow(split_id)), function(idx){
             parallel::mclapply(loaded_PARAMS$TRANSCRIPT_REGIONS, function(reg){
               if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
                 return(NULL)
               }
-              processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+              processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
             }, mc.cores = 3)
           })) #, mc.cores = loaded_PARAMS$numWorkers)
 
@@ -1540,12 +1540,12 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
           #final_coverage <- split(final_coverage,f=factor(final_coverage$cluster))
             id_clusters_q <- stringi::stri_split(str = final_coverage$query_id, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
             id_clusters_s <- stringi::stri_split(str = final_coverage$subject_id, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
-            id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- final_coverage$cluster
+            id_clusters_q[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS] <- final_coverage$cluster
             id_clusters_q <- unique(id_clusters_q)
-            id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- final_coverage$cluster
+            id_clusters_s[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS] <- final_coverage$cluster
             id_clusters_s <- unique(id_clusters_s)
-            id_clusters_q <- data.frame(seq_id=paste(id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$ORG],id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_q[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS])
-            id_clusters_s <- data.frame(seq_id=paste(id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$ORG],id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_s[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS])
+            id_clusters_q <- data.frame(seq_id=paste(id_clusters_q[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_q[,COMPLETE_vars$FORMAT_ID_INDEX$ORG],id_clusters_q[,COMPLETE_vars$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_q[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS])
+            id_clusters_s <- data.frame(seq_id=paste(id_clusters_s[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_s[,COMPLETE_vars$FORMAT_ID_INDEX$ORG],id_clusters_s[,COMPLETE_vars$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_s[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS])
             id_clusters_q <- unique(id_clusters_q %>% group_by(seq_id) %>% mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
             id_clusters_s <- unique(id_clusters_s %>% group_by(seq_id) %>% mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
             id_clusters_q <- unlist(apply(id_clusters_q, MARGIN = 1, FUN=function(x){
@@ -1557,16 +1557,16 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
             id_clusters_all <- unique(stringi::stri_split(str = unique(c(id_clusters_q,id_clusters_s)), fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T))
             split_id <- id_clusters_all
             old_id <- id_clusters_all
-            old_id[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- "ungrouped"
-            in_file <- paste(loaded_PARAMS$FASTA_OUT_PATH,"/",split_id[,COMPLETE$FORMAT_ID_INDEX$ORG],"/",gsub('[[:punct:]]+','_', split_id[,COMPLETE$FORMAT_ID_INDEX$GENE]), sep="")
-            split_id[,COMPLETE$FORMAT_ID_INDEX$CLUSTERS] <- paste(paste("-",id_clusters_sub,sep=""),collapse = ",") #paste("(,",paste(id_clusters_sub,collapse = ","),",)",sep="")
+            old_id[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS] <- "ungrouped"
+            in_file <- paste(loaded_PARAMS$FASTA_OUT_PATH,"/",split_id[,COMPLETE_vars$FORMAT_ID_INDEX$ORG],"/",gsub('[[:punct:]]+','_', split_id[,COMPLETE_vars$FORMAT_ID_INDEX$GENE]), sep="")
+            split_id[,COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS] <- paste(paste("-",id_clusters_sub,sep=""),collapse = ",") #paste("(,",paste(id_clusters_sub,collapse = ","),",)",sep="")
             #new_id <- paste(split_id,sep=loaded_PARAMS$SEQUENCE_ID_DELIM)
             invisible( lapply(seq_along(1:nrow(split_id)), function(idx){
               parallel::mclapply(loaded_PARAMS$TRANSCRIPT_REGIONS, function(reg){
                 if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
                   return(NULL)
                 }
-                processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+                processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
               }, mc.cores = 3)
             })) #, mc.cores = loaded_PARAMS$numWorkers)
 
@@ -1587,11 +1587,11 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 
       cat(print_toc(tictoc::toc(quiet = T, log=T)))
     }else{
-      message("STEP 1 - Skipped because all sequences are grouped\n") # or run.mode != COMPLETE$FORMAT_ID_INDEX$CLUSTERS
+      message("STEP 1 - Skipped because all sequences are grouped\n") # or run.mode != COMPLETE_vars$FORMAT_ID_INDEX$CLUSTERS
     }
     # }else{
     #   message("STEP 1 - Skipped because run.mode='gene'\n")
-    #   all_genes <- group_FASTA(params_list = loaded_PARAMS, id.col.index = COMPLETE$FORMAT_ID_INDEX$GENE)
+    #   all_genes <- group_FASTA(params_list = loaded_PARAMS, id.col.index = COMPLETE_vars$FORMAT_ID_INDEX$GENE)
     #   available_clusters <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
     # }
 
@@ -1620,30 +1620,30 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
           #print(org)
-          return(org[,COMPLETE$FORMAT_ID_INDEX$ORG])
+          return(org[,COMPLETE_vars$FORMAT_ID_INDEX$ORG])
         })) )
         tmp_cove$coverage <- tmp_cove$coverage %>% mutate(subject_org=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-          return(org[,COMPLETE$FORMAT_ID_INDEX$ORG])
+          return(org[,COMPLETE_vars$FORMAT_ID_INDEX$ORG])
         })) )
         tmp_cove$coverage <- tmp_cove$coverage %>% mutate(query_transcript_id=unlist(purrr::map(tmp_cove$coverage[,1],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-          return(stringi::stri_split_fixed(tx_id[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
+          return(stringi::stri_split_fixed(tx_id[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
         })) )
         tmp_cove$coverage <- tmp_cove$coverage %>% mutate(subject_transcript_id=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-          return(stringi::stri_split_fixed(tx_id[,COMPLETE$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
+          return(stringi::stri_split_fixed(tx_id[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
         })) )
         query_gene=unlist(purrr::map(tmp_cove$coverage[,1],function(x){
           gene <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-          return(gene[,COMPLETE$FORMAT_ID_INDEX$GENE])
+          return(gene[,COMPLETE_vars$FORMAT_ID_INDEX$GENE])
         }))
         subject_gene=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
           gene <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
-          return(gene[,COMPLETE$FORMAT_ID_INDEX$GENE])
+          return(gene[,COMPLETE_vars$FORMAT_ID_INDEX$GENE])
         }))
         tmp_cove$coverage$gene <- NA
         tmp_cove$coverage$gene[query_gene==subject_gene] <- factor(query_gene[query_gene==subject_gene])
