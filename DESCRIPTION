@@ -11,7 +11,7 @@ Description: R package for extracting motifs of localization elements using a co
     * Constructs Multiple Sequence Alignments (MSA) for clusters/genes
     * Folds the MSAs and takes advantage of the evolutionary information to predict motifs which enable localization
     Pipeline is split into multiple parts. The functions named in uppercase denote the functions which perform end-end execution of respective parts of the pipeline. 
-    Check ?PIPELINE_DESIGN for more information
+    Check ?COMPLETE_PIPELINE_DESIGN for more information
 License: GPL-3
 Encoding: UTF-8
 Additional_repositories:
