@@ -2,6 +2,7 @@
 + [About](#about)
 + [Installation](#install)
 + [Requirements](#requires)
++ [Run Examples](#examples)
 + [Documentation](#docs)
     + [Parameters](#params)
     + [User Data](#user_data)
@@ -55,6 +56,19 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 + [RNADECODER](https://github.com/jujubix/rnadecoder) (Compiled program is in the bin/ of the repo) <b>(Give path to the folder containing the binary)</b>
 + [Python3](https://www.python.org/download/releases/3.0/)
 + [FastTree](www.microbesonline.org/fasttree)
+
+<a name="examples"/>
+
+## Run Examples
+
+   To run the example (with the default parameters and example data), from the context of your current working directory, 
+    + Put the programs from [Tools section](#requires) into tools/
+    + Download OrthoDB(ODB) files and place them in OrthoDB/
+
+```{R}
+params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+COMPLETE::EXTRACT_DATA(params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
+```
 
 ## Documentation
 
