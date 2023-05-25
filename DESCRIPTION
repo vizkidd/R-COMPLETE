@@ -14,7 +14,7 @@ Description: R package for extracting motifs of localization elements using a co
 License: GPL-3
 Encoding: UTF-8
 Additional_repositories:
-        https://r-forge.r-project.org, https://bioconductor.org/packages/3.16/bioc
+        https://r-forge.r-project.org, https://bioconductor.org
 biocViews:
 Depends: Rcpp (>= 1.0.8.3),
     dplyr (>= 1.0.9),
