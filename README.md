@@ -22,7 +22,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 <a name="install"/>
 
 ```diff
-sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools
+sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
 devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ```
