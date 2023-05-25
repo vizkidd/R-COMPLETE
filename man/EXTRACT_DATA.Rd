@@ -22,6 +22,6 @@ This is the main function which calls all the other functions and performs and e
 If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 }
 \examples{
-    COMPLETE::EXTRACT_DATA(param_file = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
+    COMPLETE::EXTRACT_DATA(params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
 
 }

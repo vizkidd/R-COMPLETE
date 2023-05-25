@@ -1293,7 +1293,7 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 #' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","pkg_data","parameters.txt").
 #'
 #' @examples
-#'     COMPLETE::EXTRACT_DATA(param_file = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
+#'     COMPLETE::EXTRACT_DATA(params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
 #'
 #' @note If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 #'
@@ -1566,6 +1566,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #' BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 #'
 #' + REQUIRES:
+#' 
 #'      - Internet Connection
 #'      - Referenced R packages
 #'      - Linux with BASH ($SHELL must be set or /bin/bash must exist)
@@ -1574,26 +1575,30 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'      - Samtools (in $PATH - BASH functions)
 #'      - Bedtools (in $PATH - BASH functions)
 #'      - OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1) 
-#'          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
-#'          # odb10v1_genes.tab.gz  -Ortho DB genes with some info 
-#'          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence 
+#'          - odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
+#'          - odb10v1_genes.tab.gz  -Ortho DB genes with some info 
+#'          - odb10v1_OG2genes.tab.gz - OGs to genes correspondence 
 #'          (OR)
-#'          # odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
-#'          # odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
+#'          - odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
+#'          - odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 #'
-#' + PARAMETERS :
-#'     The pipeline takes a single parameter file. This design was chosen
-#'          1) To expose as many options as possible to the end-user.
-#'          2) The pipeline uses BASH to perform some operations (which is significantly faster than R)
+#' + PARAMETERS : 
+#' 
+#'           The pipeline takes a single parameter file. This design was chosen
+#'             1) To expose as many options as possible to the end-user.
+#'              2) The pipeline uses BASH to perform some operations (which is significantly faster than R)
 #'          and the parameter file is shared between R and BASH.
+#'    
 #'     The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE
 #'     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
 #'     fs::path_package("COMPLETE","pkg_data","parameters.txt")
 #'
-#' + USER DATA :
-#'     Columns Org, genome, gtf
+#' + USER DATA : 
+#' 
+#'          Columns Org, genome, gtf
 #'
-#' + COMPLETE.format.ids :
+#' + COMPLETE.format.ids : 
+#' 
 #'          - The Ordering of ID labels can be referred from COMPLETE_env$FORMAT_ID_INDEX
 #'          - Sequences are labelled with the following long ID format of R-COMPLETE
 #'          (specific to this pipeline and referred to as COMPLETE.format.ids)
@@ -1604,9 +1609,10 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'
 #' + FLOW :
 #'
-#'     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
-#'     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
-#'     and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
+#'     1) EXTRACT_DATA() - 
+#'            Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
+#'        from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
+#'        and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
 #'          - ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
 #'          - Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
 #'          - Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)

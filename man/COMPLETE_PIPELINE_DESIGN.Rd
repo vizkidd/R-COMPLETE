@@ -11,26 +11,68 @@
 The pipeline uses R and BASH. BASH functions are invoked through R.
 BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 }
-\section{odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level)}{
-
-}
-
-\section{odb10v1_genes.tab.gz  -Ortho DB genes with some info}{
-
-}
-
-\section{odb10v1_OG2genes.tab.gz - OGs to genes correspondence}{
+\details{
+\itemize{
+\item REQUIRES:
+\itemize{
+\item Internet Connection
+\item Referenced R packages
+\item Linux with BASH ($SHELL must be set or /bin/bash must exist)
+\item Parameters File (fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+\item GNU parallel (in $PATH - BASH functions)
+\item Samtools (in $PATH - BASH functions)
+\item Bedtools (in $PATH - BASH functions)
+\item OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1)
+\itemize{
+\item odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level)
+\item odb10v1_genes.tab.gz  -Ortho DB genes with some info
+\item odb10v1_OG2genes.tab.gz - OGs to genes correspondence
 (OR)
+\item odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
+\item odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 }
-
-\section{odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)}{
-
 }
+\item PARAMETERS :
 
-\section{odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)}{
+\if{html}{\out{<div class="sourceCode">}}\preformatted{    The pipeline takes a single parameter file. This design was chosen
+      1) To expose as many options as possible to the end-user.
+       2) The pipeline uses BASH to perform some operations (which is significantly faster than R)
+   and the parameter file is shared between R and BASH.
+}\if{html}{\out{</div>}}
 
+The file is of the format \link{param_id==value==comment} where param_id and value columns are CASE-SENSITIVE
+(because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
+fs::path_package("COMPLETE","pkg_data","parameters.txt")
+\item USER DATA :
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{   Columns Org, genome, gtf
+}\if{html}{\out{</div>}}
+\item COMPLETE.format.ids :
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{   - The Ordering of ID labels can be referred from COMPLETE_env$FORMAT_ID_INDEX
+   - Sequences are labelled with the following long ID format of R-COMPLETE
+   (specific to this pipeline and referred to as COMPLETE.format.ids)
+   (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+        >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
+        >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
+        >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
+}\if{html}{\out{</div>}}
+\item FLOW :
+\enumerate{
+\item EXTRACT_DATA() -
+Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
+from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
+and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
+\itemize{
+\item ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
+\item Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
+\item Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
+\item FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
 }
-
+\item FIND_ORTHOLOGS() -
+}
+}
+}
 \seealso{
 \code{\link[=EXTRACT_DATA]{EXTRACT_DATA()}}, \code{\link[=FIND_ORTHOLOGS]{FIND_ORTHOLOGS()}}
 }
