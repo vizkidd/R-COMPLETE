@@ -3,9 +3,8 @@ Type: Package
 Title: Comparative Orthologous Motif Prediction of Localization Elements with Transcript Extraction
 Version: 0.1.0
 Authors@R: c(
-	person("Vishvesh", "Karthik", role=c("aut"),
+	person("Vishvesh", "Karthik", role=c("aut","cre"),
 		email="vishveshkarthik@gmail.com"))
-Maintainer: Vishvesh Karthik <vishveshkarthik@gmail.com>
 Description: R package for extracting motifs of localization elements using a comparitive approach.
     * The package takes a list of genes and downloads protein coding transcripts of said genes for user provided organisms and organisms from Ensembl
     * Groups the transcripts into ortholog/gene clusters and finds transcript level orthologs of genes/clusters with iterative BLAST approach (iBLAST). Ungrouped transcripts are optionally grouped during iBLAST
