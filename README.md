@@ -14,7 +14,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
    * GNU parallel (in $PATH - BASH functions)
    * [Samtools](http://www.htslib.org/download/) (in $PATH - BASH functions)
    * [Bedtools](https://github.com/arq5x/bedtools2/releases) (in $PATH - BASH functions)
-   * [ncbi-blast+](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Compile from .src.tar.gz with ./configure && make all && sudo make install) (or sudo alien -i ncbi-blast-X.XX.X+-2.src.rpm) (or download binaries) (Docs: https://www.ncbi.nlm.nih.gov/books/NBK52640/)
+   * [ncbi-blast+](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Compile from .src.tar.gz with ./configure && make all && sudo make install) (or sudo alien -i ncbi-blast-X.XX.X+-2.src.rpm) (or download binaries) ([Docs](https://www.ncbi.nlm.nih.gov/books/NBK52640/) & [Compilation](http://www.ncbi.nlm.nih.gov/books/NBK279671/#_introduction_Source_tarball))
         * Check if you have the binaries for #*blastdb_path*# and #*makeblastdb*#
    * [Zlib](https://zlib.net/) - (Compile from sources) (or) (sudo apt install libz-dev or yum install zlib-devel)
    * LZMA SDK - (sudo apt-get install liblzma-dev or yum install xz-devel)
