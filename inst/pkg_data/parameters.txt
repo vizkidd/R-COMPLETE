@@ -25,7 +25,7 @@ plot_path==files/plots== Path to save plot images (Output)
 gene_drop_thresh==0== Threshold to filter genes (Input)
 orthodb_path_prefix==OrthoDB/odb10v1== Path and prefix to OrthoDB files, check docs to know which files you need (merge_OG2genes_OrthoDB.R) (Input/Output)
 macse_path==tools/macse_v2.07.jar== Path to MACSE jar file or the installed executable (for coding sequence alignment) (Input)
-mafft_path==/usr/bin/mafft-qinsi== Path to MAFFT executable (for UTR alignment) (Input)
+mafft_path==/usr/local/bin/mafft-qinsi== Path to MAFFT executable (for UTR alignment) (Input)
 transat_path==tools/Transat== Path to TRANSAT executable (for predicting helices) (Input) #/data/meyer/viz/tools/Transat_latest/TransatCDS/bin/TransatCDScluster/TransatM
 rnadecoder_path==tools/== Path to RNADECODER FOLDER (only folder path,executable must be named RNA-decoder) (for predicting base-pair probabilities) (Input)
 python3_path==/usr/bin/python3== Path to Python3 (Input)
