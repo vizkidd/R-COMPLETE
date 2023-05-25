@@ -58,7 +58,7 @@ Imports:
 Remotes:
     github::robbueck/wisard
 LinkingTo: Rcpp
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Collate:
     'COMPLETE-options.R'
     'COMPLETE-data_extraction.R'

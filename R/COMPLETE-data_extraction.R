@@ -488,7 +488,7 @@ get_gtf_mart <- function(org, gene_list){
 #'     #names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
 #'     #gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
 #'     #gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
-#'     params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
 #'     gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path,params_list)
 #'
 #' @param org Name of the organism (format important, eg. "danio_rerio")
@@ -707,8 +707,8 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' This function invokes external SHELL function extract_genomic_regions from system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE") (just like the piepline for user data) and cannot be monitored
 #'
 #' @examples
-#'     params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
 #'
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
@@ -791,8 +791,8 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
 #' @note This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf are not provided)
 #'
 #' @examples
-#'     params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'     fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
 #'
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
@@ -964,9 +964,9 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 #' @note Use "-" in Genome/GTF to check for the organism in BIOMART
 #'
 #' @examples
-#'     params_list <- load_params(system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
 #'
 #' @param data Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").
 #' @param params_list Output of load_params()
@@ -1290,16 +1290,16 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 
 #' (1) - Extracts Sequences for Protein Coding Transcripts from Organisms
 #'
-#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE").
+#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE").
 #'
 #' @examples
-#'     COMPLETE::EXTRACT_DATA(param_file = system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"), gene_list = system.file("data", "genelist.txt", mustWork = T ,package = "COMPLETE"), user_data = system.file("data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
+#'     COMPLETE::EXTRACT_DATA(param_file = system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"), gene_list = system.file("pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"), user_data = system.file("pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
 #'
 #' @note If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 #'
 #' @param params_list Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().
 #' @param gene_list Vector or File with a list of genes to extract data for(check the github repo for an example)
-#' @param user_data File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.
+#' @param user_data File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.
 #' @param only.user.data Process only user data and not process all available organisms in Ensembl? (TRUE/FALSE). Default FALSE
 #' @export
 EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=F){
@@ -1565,7 +1565,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'      * Internet Connection
 #'      * Referenced R packages
 #'      * Linux with BASH ($SHELL must be set or /bin/bash must exist)
-#'      * Parameters File (system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'      * Parameters File (system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
 #'      * GNU parallel (in $PATH - BASH functions)
 #'      * Samtools (in $PATH - BASH functions)
 #'      * Bedtools (in $PATH - BASH functions)
@@ -1584,7 +1584,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          and the parameter file is shared between R and BASH.
 #'     The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE
 #'     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
-#'     system.file("data", "parameters.txt", mustWork = T ,package = "COMPLETE")
+#'     system.file("pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE")
 #'
 #' * USER DATA :
 #'     Columns Org, genome, gtf
