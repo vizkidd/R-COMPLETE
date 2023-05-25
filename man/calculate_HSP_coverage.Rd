@@ -37,7 +37,7 @@ calculate_HSP_coverage(
 
 \item{params_list}{Output of load_params()}
 
-\item{sep}{Delimiter for the input Files. Only valid if blast_table is a file. Default - '\t'}
+\item{sep}{Delimiter for the input Files. Only valid if blast_table is a file. Default - '\\t'}
 
 \item{header}{Does the input files have header?. Only valid if blast_table is a file. Default - FALSE}
 

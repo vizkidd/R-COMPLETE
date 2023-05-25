@@ -238,6 +238,9 @@ load_params <- function(param_file){
                      PARAMETERS_LOADED=TRUE)
 
   #return(COMPLETE_env$PARAMS)
+  if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
+    message("Warning: NCBI-BLAST path is empty")
+  }
   class(param_list) <- c(class(param_list), "COMPLETE-options")
   return(param_list)
 }
@@ -281,6 +284,10 @@ INITIALIZE <- function() {
   COMPLETE_env$BLAST_BIN <- dirname(Sys.which("tblastx"))
   COMPLETE_env$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
   Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)
+  
+  if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
+    message("Warning: NCBI-BLAST path is empty")
+  }
 }
 
 #.onAttach <- function(libname, pkgname) {

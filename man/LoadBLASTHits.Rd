@@ -20,7 +20,7 @@ LoadBLASTHits(
 
 \item{col.names}{Name of the columns of the BLAST File}
 
-\item{sep}{Delimiter of the BLAST File columns. Default - '\t'}
+\item{sep}{Delimiter of the BLAST File columns. Default - '\\t'}
 
 \item{header}{Does the file have a header? . Default - FALSE}
 

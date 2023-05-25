@@ -23,7 +23,7 @@ This function downloads FASTA data from BIOMART using biomartr. The GENOME and G
 This function invokes external SHELL function extract_genomic_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
 }
 \examples{
-    params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
-    fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
+    params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+    fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 
 }

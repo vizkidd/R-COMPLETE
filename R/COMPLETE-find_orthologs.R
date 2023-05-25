@@ -435,7 +435,7 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
 #' @param min_coverage_filter Minimum HSP Coverage value to filter out Hits (Default - 0.5)
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, Default - FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (ONLY FOR blast_table,transcript_region_lengths are assumed to have short IDs)
 #' @param params_list Output of load_params()
-#' @param sep Delimiter for the input Files. Only valid if blast_table is a file. Default - '\t'
+#' @param sep Delimiter for the input Files. Only valid if blast_table is a file. Default - '\\t'
 #' @param header Does the input files have header?. Only valid if blast_table is a file. Default - FALSE
 #' @param n_threads Number of threads
 #' @param verbose Print Output Messages?
@@ -1783,7 +1783,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 #'
 #' @param in1 Input (query->subject) BLAST/WISARD hits table/filename
 #' @param in2 Input (query<-subject) BLAST/WISARD hits table/filename
-#' @param sep Delimiter for the input Files. Only valid if in1 and in2 are files. Default - '\t'
+#' @param sep Delimiter for the input Files. Only valid if in1 and in2 are files. Default - '\\t'
 #' @param header Does the input files have header?. Only valid if in1 and in2 are files. Default - FALSE
 #' @param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
 #' @param col.names Columns names for the BLAST/WISARD tables/files

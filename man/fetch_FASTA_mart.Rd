@@ -31,7 +31,7 @@ Columns required from biomaRt "gene_name","gene_id","transcript_id" (or) "seqnam
     #names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
     #gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
     #gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
-    params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
+    params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
     gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path,params_list)
 
 }

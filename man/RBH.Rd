@@ -26,7 +26,7 @@ RBH(
 
 \item{in2}{Input (query<-subject) BLAST/WISARD hits table/filename}
 
-\item{sep}{Delimiter for the input Files. Only valid if in1 and in2 are files. Default - '\t'}
+\item{sep}{Delimiter for the input Files. Only valid if in1 and in2 are files. Default - '\\t'}
 
 \item{header}{Does the input files have header?. Only valid if in1 and in2 are files. Default - FALSE}
 

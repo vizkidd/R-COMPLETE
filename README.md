@@ -31,7 +31,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ## REQUIRES:
 + Linux with BASH ($SHELL must be set or /bin/bash must exist) (export SHELL="/bin/bash")
-+ Parameters File (fs::path_package("COMPLETE","inst","parameters.txt"))
++ Parameters File (fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 + GNU parallel (in $PATH - BASH functions)
 + [Samtools](http://www.htslib.org/download/) (in $PATH - BASH functions)
 + [Bedtools](https://github.com/arq5x/bedtools2/releases) (in $PATH - BASH functions)
@@ -66,7 +66,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ```diff
 The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (because its unnecessarily hard to check and convert param types in BASH). 
-A default/example file is in fs::path_package("COMPLETE","inst","parameters.txt")
+A default/example file is in fs::path_package("COMPLETE","pkg_data","parameters.txt")
 ```
 
 ### USER DATA :
@@ -75,7 +75,7 @@ A default/example file is in fs::path_package("COMPLETE","inst","parameters.txt"
 
 ```diff
 Columns Org, genome, gtf
-A default/example file is in fs::path_package("COMPLETE","inst","user_data.txt")
+A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
 ```
 
 ### COMPLETE.format.ids :

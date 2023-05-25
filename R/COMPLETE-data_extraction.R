@@ -488,7 +488,7 @@ get_gtf_mart <- function(org, gene_list){
 #'     #names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
 #'     #gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
 #'     #gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
-#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 #'     gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path,params_list)
 #'
 #' @param org Name of the organism (format important, eg. "danio_rerio")
@@ -707,8 +707,8 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' This function invokes external SHELL function extract_genomic_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
 #'
 #' @examples
-#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
-#'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+#'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
@@ -791,8 +791,8 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
 #' @note This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf are not provided)
 #'
 #' @examples
-#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
-#'     fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+#'     fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
@@ -964,9 +964,9 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 #' @note Use "-" in Genome/GTF to check for the organism in BIOMART
 #'
 #' @examples
-#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
-#'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
-#'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+#'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+#'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param data Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").
 #' @param params_list Output of load_params()
@@ -1290,10 +1290,10 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 
 #' (1) - Extracts Sequences for Protein Coding Transcripts from Organisms
 #'
-#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","inst","parameters.txt").
+#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","pkg_data","parameters.txt").
 #'
 #' @examples
-#'     COMPLETE::EXTRACT_DATA(param_file = fs::path_package("COMPLETE","inst","parameters.txt"), gene_list = fs::path_package("COMPLETE","inst","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
+#'     COMPLETE::EXTRACT_DATA(param_file = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
 #'
 #' @note If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 #'
@@ -1569,7 +1569,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'      - Internet Connection
 #'      - Referenced R packages
 #'      - Linux with BASH ($SHELL must be set or /bin/bash must exist)
-#'      - Parameters File (fs::path_package("COMPLETE","inst","parameters.txt"))
+#'      - Parameters File (fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 #'      - GNU parallel (in $PATH - BASH functions)
 #'      - Samtools (in $PATH - BASH functions)
 #'      - Bedtools (in $PATH - BASH functions)
@@ -1588,7 +1588,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          and the parameter file is shared between R and BASH.
 #'     The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE
 #'     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
-#'     fs::path_package("COMPLETE","inst","parameters.txt")
+#'     fs::path_package("COMPLETE","pkg_data","parameters.txt")
 #'
 #' + USER DATA :
 #'     Columns Org, genome, gtf
