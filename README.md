@@ -48,6 +48,14 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
      + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
      + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 
+### Tools
++ [MACSE]()
++ [MAFFT]()
++ [TRANSAT]()
++ [RNADECODER]()
++ [Python3]()
++ [FastTree]()
+
 ## Documentation
 
 <a name="docs"/>
