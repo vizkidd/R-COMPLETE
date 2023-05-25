@@ -77,5 +77,5 @@ and BASH function extract_genomic_regions() for user provided data. Extraction p
 \code{\link[=EXTRACT_DATA]{EXTRACT_DATA()}}, \code{\link[=FIND_ORTHOLOGS]{FIND_ORTHOLOGS()}}
 }
 \author{
-Vishvesh Karthik (MDC-Berlin), \link{vishvesh.karthik@mdc-berlin.de}
+Vishvesh Karthik (MDC-Berlin), \link{vishveshkarthik@gmail.com}
 }

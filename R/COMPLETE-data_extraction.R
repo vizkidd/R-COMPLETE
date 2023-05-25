@@ -1622,7 +1622,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'
 #'     2) FIND_ORTHOLOGS() -
 #'
-#' @author Vishvesh Karthik (MDC-Berlin), [vishvesh.karthik@mdc-berlin.de]
+#' @author Vishvesh Karthik (MDC-Berlin), [vishveshkarthik@gmail.com]
 #'
 #' @usage
 #' (1) EXTRACT_DATA()
