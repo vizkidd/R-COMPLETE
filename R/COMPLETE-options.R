@@ -251,7 +251,7 @@ INITIALIZE <- function() {
   options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
   #options(download.file.method="curl")
   
-  COMPLETE_vars <- new.env(parent=globalenv())
+  COMPLETE_vars <<- new.env(parent=globalenv())
   
   if (!curl::has_internet()) {
     stop("Check if there is an internet connection")
@@ -288,12 +288,12 @@ INITIALIZE <- function() {
   Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)
 }
 
-.onAttach <- function(libname, pkgname) {
-  # to show a startup message
-  packageStartupMessage("Initializing R-COMPLETE")
-  tryCatch({INITIALIZE()}, error=function(cond) {stop(cond)})
-  packageStartupMessage("R-COMPLETE loaded successfully!")
-}
+#.onAttach <- function(libname, pkgname) {
+#  # to show a startup message
+#  packageStartupMessage("Initializing R-COMPLETE")
+#  tryCatch({INITIALIZE()}, error=function(cond) {stop(cond)})
+#  packageStartupMessage("R-COMPLETE loaded successfully!")
+#}
 
 .onLoad <- function(libname, pkgname) {
   # something to run
