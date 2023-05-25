@@ -245,7 +245,7 @@ load_params <- function(param_file){
 options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
 #options(download.file.method="curl")
 
-COMPLETE_vars <<- new.env(parent=emptyenv())
+COMPLETE_vars <<- new.env(parent=baseenv())
 
 if (!curl::has_internet()) {
   stop("Check if there is an internet connection")
