@@ -61,9 +61,10 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ## Run Examples
 
-   To run the example (with the default parameters and example data), from the context of your current working directory, 
-    + Put the programs from [Tools section](#requires) into tools/
-    + Download OrthoDB(ODB) files and place them in OrthoDB/
+   To run the example (with the default parameters and example data), from the context of your current working directory (TEST for example), 
+    + Put the programs from [Tools section](#requires) into TEST/tools/
+    + Download OrthoDB(ODB) files and place them in TEST/OrthoDB/
+    + setwd("TEST")
 
 ```{R}
 params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
