@@ -15,6 +15,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
    * [Samtools](http://www.htslib.org/download/) (in $PATH - BASH functions)
    * [Bedtools](https://github.com/arq5x/bedtools2/releases) (in $PATH - BASH functions)
    * [ncbi-blast+](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Compile from .src.tar.gz with ./configure && make all && sudo make install) (or sudo alien -i ncbi-blast-X.XX.X+-2.src.rpm) (or download binaries)
+        * Check if you have the binaries for #*blastdb_path*# and #*makeblastdb*#
    * [Zlib](https://zlib.net/) - (Compile from sources) (or) (sudo apt install libz-dev or yum install zlib-devel)
    * LZMA SDK - (sudo apt-get install liblzma-dev or yum install xz-devel)
    * BZLIB - (sudo apt-get install libbz2-dev libclang-dev or yum install bzip2-devel.x86_64)
@@ -29,3 +30,33 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 ## Documentation
 * ?COMPLETE_PIPELINE_DESIGN (in R docs)
 
+### PARAMETERS :
+   The pipeline takes a single parameter file. This design was chosen,
+   + To expose as many options as possible to the end-user
+   + The pipeline uses BASH to BLAST and handle files (which is significantly faster than R) and the parameter file is shared between R and BASH.    
+
+    The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (because its unnecessarily hard to check and convert param types in BASH). 
+    A default/example file is in fs::path_package("COMPLETE","inst","parameters.txt")
+
+### USER DATA :
+     Columns Org, genome, gtf
+
+### COMPLETE.format.ids :
+  + The Ordering of ID labels can be referred from COMPLETE_env$FORMAT_ID_INDEX
+  + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+  
+        >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
+        >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
+        >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
+
+### FLOW :
+
+   1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
+     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
+     and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
+          - ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
+          - Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
+          - Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
+          - FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
+
+   2) FIND_ORTHOLOGS() -
