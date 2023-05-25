@@ -4,7 +4,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 *Ironically this repo is incomplete but the functionality in it works. Under Construction Indefinitely. Documentation can be found within the package, Play around with the functions for the rest*
 
 ## Installation (on R - Linux or Docker with WSL in Windows):
-    sudo apt-get update && sudo apt-get install curl bzip2 parallel 
+    sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev
     BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
     devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
