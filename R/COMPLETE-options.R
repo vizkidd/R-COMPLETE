@@ -6,7 +6,7 @@
 #' @return Path to GNU parallel
 install_parallel <- function(){
   if (stringi::stri_isempty(Sys.which("parallel")) && !file.exists(paste(fs::path_home(),"/bin/parallel",sep=""))) {
-    install_status <- processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
+    install_status <- processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
     if(install_status$status>0){
       stop("Problem installing GNU parallel. Is $SHELL set? check permissions in $HOME directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
     }else{
@@ -279,4 +279,4 @@ COMPLETE$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T
 COMPLETE$max_file_handles <- as.numeric(processx::run(command = COMPLETE$SHELL, args = c("-c","ulimit -n"))$stdout)
 COMPLETE$BLAST_BIN <- dirname(Sys.which("tblastx"))
 COMPLETE$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
-Sys.chmod(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"), "777", use_umask = FALSE)
+Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)

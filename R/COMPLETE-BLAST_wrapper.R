@@ -3,7 +3,7 @@
 #'
 #' Give the path to a BLAST Hits file to load it into a data.frame(BLAST HITs Table). The column names can be provided as col.names. Rows with NAs are automatically removed
 #'
-#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
+#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in fs::path_package("COMPLETE","exec","functions.sh"))
 #'
 #' @examples
 #'     LoadBLASTHits(infile, transcript_ID_metadata=NULL, col.names=NULL)
@@ -260,7 +260,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
     cmd_verbose <- NULL
   }
 
-  processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"convert_BLAST_format",conversion_prg_dir,infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+  processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"convert_BLAST_format",conversion_prg_dir,infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
 
 }
 
@@ -279,10 +279,10 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
       cmd_verbose <- NULL
     }
 
-    db_check <- processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"check_DB",fasta_file,blast_bin), stdout = "")
+    db_check <- processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"check_DB",fasta_file,blast_bin), stdout = "")
 
     if(is.null(db_check$stdout) || clean_extract){
-      processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+      processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
     }
   }else{
     if(verbose){ message(paste("BLAST DB exists for",fasta_file)) }
@@ -485,7 +485,7 @@ set.seed(seed)
 
     #MAKE BLAST DB of FASTA files
     #Only subject fasta files needs to be a BLAST DB
-    #processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"make_BLAST_DB",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
+    #processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
     invisible( furrr::future_map(subject_path,.f = function(x){
       make_BLAST_DB(fasta_file=x,blast_bin=BLAST_BIN, verbose=verbose)
     }, .options = furrr::furrr_options(seed = seed, scheduling=F)) ) #n_threads
@@ -504,9 +504,9 @@ set.seed(seed)
       #}
 
       #if(!is.null(params_list)){
-      #  add_to_process(p_cmd =  COMPLETE$SHELL,p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"do_BLAST",COMPLETE$parallel,run_name,q_x,s_y,blast_out[i],blast_program,blast_options), verbose = verbose,logfile = cmd_verbose, params_list = params_list)
+      #  add_to_process(p_cmd =  COMPLETE$SHELL,p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE$parallel,run_name,q_x,s_y,blast_out[i],blast_program,blast_options), verbose = verbose,logfile = cmd_verbose, params_list = params_list)
       #}else{
-      processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"do_BLAST",COMPLETE$parallel,run_name,q_x,s_y,blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+      processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE$parallel,run_name,q_x,s_y,blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
       #}
 
       if(verbose){
@@ -529,7 +529,7 @@ set.seed(seed)
     }
     print(blast_outfile) #DEBUG
     print(final_blast_out) #DEBUG
-    processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+    processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
     # unlink(x = c(final_blast_out,blast_out), recursive = T,force = T,expand = T)
 
 #   if(!is.null(blast_DB_dir)){

@@ -488,7 +488,7 @@ get_gtf_mart <- function(org, gene_list){
 #'     #names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
 #'     #gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
 #'     #gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
-#'     params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
 #'     gtf_stats <- fetch_FASTA_mart(org,gtf_stats,org_fasta_path,params_list)
 #'
 #' @param org Name of the organism (format important, eg. "danio_rerio")
@@ -704,11 +704,11 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' Internal Function - Get FASTA data from BIOMART (using biomartr)
 #'
 #' This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
-#' This function invokes external SHELL function extract_genomic_regions from system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE") (just like the piepline for user data) and cannot be monitored
+#' This function invokes external SHELL function extract_genomic_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
 #'
 #' @examples
-#'     params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
+#'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
 #'
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
@@ -763,9 +763,9 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
       if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE$SKIP_USER_DATA) {
         dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
         ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
-        #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
+        #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
         cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org_name,".log\n",sep=""))
-        do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
+        do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
         ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
         cat(print_toc(tictoc::toc(quiet = T, log = T)))
         return(c(org_row, source="r-biomartr"))
@@ -791,8 +791,8 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
 #' @note This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf are not provided)
 #'
 #' @examples
-#'     params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
+#'     fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
 #'
 #' @param org_row Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")
 #' @param params_list Output of load_params()
@@ -857,7 +857,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   odb_list_genes <- c()
   if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
     #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
-    proc <- do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
+    proc <- do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
     proc$wait(timeout=-1)
   }
   if(file.exists(odb_list) && file.info(odb_list)$size > 0){
@@ -920,7 +920,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   #   return(unlist(lapply(params_list$TRANSCRIPT_REGIONS, function(y){
   #     output_fasta <- paste(org_fasta_path,"/",safe_name,".",y,sep="")
   #     input_fasta <- paste(org_fasta_path,"/",safe_name,".",y,".tmp",sep="")
-  #     proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")),p_args = c("label_FASTA_files",org,gene, output_fasta,input_fasta,params_list$param_file, odb_gene_map), verbose=F, params_list=params_list))
+  #     proc <- do.call(add_to_process,list(p_cmd = c(fs::path_package("COMPLETE","exec","functions.sh")),p_args = c("label_FASTA_files",org,gene, output_fasta,input_fasta,params_list$param_file, odb_gene_map), verbose=F, params_list=params_list))
   #     return(proc)
   #   })))
   # }, mc.cores = params_list$numWorkers,mc.silent = T))
@@ -964,9 +964,9 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 #' @note Use "-" in Genome/GTF to check for the organism in BIOMART
 #'
 #' @examples
-#'     params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
-#'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+#'     params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
+#'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
+#'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
 #'
 #' @param data Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").
 #' @param params_list Output of load_params()
@@ -1091,9 +1091,9 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
     if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE$SKIP_USER_DATA) {
       dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
-      #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
+      #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
       cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org,".log\n",sep=""))
-      do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
+      do.call(add_to_process,list(p_cmd = COMPLETE$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
       ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       return(c(data, source="user-provided"))
@@ -1116,7 +1116,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 #' @export
 index_FASTA_IDs <- function(path, index_out){
   if (!is.null(path) && !is.null(index_out)){
-    processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = "")
+    processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = "")
   }else{
     stop("Give path and output file for index")
   }
@@ -1276,7 +1276,7 @@ label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
 merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
   tictoc::tic(msg = paste("Transforming ODB Files..."))
   if(!quick.check){
-    processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "",stderr = "")
+    processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "",stderr = "")
   }
   if( (file.exists(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep=""))$size > 0) || (file.exists(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))&& file.info(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))$size > 0) ){
     cat(print_toc(tictoc::toc(quiet = T)))
@@ -1290,10 +1290,10 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 
 #' (1) - Extracts Sequences for Protein Coding Transcripts from Organisms
 #'
-#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE").
+#' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","inst","parameters.txt").
 #'
 #' @examples
-#'     COMPLETE::EXTRACT_DATA(param_file = system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"), gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
+#'     COMPLETE::EXTRACT_DATA(param_file = fs::path_package("COMPLETE","inst","parameters.txt"), gene_list = fs::path_package("COMPLETE","inst","genelist.txt"), user_data = system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE"), only.user.data = F )
 #'
 #' @note If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 #'
@@ -1559,13 +1559,13 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #' Design of R-COMPLETE
 #'
 #' The pipeline uses R and BASH. BASH functions are invoked through R.
-#' BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
+#' BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 #'
 #' * REQUIRES/DEPENDANCIES :
 #'      * Internet Connection
 #'      * Referenced R packages
 #'      * Linux with BASH ($SHELL must be set or /bin/bash must exist)
-#'      * Parameters File (system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
+#'      * Parameters File (fs::path_package("COMPLETE","inst","parameters.txt"))
 #'      * GNU parallel (in $PATH - BASH functions)
 #'      * Samtools (in $PATH - BASH functions)
 #'      * Bedtools (in $PATH - BASH functions)
@@ -1584,7 +1584,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'          and the parameter file is shared between R and BASH.
 #'     The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE
 #'     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
-#'     system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE")
+#'     fs::path_package("COMPLETE","inst","parameters.txt")
 #'
 #' * USER DATA :
 #'     Columns Org, genome, gtf

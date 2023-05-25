@@ -9,7 +9,7 @@
 }
 \description{
 The pipeline uses R and BASH. BASH functions are invoked through R.
-BASH functions are stored in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE")
+BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 }
 \section{odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)}{
 

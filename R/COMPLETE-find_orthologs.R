@@ -1158,7 +1158,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
 #'
 #' @param params_list Output of load_params()
 select_ref_org_groups <- function(params_list){
-  run_status <- processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"select_ref_org_groups",params_list$REF_ORGS_FILE, params_list$GROUPS_PATH,COMPLETE$parallel, params_list$SELECT_REF_ORG_GROUPS_METHOD, params_list$numWorkers) ,spinner = T,stdout = "",stderr = "")
+  run_status <- processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"select_ref_org_groups",params_list$REF_ORGS_FILE, params_list$GROUPS_PATH,COMPLETE$parallel, params_list$SELECT_REF_ORG_GROUPS_METHOD, params_list$numWorkers) ,spinner = T,stdout = "",stderr = "")
   if(run_status$status>0){
     stop("Error in select_ref_org_groups()")
   }else{
@@ -1246,7 +1246,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
 
   tmp_p1 <- processx::process$new(command = Sys.which("find"),args = c(params_list$FASTA_OUT_PATH),stdout = "|", supervise = T, cleanup = T)
   odb_file <- paste(params_list$OUT_PATH,"/genes/*/odb.final_map",sep="") #list.files(path =paste(params_list$OUT_PATH,"/genes/",sep=""), pattern = "odb.final_map", recursive = T,include.dirs = F,full.names = T) #processx::process$new(command = Sys.which("find"),args = c(paste(params_list$OUT_PATH,"/genes/*/odb.final_map",sep="")),stdout = "")
-  tmp_p3 <- processx::process$new(command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"get_all_odb_genes", gene_list,odb_file), stdout = "|",stderr=NULL)
+  tmp_p3 <- processx::process$new(command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"get_all_odb_genes", gene_list,odb_file), stdout = "|",stderr=NULL)
   tmp_p3$wait()
   genes <- unique(c(genes,tolower(gsub('[[:punct:]]+','_', tmp_p3$read_all_output_lines()))))
   safe_genes_tmp <- tempfile(pattern="safe_names")
@@ -1324,7 +1324,7 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   # cat(print_toc(tictoc::toc(quiet = T)))
 
   furrr::future_map(fasta_files, function(x){
-    processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"group_FASTA_seqs",COMPLETE$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL)
+    processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"group_FASTA_seqs",COMPLETE$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL)
   }, .options = furrr::furrr_options(seed = TRUE, scheduling=params_list$numWorkers))
   # all_groups_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
   #   if(file.exists(paste(x,"/ORG_CLUSTERS.",grouping_by,sep="")) && file.info(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""))$size > 0 ){
@@ -1525,7 +1525,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
               if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
                 return(NULL)
               }
-              processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+              processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
             }, mc.cores = 3)
           })) #, mc.cores = loaded_PARAMS$numWorkers)
 
@@ -1566,7 +1566,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
                 if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
                   return(NULL)
                 }
-                processx::run( command = COMPLETE$SHELL ,args=c(system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+                processx::run( command = COMPLETE$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
               }, mc.cores = 3)
             })) #, mc.cores = loaded_PARAMS$numWorkers)
 
@@ -1766,7 +1766,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 #'
 #' convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 #'
-#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE"))
+#' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in fs::path_package("COMPLETE","exec","functions.sh"))
 #'
 #' @note Both the input files are expected to have a header, the same number of columns with matching column order (and names). Give only indices for col.indices. Order of execution is unique.hit.weights followed by process.weights.func (if any/all these options are set), i.e Unique Weights are chosen for each hit (if unique.hit.weights=T) and then weights are processed using process.weights.func (if process.weights.func is set). If the function fails, try indexing the tables with index.tables=T. Weight Columns in col.indices are optional, when not given all the reciprocal hits are returned
 #'

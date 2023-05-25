@@ -20,10 +20,10 @@ Named Vector of the organism details
 }
 \description{
 This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
-This function invokes external SHELL function extract_genomic_regions from system.file("exec", "functions.sh", mustWork = T ,package = "COMPLETE") (just like the piepline for user data) and cannot be monitored
+This function invokes external SHELL function extract_genomic_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
 }
 \examples{
-    params_list <- load_params(system.file("exec", "pkg_data", "parameters.txt", mustWork = T ,package = "COMPLETE"))
-    fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = system.file("exec", "pkg_data", "genelist.txt", mustWork = T ,package = "COMPLETE"))
+    params_list <- load_params(fs::path_package("COMPLETE","inst","parameters.txt"))
+    fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","inst","genelist.txt"))
 
 }
