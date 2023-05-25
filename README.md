@@ -7,8 +7,8 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 * LZMA SDK - (sudo apt-get install liblzma-dev or yum install xz-devel)
 * BZLIB - (sudo apt-get install libbz2-dev libclang-dev or yum install bzip2-devel.x86_64)
 * R-Packages : Rhtslib, devtools, BiocManager, Biostrings, biomaRt, S4Vectors, IRanges, Rgb, rtracklayer, GenomicRanges, BiocGenerics
-* Rgb (Archived R Package) - https://cran.r-project.org/src/contrib/Archive/Rgb/
-  * Download the archive and extract it in the R library
+~~* Rgb (Archived R Package) - https://cran.r-project.org/src/contrib/Archive/Rgb/
+~  * Download the archive and extract it in the R library
 * devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ## Documentation
