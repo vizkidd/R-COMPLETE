@@ -24,12 +24,12 @@ select_groups_with_ref_orgs_method==ALL== Select only groups which contain the s
 plot_path==files/plots== Path to save plot images (Output)
 gene_drop_thresh==0== Threshold to filter genes (Input)
 orthodb_path_prefix==OrthoDB/odb10v1== Path and prefix to OrthoDB files, check docs to know which files you need (merge_OG2genes_OrthoDB.R) (Input/Output)
-macse_path==/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/tools/macse_v2.05.jar== Path to MACSE jar file or the installed executable (for coding sequence alignment) (Input)
-mafft_path==/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/gnu/store/hp4y1if7afcyjxpp6asblsrgl08fr67n-mafft-7.475/bin/mafft-qinsi== Path to MAFFT executable (for UTR alignment) (Input)
-transat_path==/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/tools/Transat_my/Transat== Path to TRANSAT executable (for predicting helices) (Input) #/data/meyer/viz/tools/Transat_latest/TransatCDS/bin/TransatCDScluster/TransatM
-rnadecoder_path==/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/data/meyer/viz/tools/rnadecoder/bin/== Path to RNADECODER FOLDER (only folder path,executable must be named RNA-decoder) (for predicting base-pair probabilities) (Input)
-python3_path==/home/vsuresh/anaconda3/bin/python3== Path to Python3 (Input)
-fasttree_path==/run/user/1000/gvfs/sftp:host=max-login.mdc-berlin.net/gnu/store/sjdrkaz8wqvpiqq0wd50g17i89lri9np-fasttree-2.1.10/bin/FastTree== Path to FastTree executable (for generating trees) (Input)
+macse_path==tools/macse_v2.07.jar== Path to MACSE jar file or the installed executable (for coding sequence alignment) (Input)
+mafft_path==/usr/bin/mafft-qinsi== Path to MAFFT executable (for UTR alignment) (Input)
+transat_path==tools/Transat== Path to TRANSAT executable (for predicting helices) (Input) #/data/meyer/viz/tools/Transat_latest/TransatCDS/bin/TransatCDScluster/TransatM
+rnadecoder_path==tools/== Path to RNADECODER FOLDER (only folder path,executable must be named RNA-decoder) (for predicting base-pair probabilities) (Input)
+python3_path==/usr/bin/python3== Path to Python3 (Input)
+fasttree_path==tools/FastTree== Path to FastTree executable (for generating trees) (Input)
 alignments_path==files/alns== Path to save alignments (Output)
 aln_gap_thres==0.50== The proportion of gaps to delete the column in an alignment (higher values will give more gaps and discards less sequences) (Input)
 min_coverage_thres==0.5== Threshold for minimum coverage(higher values give highly conserved sequences) (Input)
