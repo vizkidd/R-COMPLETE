@@ -40,9 +40,10 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 ### USER DATA :
      Columns Org, genome, gtf
+     A default/example file is in fs::path_package("COMPLETE","inst","user_data.txt")
 
 ### COMPLETE.format.ids :
-  + The Ordering of ID labels can be referred from COMPLETE_env$FORMAT_ID_INDEX
+  + The Ordering of FASTA ID labels can be found in COMPLETE_env$FORMAT_ID_INDEX
   + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
   
         >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
