@@ -242,41 +242,62 @@ load_params <- function(param_file){
   return(param_list)
 }
 
-options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
-#options(download.file.method="curl")
-
-COMPLETE_vars <<- new.env(parent=baseenv())
-
-if (!curl::has_internet()) {
-  stop("Check if there is an internet connection")
+#' INITIALIZES THE R-COMPLETE LIBRARY
+#'
+#' First function to run during package load
+#' 
+#' @export
+INITIALIZE <- function() {
+  options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
+  #options(download.file.method="curl")
+  
+  COMPLETE_vars <- new.env(parent=globalenv())
+  
+  if (!curl::has_internet()) {
+    stop("Check if there is an internet connection")
+  }
+  
+  COMPLETE_vars$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
+  COMPLETE_vars$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_vars$ENSEMBL_MART)) #For biomaRt
+  COMPLETE_vars$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_vars$using.mart)) #For biomaRt
+  COMPLETE_vars$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+  COMPLETE_vars$curl_handle <- RCurl::getCurlMultiHandle()
+  COMPLETE_vars$process_list <- c()
+  COMPLETE_vars$SKIP_USER_DATA <- FALSE
+  
+  #if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
+  #  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
+  #}
+  
+  if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
+    COMPLETE_vars$SHELL <- Sys.getenv("SHELL")
+    cat(paste("SHELL :",COMPLETE_vars$SHELL,"\n"))
+  }else if(file.exists("/bin/bash")){
+    COMPLETE_vars$SHELL <- "/bin/bash"
+    cat(paste("SHELL :",COMPLETE_vars$SHELL,"\n"))
+  }else{
+    stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
+  }
+  
+  COMPLETE_vars$user_home <- fs::path_home()
+  COMPLETE_vars$parallel <- install_parallel()
+  COMPLETE_vars$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})
+  COMPLETE_vars$max_file_handles <- as.numeric(processx::run(command = COMPLETE_vars$SHELL, args = c("-c","ulimit -n"))$stdout)
+  COMPLETE_vars$BLAST_BIN <- dirname(Sys.which("tblastx"))
+  COMPLETE_vars$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
+  Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)
 }
 
-COMPLETE_vars$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
-COMPLETE_vars$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_vars$ENSEMBL_MART)) #For biomaRt
-COMPLETE_vars$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_vars$using.mart)) #For biomaRt
-COMPLETE_vars$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
-COMPLETE_vars$curl_handle <- RCurl::getCurlMultiHandle()
-COMPLETE_vars$process_list <- c()
-COMPLETE_vars$SKIP_USER_DATA <- FALSE
-
-#if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
-#  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
-#}
-
-if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
-  COMPLETE_vars$SHELL <- Sys.getenv("SHELL")
-  cat(paste("SHELL :",COMPLETE_vars$SHELL,"\n"))
-}else if(file.exists("/bin/bash")){
-  COMPLETE_vars$SHELL <- "/bin/bash"
-  cat(paste("SHELL :",COMPLETE_vars$SHELL,"\n"))
-}else{
-  stop(paste("SHELL : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
+.onAttach <- function(libname, pkgname) {
+  # to show a startup message
+  packageStartupMessage("Initializing R-COMPLETE")
+  tryCatch({INITIALIZE()}, error=function(cond) {stop(cond)})
+  packageStartupMessage("R-COMPLETE loaded successfully!")
 }
 
-COMPLETE_vars$user_home <- fs::path_home()
-COMPLETE_vars$parallel <- install_parallel()
-COMPLETE_vars$numWorkers <- tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)})
-COMPLETE_vars$max_file_handles <- as.numeric(processx::run(command = COMPLETE_vars$SHELL, args = c("-c","ulimit -n"))$stdout)
-COMPLETE_vars$BLAST_BIN <- dirname(Sys.which("tblastx"))
-COMPLETE_vars$FORMAT_ID_INDEX <- list(TRANSCRIPT_ID=1,ORG=2,GENE=3,CLUSTERS=4)
-Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)
+.onLoad <- function(libname, pkgname) {
+  # something to run
+  packageStartupMessage("Initializing R-COMPLETE")
+  tryCatch({INITIALIZE()}, error=function(cond) {stop(cond)})
+  packageStartupMessage("R-COMPLETE loaded successfully!")
+}
