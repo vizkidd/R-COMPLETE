@@ -17,7 +17,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 *Ironically this repo is incomplete but the functionality in it works. Under Construction Indefinitely. Documentation can be found within the package, Play around with the functions for the rest*
 
-## Installation (on R - Linux or Docker with WSL in Windows):
+## Installation (on R - Linux or RStudio Docker with WSL in Windows):
 
 <a name="install"/>
 
