@@ -80,14 +80,14 @@ check_mart_dataset <- function(org){
   # #mart_err <- paste("Dataset not found for :",org)
   # #class(mart_err) <- c("try-error", class(mart_err))
   # #split_org <- stringi::stri_split_fixed(org,"_",2,simplify = T)
-  # if(is.null(COMPLETE_vars$org.meta.list)){
-  #   #COMPLETE_vars <- new.env(parent=emptyenv())
-  #   COMPLETE_vars$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
-  #   COMPLETE_vars$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_vars$ENSEMBL_MART)) #For biomaRt
-  #   COMPLETE_vars$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_vars$using.mart))
+  # if(is.null(COMPLETE_env$org.meta.list)){
+  #   #COMPLETE_env <- new.env(parent=emptyenv())
+  #   COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
+  #   COMPLETE_env$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_env$ENSEMBL_MART)) #For biomaRt
+  #   COMPLETE_env$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_env$using.mart))
   # }
 
-  if(is.null(COMPLETE_vars$org.meta.list)){
+  if(is.null(COMPLETE_env$org.meta.list)){
     stop("Reload R-COMPLETE, error in initialization")
   }
 
@@ -95,7 +95,7 @@ check_mart_dataset <- function(org){
   if(stringi::stri_isempty(split_org[,2])){
     stop(paste(org,"name not in proper format, eg danio_rerio\n"))
   }
-  mart.dataset <- grep(x = COMPLETE_vars$org.meta.list$dataset, pattern=stringr::regex(split_org[2],ignore_case = T),fixed=F, value = T)
+  mart.dataset <- grep(x = COMPLETE_env$org.meta.list$dataset, pattern=stringr::regex(split_org[2],ignore_case = T),fixed=F, value = T)
   if(length(mart.dataset)==0){
     stop(paste("Dataset not found in BIOMART for :",org,"\nYou can provide the organism in user data\n\n"))
     #return(NULL)
@@ -219,7 +219,7 @@ calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parall
 #'
 #' This function adds process to a list and makes sure hte number of processes do not
 #' exceed a user defined limit (< max_concurrent_jobs/cores/threads). Uses processx library to call
-#' a child process. Process is appended to COMPLETE_vars$process_list
+#' a child process. Process is appended to COMPLETE_env$process_list
 #'
 #' @param p_cmd Command to be executed
 #' @param p_args Arguments to be passed to the command
@@ -231,79 +231,79 @@ add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_l
   if (is.null(logfile)) {
     logfile=""
   }
-  if (is.null(COMPLETE_vars$process_list)) {
-    COMPLETE_vars$process_list <- c()
+  if (is.null(COMPLETE_env$process_list)) {
+    COMPLETE_env$process_list <- c()
   }
 
-  if(length(COMPLETE_vars$process_list) > 0){
-    COMPLETE_vars$process_list[sapply(COMPLETE_vars$process_list, function(x){
+  if(length(COMPLETE_env$process_list) > 0){
+    COMPLETE_env$process_list[sapply(COMPLETE_env$process_list, function(x){
       return(!x$is_alive())
     })] <- NULL
     tryCatch(expr = function(){
-      COMPLETE_vars$process_list[sapply(COMPLETE_vars$process_list, is.null)] <- NULL
+      COMPLETE_env$process_list[sapply(COMPLETE_env$process_list, is.null)] <- NULL
     }, error = function(){
-      if(is.null(COMPLETE_vars$process_list)){
-        COMPLETE_vars$process_list <- c()
+      if(is.null(COMPLETE_env$process_list)){
+        COMPLETE_env$process_list <- c()
       }
     })
   }
   if (verbose) {
-    cat(paste("\nAdding process to list...(",length(COMPLETE_vars$process_list),")\n",sep=""))
+    cat(paste("\nAdding process to list...(",length(COMPLETE_env$process_list),")\n",sep=""))
   }
-  if(length(COMPLETE_vars$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE_vars$max_file_handles-1){ #250
-    #for (p_id in seq_along(COMPLETE_vars$process_list)) {
-    #  if(COMPLETE_vars$process_list[[p_id]]$is_alive()){
-    #    print(paste("Process Q Full...Waiting for a process to end(",length(COMPLETE_vars$process_list),")",sep=""))
-    #    save(COMPLETE_vars$process_list, files="proces_list.RData")
-    #    COMPLETE_vars$process_list[[p_id]]$wait(timeout=-1)
-    #    COMPLETE_vars$process_list[[p_idx]] <<- NULL
+  if(length(COMPLETE_env$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE_env$max_file_handles-1){ #250
+    #for (p_id in seq_along(COMPLETE_env$process_list)) {
+    #  if(COMPLETE_env$process_list[[p_id]]$is_alive()){
+    #    print(paste("Process Q Full...Waiting for a process to end(",length(COMPLETE_env$process_list),")",sep=""))
+    #    save(COMPLETE_env$process_list, files="proces_list.RData")
+    #    COMPLETE_env$process_list[[p_id]]$wait(timeout=-1)
+    #    COMPLETE_env$process_list[[p_idx]] <<- NULL
     #    break;
     #  }
     if (verbose) {
-      cat(paste("Process Q Full...Waiting for a process to end(",length(COMPLETE_vars$process_list),")\n",sep=""))
-      lapply(COMPLETE_vars$process_list, function(x){ print(paste(paste(x$get_cmdline(), collapse = " "),sep="")) }) #DEBUG
+      cat(paste("Process Q Full...Waiting for a process to end(",length(COMPLETE_env$process_list),")\n",sep=""))
+      lapply(COMPLETE_env$process_list, function(x){ print(paste(paste(x$get_cmdline(), collapse = " "),sep="")) }) #DEBUG
     }
-    #save(COMPLETE_vars$process_list, file="proces_list.RData")
+    #save(COMPLETE_env$process_list, file="proces_list.RData")
     dead_procs <- c()
-    # for (x in seq_along(COMPLETE_vars$process_list)) {
-    #   if(COMPLETE_vars$process_list[[x]]$is_alive()){
-    #     COMPLETE_vars$process_list[[x]]$wait(timeout=-1)
+    # for (x in seq_along(COMPLETE_env$process_list)) {
+    #   if(COMPLETE_env$process_list[[x]]$is_alive()){
+    #     COMPLETE_env$process_list[[x]]$wait(timeout=-1)
     #     break;
     #   }else{
     #     dead_procs <- c(dead_procs,x)
     #   }
     # }
 
-    dead_procs <- unlist(lapply(COMPLETE_vars$process_list, function(x){
+    dead_procs <- unlist(lapply(COMPLETE_env$process_list, function(x){
       if(!x$is_alive()){
         return(x)
       }
     }))
 
-    #lapply(seq_along(COMPLETE_vars$process_list), function(x){
-    #  if(COMPLETE_vars$process_list[[x]]$is_alive()){
-    #    COMPLETE_vars$process_list[[x]]$wait(timeout=-1)
+    #lapply(seq_along(COMPLETE_env$process_list), function(x){
+    #  if(COMPLETE_env$process_list[[x]]$is_alive()){
+    #    COMPLETE_env$process_list[[x]]$wait(timeout=-1)
     #    break;
     #  }else{
     #    dead_procs <- c(dead_procs,x)
     #  }
     #})
 
-    if (length(dead_procs)>0 && length(COMPLETE_vars$process_list)>0){
+    if (length(dead_procs)>0 && length(COMPLETE_env$process_list)>0){
       dead_procs <- unique(dead_procs)
-      COMPLETE_vars$process_list[[dead_procs]] <- NULL
+      COMPLETE_env$process_list[[dead_procs]] <- NULL
     }
-    if (length(COMPLETE_vars$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE_vars$max_file_handles-1){
-      COMPLETE_vars$process_list[[1]]$wait(timeout=-1)
+    if (length(COMPLETE_env$process_list)>=params_list$numWorkers || ps::ps_num_fds() >= COMPLETE_env$max_file_handles-1){
+      COMPLETE_env$process_list[[1]]$wait(timeout=-1)
     }
-    # if(COMPLETE_vars$process_list[[1]]$is_alive()){ ## check and wait for the earliest job to complete
-    #   COMPLETE_vars$process_list[[1]]$wait(timeout=-1)
+    # if(COMPLETE_env$process_list[[1]]$is_alive()){ ## check and wait for the earliest job to complete
+    #   COMPLETE_env$process_list[[1]]$wait(timeout=-1)
     # }
   }
 
   proc <- processx::process$new(command=p_cmd,args = p_args, cleanup = T, cleanup_tree = T,supervise = TRUE,stdout = logfile,stderr = "2>&1" ) #stderr = T, stdout =  T
   #proc$wait(timeout=-1)
-  COMPLETE_vars$process_list <- append(COMPLETE_vars$process_list,proc)
+  COMPLETE_env$process_list <- append(COMPLETE_env$process_list,proc)
 
   return(proc)
 }
@@ -446,7 +446,7 @@ get_gtf_mart <- function(org, gene_list){
   #   stop(cond)
   # })
   mart.dataset <- check_mart_dataset(org)
-  using.mart.data <- mart_connect(biomaRt::useMart,args = list(COMPLETE_vars$ENSEMBL_MART, mart.dataset))
+  using.mart.data <- mart_connect(biomaRt::useMart,args = list(COMPLETE_env$ENSEMBL_MART, mart.dataset))
 
   mart.attributes <- biomaRt::listAttributes(using.mart.data)
 
@@ -463,9 +463,9 @@ get_gtf_mart <- function(org, gene_list){
 
   ##Splitting genes to the recomended number of queries for biomart through biomaRt
   #bm_gtf <- dplyr::bind_rows(lapply(split(genes, ceiling(seq_along(genes)/500)), function(split_genes){
-  #  return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = split_genes, curl=COMPLETE_vars$curl_handle)))
+  #  return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = split_genes, curl=COMPLETE_env$curl_handle)))
   #}))
-  bm_gtf <- mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = genes, curl=COMPLETE_vars$curl_handle))
+  bm_gtf <- mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = genes, curl=COMPLETE_env$curl_handle))
   bm_gtf <- dplyr::arrange(bm_gtf,chromosome_name,start_position)
 
   bm_gtf$strand[bm_gtf$strand==1] <- "+"
@@ -525,7 +525,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   #   stop(cond)
   # })
   mart.dataset <- check_mart_dataset(org)
-  using.mart.data <- mart_connect(biomaRt::useMart,args = list(COMPLETE_vars$ENSEMBL_MART, mart.dataset))
+  using.mart.data <- mart_connect(biomaRt::useMart,args = list(COMPLETE_env$ENSEMBL_MART, mart.dataset))
 
   if(!all(!is.na(match(seq_attributes, biomaRt::listAttributes(using.mart.data)[,c("name")])))){
     stop(paste("Atrributes :",paste(seq_attributes,collapse = ","), ": not availabe for :", org,"\n"))
@@ -543,7 +543,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   bm_df <- c()
 
   if(length(valid_transcripts) > 0){
-    bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts, curl=COMPLETE_vars$curl_handle)))},mc.cores = params_list$numWorkers)
+    bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts, curl=COMPLETE_env$curl_handle)))},mc.cores = params_list$numWorkers)
 
     #print(bm_seq) #DEBUG
     bm_df <- purrr::reduce(bm_seq, dplyr::full_join, by = "ensembl_transcript_id")
@@ -592,7 +592,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
       ##Get Flanking sequences
       flank_values <- unique(flank_stats[,c("transcript_id","five_flank","three_flank")])
       bm_flanks_cds <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding", mart=using.mart.data, useCache = F) )
-      bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_stats$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, params_list$STRAND), curl=COMPLETE_vars$curl_handle))
+      bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_stats$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, params_list$STRAND), curl=COMPLETE_env$curl_handle))
       bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_values$three_flank , mart=using.mart.data, useCache = F))
 
       names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
@@ -718,15 +718,15 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
   org <- org_row["name"]
 
-  # if (is.null(COMPLETE_vars$org.meta)) {
-  #   COMPLETE_vars <- new.env(parent=emptyenv())
-  #   COMPLETE_vars$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+  # if (is.null(COMPLETE_env$org.meta)) {
+  #   COMPLETE_env <- new.env(parent=emptyenv())
+  #   COMPLETE_env$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
   # }
 
   tictoc::tic(msg=paste("Processed:",org))
 
-  if(any(!is.na(match(COMPLETE_vars$org.meta$name,org)))){
-    org <- COMPLETE_vars$org.meta[which(!is.na(match(COMPLETE_vars$org.meta$name,org))),]
+  if(any(!is.na(match(COMPLETE_env$org.meta$name,org)))){
+    org <- COMPLETE_env$org.meta[which(!is.na(match(COMPLETE_env$org.meta$name,org))),]
     org_name <- org$name
     genome_path<-paste(params_list$GENOMES_PATH, "/",org_name,".fa.gz",sep = "")
     gtf_path<-paste(params_list$ANNOS_PATH, "/",org_name,".gtf.gz",sep = "")
@@ -760,12 +760,12 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
     }
 
     if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list)){
-      if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE_vars$SKIP_USER_DATA) {
+      if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE_env$SKIP_USER_DATA) {
         dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
         ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
         #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
         cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org_name,".log\n",sep=""))
-        do.call(add_to_process,list(p_cmd = COMPLETE_vars$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
+        do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
         ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
         cat(print_toc(tictoc::toc(quiet = T, log = T)))
         return(c(org_row, source="r-biomartr"))
@@ -857,7 +857,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   odb_list_genes <- c()
   if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
     #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
-    proc <- do.call(add_to_process,list(p_cmd = COMPLETE_vars$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_vars$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
+    proc <- do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_env$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
     proc$wait(timeout=-1)
   }
   if(file.exists(odb_list) && file.info(odb_list)$size > 0){
@@ -1088,12 +1088,12 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   #print(paste(genome_path,gtf_path,org))
 
   if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
-    if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE_vars$SKIP_USER_DATA) {
+    if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE_env$SKIP_USER_DATA) {
       dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
       cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org,".log\n",sep=""))
-      do.call(add_to_process,list(p_cmd = COMPLETE_vars$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
+      do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
       ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       return(c(data, source="user-provided"))
@@ -1116,7 +1116,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 #' @export
 index_FASTA_IDs <- function(path, index_out){
   if (!is.null(path) && !is.null(index_out)){
-    processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = "")
+    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = "")
   }else{
     stop("Give path and output file for index")
   }
@@ -1196,16 +1196,16 @@ label_sequenceIDs <- function(fasta_path, org, gene, odb_clusters, duplicates.me
   seq_set <- deduplicate_FASTA(fasta_path=fasta_path, duplicates.method=duplicates.method, n_threads=params_list$numWorkers)
 
   split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
-  if( ncol(split_seq_names) == 1 ){ #length(COMPLETE_vars$FORMAT_ID_INDEX)
+  if( ncol(split_seq_names) == 1 ){ #length(COMPLETE_env$FORMAT_ID_INDEX)
     #print(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
     #print(names(seq_set)) #DEBUG
     names(seq_set) <- paste(names(seq_set),org,gene,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
     Biostrings::writeXStringSet(x = seq_set,filepath = fasta_path,append = F,format = "fasta")
     #return(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
-  }else if( ncol(split_seq_names) > length(COMPLETE_vars$FORMAT_ID_INDEX) || ncol(split_seq_names) < length(COMPLETE_vars$FORMAT_ID_INDEX) ){
-    names(seq_set) <- paste(split_seq_names[,COMPLETE_vars$FORMAT_ID_INDEX$TRANSCRIPT_ID] ,org,gene,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM) #stringi::stri_split(str = split_seq_names, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
+  }else if( ncol(split_seq_names) > length(COMPLETE_env$FORMAT_ID_INDEX) || ncol(split_seq_names) < length(COMPLETE_env$FORMAT_ID_INDEX) ){
+    names(seq_set) <- paste(split_seq_names[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID] ,org,gene,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM) #stringi::stri_split(str = split_seq_names, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
     Biostrings::writeXStringSet(x = seq_set,filepath = fasta_path,append = F,format = "fasta")
-  }else if(ncol(split_seq_names) != length(COMPLETE_vars$FORMAT_ID_INDEX)){
+  }else if(ncol(split_seq_names) != length(COMPLETE_env$FORMAT_ID_INDEX)){
     message(paste("Error : Check sequence ID format of", y))
   }
 }
@@ -1276,7 +1276,7 @@ label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
 merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
   tictoc::tic(msg = paste("Transforming ODB Files..."))
   if(!quick.check){
-    processx::run( command = COMPLETE_vars$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "",stderr = "")
+    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "",stderr = "")
   }
   if( (file.exists(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep=""))$size > 0) || (file.exists(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))&& file.info(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))$size > 0) ){
     cat(print_toc(tictoc::toc(quiet = T)))
@@ -1305,6 +1305,10 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=F){
   set.seed(123)
 
+  if (!curl::has_internet()) {
+    stop("Check if there is an internet connection")
+  }
+  
   if( only.user.data && is.null(user_data) ){
     stop("only.user.data=TRUE but user_data is not provided!")
   }
@@ -1313,9 +1317,9 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     #print("Missing samtools/bedtools in $PATH...User data will not be processed!")
     warning("Missing samtools/bedtools in $PATH...User data & biomartr genomes will not be processed! (because the shell scripts depend on these programs)")
     message("Missing samtools/bedtools in $PATH...User data & biomartr genomes will not be processed! (because the shell scripts depend on these programs)")
-    COMPLETE_vars$SKIP_USER_DATA <- TRUE
+    COMPLETE_env$SKIP_USER_DATA <- TRUE
   }else{
-    COMPLETE_vars$SKIP_USER_DATA <- FALSE
+    COMPLETE_env$SKIP_USER_DATA <- FALSE
   }
 
   if(is.character(params_list)){
@@ -1354,26 +1358,26 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   dir.create(loaded_PARAMS$ANNOS_PATH,showWarnings = F, recursive = T)
 
   #COMPLETE <<- new.env(parent=emptyenv())
-  #COMPLETE_vars$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
-  #COMPLETE_vars$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_vars$ENSEMBL_MART)) #For biomaRt
-  COMPLETE_vars$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_vars$using.mart)) #For biomaRt
-  COMPLETE_vars$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+  #COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
+  #COMPLETE_env$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_env$ENSEMBL_MART)) #For biomaRt
+  COMPLETE_env$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_env$using.mart)) #For biomaRt
+  COMPLETE_env$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
 
   unavailable_orgs <- c()
   all_orgs <- c()
-  all_orgs <-  COMPLETE_vars$org.meta$name
+  all_orgs <-  COMPLETE_env$org.meta$name
   if(file.exists(paste(loaded_PARAMS$OUT_PATH,"/unavailable_orgs.txt",sep="")) && file.info(paste(loaded_PARAMS$OUT_PATH,"/unavailable_orgs.txt",sep=""))$size > 0){
     unavailable_orgs <- factor(scan(paste(loaded_PARAMS$OUT_PATH,"/unavailable_orgs.txt",sep=""), character(), quiet = T))
-    orgs_to_fetch <- COMPLETE_vars$org.meta[which(is.na(match(COMPLETE_vars$org.meta$name,unavailable_orgs))),]
+    orgs_to_fetch <- COMPLETE_env$org.meta[which(is.na(match(COMPLETE_env$org.meta$name,unavailable_orgs))),]
   }else{
-    orgs_to_fetch <- COMPLETE_vars$org.meta
+    orgs_to_fetch <- COMPLETE_env$org.meta
   }
 
-  if( (!is.null(user_data) && is.character(user_data))){ # && !COMPLETE_vars$SKIP_USER_DATA
+  if( (!is.null(user_data) && is.character(user_data))){ # && !COMPLETE_env$SKIP_USER_DATA
     user_data <- read.csv(user_data,header = F)
   }
 
-  if(!is.null(user_data)){ #&& !COMPLETE_vars$SKIP_USER_DATA
+  if(!is.null(user_data)){ #&& !COMPLETE_env$SKIP_USER_DATA
     names(user_data) <- c("org","genome","gtf")
     all_orgs <- c(all_orgs,user_data$org)
 
@@ -1412,7 +1416,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   tictoc::tic(msg = "Total Extraction Time :")
 
-  if(!COMPLETE_vars$SKIP_USER_DATA && !is.null(user_data)){ #(loaded_PARAMS$DATA_SOURCE=="both" || loaded_PARAMS$DATA_SOURCE=="user") ){
+  if(!COMPLETE_env$SKIP_USER_DATA && !is.null(user_data)){ #(loaded_PARAMS$DATA_SOURCE=="both" || loaded_PARAMS$DATA_SOURCE=="user") ){
     if(nrow(user_data)!=0 && !is.null(user_data)){
       #print(user_data) #DEBUG
       user_saved_meta <- apply(user_data, MARGIN = 1, function(x){
@@ -1448,7 +1452,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
       ) } )
   }
 
-  try(parallel::mclapply(COMPLETE_vars$process_list, function(x){ #parallel::mclapply
+  try(parallel::mclapply(COMPLETE_env$process_list, function(x){ #parallel::mclapply
     if(!is.null(x) && x$is_alive()){
       x$wait(timeout=-1)
     }
@@ -1464,7 +1468,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   #write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
   #write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
-  if(!COMPLETE_vars$SKIP_USER_DATA && !is.null(user_saved_meta)){
+  if(!COMPLETE_env$SKIP_USER_DATA && !is.null(user_saved_meta)){
     user_saved_meta[sapply(user_saved_meta, is.null)] <- NULL
     user_saved_meta <- data.frame(t(user_saved_meta))
     colnames(user_saved_meta) <- c("org","genome","gtf")
@@ -1561,23 +1565,23 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #' The pipeline uses R and BASH. BASH functions are invoked through R.
 #' BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 #'
-#' * REQUIRES/DEPENDANCIES :
-#'      * Internet Connection
-#'      * Referenced R packages
-#'      * Linux with BASH ($SHELL must be set or /bin/bash must exist)
-#'      * Parameters File (fs::path_package("COMPLETE","inst","parameters.txt"))
-#'      * GNU parallel (in $PATH - BASH functions)
-#'      * Samtools (in $PATH - BASH functions)
-#'      * Bedtools (in $PATH - BASH functions)
-#'      * OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1) (https://www.orthodb.org/?page=filelist)
-#'          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)
-#'          # odb10v1_genes.tab.gz  -Ortho DB genes with some info (https://v101.orthodb.org/download/odb10v1_genes.tab.gz)
-#'          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence (https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz)
+#' + REQUIRES:
+#'      - Internet Connection
+#'      - Referenced R packages
+#'      - Linux with BASH ($SHELL must be set or /bin/bash must exist)
+#'      - Parameters File (fs::path_package("COMPLETE","inst","parameters.txt"))
+#'      - GNU parallel (in $PATH - BASH functions)
+#'      - Samtools (in $PATH - BASH functions)
+#'      - Bedtools (in $PATH - BASH functions)
+#'      - OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1) 
+#'          # odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
+#'          # odb10v1_genes.tab.gz  -Ortho DB genes with some info 
+#'          # odb10v1_OG2genes.tab.gz - OGs to genes correspondence 
 #'          (OR)
 #'          # odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
 #'          # odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 #'
-#' * PARAMETERS :
+#' + PARAMETERS :
 #'     The pipeline takes a single parameter file. This design was chosen
 #'          1) To expose as many options as possible to the end-user.
 #'          2) The pipeline uses BASH to perform some operations (which is significantly faster than R)
@@ -1586,27 +1590,27 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'     (because its unnecessarily hard to check and convert param types in BASH). A default/example file is in
 #'     fs::path_package("COMPLETE","inst","parameters.txt")
 #'
-#' * USER DATA :
+#' + USER DATA :
 #'     Columns Org, genome, gtf
 #'
-#' * COMPLETE.format.ids :
-#'          * The Ordering of ID labels can be referred from COMPLETE_vars$FORMAT_ID_INDEX
-#'          * Sequences are labelled with the following long ID format of R-COMPLETE
+#' + COMPLETE.format.ids :
+#'          - The Ordering of ID labels can be referred from COMPLETE_env$FORMAT_ID_INDEX
+#'          - Sequences are labelled with the following long ID format of R-COMPLETE
 #'          (specific to this pipeline and referred to as COMPLETE.format.ids)
 #'          (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
 #'               >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
 #'               >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
 #'               >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
 #'
-#' * FLOW :
+#' + FLOW :
 #'
 #'     1) EXTRACT_DATA() - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
 #'     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
 #'     and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
-#'          * ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
-#'          * Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
-#'          * Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
-#'          * FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
+#'          - ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
+#'          - Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
+#'          - Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)
+#'          - FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
 #'
 #'     2) FIND_ORTHOLOGS() -
 #'

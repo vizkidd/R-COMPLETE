@@ -29,5 +29,5 @@ Process ID from processx::new() which can be used for further monitoring of the 
 \description{
 This function adds process to a list and makes sure hte number of processes do not
 exceed a user defined limit (< max_concurrent_jobs/cores/threads). Uses processx library to call
-a child process. Process is appended to COMPLETE$process_list
+a child process. Process is appended to COMPLETE_env$process_list
 }

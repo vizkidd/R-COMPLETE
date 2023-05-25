@@ -11,15 +11,15 @@
 The pipeline uses R and BASH. BASH functions are invoked through R.
 BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 }
-\section{odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) (https://v101.orthodb.org/download/odb10v1_species.tab.gz)}{
+\section{odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level)}{
 
 }
 
-\section{odb10v1_genes.tab.gz  -Ortho DB genes with some info (https://v101.orthodb.org/download/odb10v1_genes.tab.gz)}{
+\section{odb10v1_genes.tab.gz  -Ortho DB genes with some info}{
 
 }
 
-\section{odb10v1_OG2genes.tab.gz - OGs to genes correspondence (https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz)}{
+\section{odb10v1_OG2genes.tab.gz - OGs to genes correspondence}{
 (OR)
 }
 
