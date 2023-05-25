@@ -46,8 +46,8 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
      + [odb10v1_genes.tab.gz](https://v101.orthodb.org/download/odb10v1_genes.tab.gz)  -Ortho DB genes with some info 
      + [odb10v1_OG2genes.tab.gz](https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz) - OGs to genes correspondence 
     (OR)
-     + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
-     + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
+     + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline - Only once)
+     + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline - For different gene sets)
 
 ### Tools - (Paths for parameters file)
 + [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
@@ -70,6 +70,8 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 COMPLETE::EXTRACT_DATA(params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
 ```
+
+<span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure**</span>
 
 ## Documentation
 
