@@ -49,12 +49,12 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
      + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 
 ### Tools
-+ [MACSE]()
-+ [MAFFT]()
-+ [TRANSAT]()
-+ [RNADECODER]()
-+ [Python3]()
-+ [FastTree]()
++ [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
++ [MAFFT](https://mafft.cbrc.jp)
++ [TRANSAT](https://e-rna.org/transat/help.cgi#data) (Download preferred tarball and check INSTALL file)
++ [RNADECODER](https://github.com/jujubix/rnadecoder) (Compiled program is in the bin/ of the repo)
++ [Python3](https://www.python.org/download/releases/3.0/)
++ [FastTree](www.microbesonline.org/fasttree)
 
 ## Documentation
 
