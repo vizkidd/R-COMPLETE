@@ -35,10 +35,12 @@ function check_param() {
   local STDIN=$(cat)
   local tmp_name=$(echo $STDIN | awk -F'==' '{print $1}')
   local tmp_var=$(echo $STDIN | awk -F'==' '{print $2}')
-  if [[ -z $tmp_var ]]; then
-    echo "Parameter Error : $tmp_name is empty"
-    exit 1
-  fi
+  
+  #if [[ -z $tmp_var ]]; then
+  #  echo "Parameter Error : $tmp_name is empty"
+  #  exit 1
+  #fi
+  
   echo $tmp_var
 }
 

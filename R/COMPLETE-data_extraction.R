@@ -935,8 +935,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   # }, mc.cores = params_list$numWorkers))
   #print(paste(org_fasta_path,org,genes,odb_gene_map,params_list)) #DEBUG
   
-  print(c( org_fasta_path, org, odb_gene_map))
-  ##label_FASTA_files(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list, duplicates.method = "merge")
+  label_FASTA_files(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list, duplicates.method = "merge")
   
   names(gtf_stats)[grep(pattern="transcript_length",names(gtf_stats))] <- "transcript_length.annotated"
   gtf_stats <- gtf_stats %>% mutate(org=org)
@@ -971,6 +970,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 #'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 #'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+#'     fetch_FASTA_user(c(org="xenopus_laevis",genome="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_genome.fa.gz",gtf="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_GCF_XBmodels.gff3",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param data Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").
 #' @param params_list Output of load_params()
@@ -1011,7 +1011,12 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 
   if(grepl("://|http|ftp|www",genome)){
     if(!file.exists(genome_path) || !file.info(genome_path)$size > 20 || params_list$CLEAN_EXTRACT){
-      curl::curl_fetch_disk(genome, paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
+      ret_code <- curl::curl_fetch_disk(genome, paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
+      if(ret_code$status_code==404){
+        message(paste("Error 404 : check genome URL :",org,"-",gtf))
+        message(print_toc(tictoc::toc(quiet = T, log = T)))
+        return(NULL)
+      }
       #genome_path <- paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep="")
       file.rename(paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""),genome_path)
     } # else{
@@ -1040,9 +1045,13 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
 
   if(grepl("://|http|ftp|www",gtf)){
     if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 20 || params_list$CLEAN_EXTRACT){
-      curl::curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
+      ret_code <- curl::curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
       #gtf_path <- paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
-
+      if(ret_code$status_code==404){
+        message(paste("Error 404 : check gtf URL :",org,"-",gtf))
+        message(print_toc(tictoc::toc(quiet = T, log = T)))
+        return(NULL)
+      }
       #zcat -f $ANNO_FILE | gffread - -T -O -E -o - | gzip -c > $params_list$ANNOS_PATH/"$f_org_name".gtf.gz
       if(!grepl(pattern = "gtf",x = basename(URLdecode(gtf)),ignore.case = T)){
 

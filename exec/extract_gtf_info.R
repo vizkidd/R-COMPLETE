@@ -1,6 +1,6 @@
 suppressMessages(require(rtracklayer))
 suppressMessages(require(GenomicRanges))
-suppressMessages(require(Rgb))
+##suppressMessages(require(Rgb))
 suppressMessages(require(stringi))
 suppressMessages(require(parallel))
 #suppressMessages(require(dataPreparation))
@@ -165,6 +165,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
     }
 
     gtf <- invisible(read.gtf(file = slice_file ,attr = c("intact"),quiet=T))
+    #gtf <- read.gtf(file = slice_file ,attr = c("intact"),quiet=T)
 
     #gtf$ranges <- IRanges(gtf$start, gtf$end)
     gtf$gene_id <- get_gtf_attributes(gtf,"gene_id")
