@@ -72,7 +72,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ### Files (Config) :
 + [Parameters](inst/pkg_data/parameters.txt)
 + [User Data](inst/pkg_data/user_data.txt) (Optional)
-+ [Reference Organisms](inst/pkg_data/reference_ORGS.txt)
++ [Reference Organisms](inst/pkg_data/reference_ORGS.txt) (`COMPLETE_env$org.meta` has the list of organisms available)
 
 <a name="examples"/>
 
