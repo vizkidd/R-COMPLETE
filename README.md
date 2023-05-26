@@ -67,13 +67,16 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ## Run Examples
 To run the example (with the default parameters and example data), from the context of your current working directory (TEST for example), 
-+ Put the programs from [Tools section](#tools) into TEST/tools/
++ Put the programs from [Tools section](#tools) into TEST/tools/ 
 + Download [OrthoDB(ODB) files](#odb) and place them in TEST/OrthoDB/
++ Check paths and options in the parameters file (Default : [parameters.txt](inst/pkg_data/parameters.txt))
+    + **NOTE : Create your own parameters file with [parameters.txt](inst/pkg_data/parameters.txt) as template**  
+    + **NOTE : Default parameters file is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
 + setwd("TEST")
 
 ```{R}
 params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
-COMPLETE::EXTRACT_DATA(params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
+COMPLETE::EXTRACT_DATA(params_list = params, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
 ```
 
 <span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure**</span>
