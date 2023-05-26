@@ -44,7 +44,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 <a name="odb"/>
 
-### OrthoDB :
+### OrthoDB : (Optional)
 + [OrthoDB (ODB) Flat Files (>= v10.1)](https://www.orthodb.org/?page=filelist) (Pipeline is tested with ODB v10.1) 
      + [odb10v1_species.tab.gz](https://v101.orthodb.org/download/odb10v1_species.tab.gz) - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
      + [odb10v1_genes.tab.gz](https://v101.orthodb.org/download/odb10v1_genes.tab.gz)  -Ortho DB genes with some info 
@@ -52,6 +52,8 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
     (OR)
      + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline - Only once)
      + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline - For different gene sets)
+
+**NOTE : Set ``orthodb_path_prefix`` in parameters file if you use OrthoDB files**
 
 <a name="tools"/>
 
@@ -67,7 +69,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ## Run Example
 To run the example, from the context of your current working directory (TEST for example), 
-+ Download [OrthoDB(ODB) files](#odb) and [Tools](#tools)
++ Download [OrthoDB(ODB) files](#odb) (optional) and [Tools](#tools)
 + Provide paths and options in the parameters file (Default : [parameters.txt](inst/pkg_data/parameters.txt))
     + **NOTE : Create your own parameters file with [parameters.txt](inst/pkg_data/parameters.txt) as template**  
     + **NOTE : Default parameters file is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
