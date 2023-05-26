@@ -18,22 +18,22 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 *Ironically this repo is incomplete but the functionality in it works. Under Construction Indefinitely. Documentation can be found within the package, Play around with the functions for the rest*
 
-## Installation (on R - Linux or RStudio Docker with WSL in Windows):
+## Installation (on R - Linux or RStudio Docker with WSL in Windows) :
 
 <a name="install"/>
 
 ```diff
-sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl
+sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
 devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ```
 
 <a name="requires"/>
 
-## REQUIRES:
+## REQUIRES :
 + Linux with BASH ($SHELL must be set or /bin/bash must exist) (export SHELL="/bin/bash")
++ **[Config Files](#files)**
 + Lot of space in `genomes_path`, `fasta_path` and `annos_path` path locations (in [parameters file](#params))
-+ Parameters File (fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 + GNU parallel (in $PATH - BASH functions)
 + [GffRead](https://github.com/gpertea/gffread)
 + [Samtools](http://www.htslib.org/download/) (in $PATH - BASH functions)
@@ -59,7 +59,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 <a name="tools"/>
 
-### Tools - (Paths for parameters file)
+### Tools - (Paths for parameters file) :
 + [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
 + [MAFFT](https://mafft.cbrc.jp/alignment/software/installation_without_root.html) (Compile from sources <b>with extensions</b> because <b>*mafft-qinsi*</b> is required)
 + [TRANSAT](https://e-rna.org/transat/help.cgi#data) (Download preferred tarball and check INSTALL file)
@@ -67,11 +67,19 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 + [Python3](https://www.python.org/download/releases/3.0/)
 + [FastTree](www.microbesonline.org/fasttree)
 
+<a name="files"/>
+
+### Files (Config) :
++ [Parameters](inst/pkg_data/parameters.txt)
++ [User Data](inst/pkg_data/user_data.txt) (Optional)
++ [Reference Organisms](inst/pkg_data/reference_ORGS.txt)
+
 <a name="examples"/>
 
-## Run Example
+## Run Example :
 To run the example, from the context of your current working directory, 
 + Download [OrthoDB(ODB) files](#odb) (optional) and [Tools](#tools)
++ Check [config files](#files)
 + Provide paths and options in the parameters file
     + **NOTE : Default parameters file ([parameters.txt](inst/pkg_data/parameters.txt)) is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
 
@@ -107,7 +115,7 @@ COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("
 ```
 [EXTRACT_DATA()](#fun1) - `genomes_path`, `annos_path`, 
 
-### USER DATA :
+### USER DATA : (Oprtional)
 
 <a name="user_data"/>
 
