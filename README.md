@@ -80,7 +80,7 @@ params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","paramete
 COMPLETE::EXTRACT_DATA(params_list = params, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
 ```
 
-<span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure**</span>
+<span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure (if OrthoDB is used)**</span>
 
 ## Documentation
 
