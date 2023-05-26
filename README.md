@@ -65,16 +65,16 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 <a name="examples"/>
 
-## Run Examples
-To run the example (with the default parameters and example data), from the context of your current working directory (TEST for example), 
+## Run Example
+To run the example, from the context of your current working directory (TEST for example), 
 + Put the programs from [Tools section](#tools) into TEST/tools/ 
 + Download [OrthoDB(ODB) files](#odb) and place them in TEST/OrthoDB/
 + Check paths and options in the parameters file (Default : [parameters.txt](inst/pkg_data/parameters.txt))
     + **NOTE : Create your own parameters file with [parameters.txt](inst/pkg_data/parameters.txt) as template**  
     + **NOTE : Default parameters file is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
-+ setwd("TEST")
 
 ```{R}
+setwd("TEST")
 params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 COMPLETE::EXTRACT_DATA(params_list = params, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
 ```
@@ -95,11 +95,13 @@ COMPLETE::EXTRACT_DATA(params_list = params, gene_list = fs::path_package("COMPL
 
    The pipeline takes a single parameter file. This design was chosen,
    + To expose as many options as possible to the end-user
-   + The pipeline uses BASH to BLAST and handle files (which is significantly faster than R) and the parameter file is shared between R and BASH.    
+   + The pipeline uses BASH to BLAST and handle files (significantly faster than R) and the parameter file is shared between R and BASH.    
 
 ```diff
-The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (because its unnecessarily hard to check and convert param types in BASH). 
-A default/example file is in fs::path_package("COMPLETE","pkg_data","parameters.txt")
+* Delimited by '=='
+* Inputs and Ouputs are specified in the comments
+* The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (hard to check and convert param types in BASH). 
+* A default/example file is in fs::path_package("COMPLETE","pkg_data","parameters.txt")
 ```
 
 ### USER DATA :
@@ -107,15 +109,16 @@ A default/example file is in fs::path_package("COMPLETE","pkg_data","parameters.
 <a name="user_data"/>
 
 ```diff
-Columns Org, genome, gtf
-A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
+* Columns Org, genome, gtf
+* Can accept empty or '-' in genome and/or gtf column. If empty or '-', the genome/gtf is looked up in ENSEMBL or NCBI DBs 
+* A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
 ```
 
 ### COMPLETE.format.ids :
 
 <a name="ids"/>
 
-  + The Ordering of FASTA ID labels can be found in COMPLETE_env$FORMAT_ID_INDEX
+  + Order of FASTA ID labels are stored in ``COMPLETE_env$FORMAT_ID_INDEX``
   + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
 
 ```diff
