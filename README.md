@@ -23,7 +23,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 <a name="install"/>
 
 ```diff
-sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev
+sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
 devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ```
@@ -35,6 +35,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 + Lot of space in `genomes_path`, `fasta_path` and `annos_path` path locations (in [parameters file](#params))
 + Parameters File (fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 + GNU parallel (in $PATH - BASH functions)
++ [GffRead](https://github.com/gpertea/gffread)
 + [Samtools](http://www.htslib.org/download/) (in $PATH - BASH functions)
 + [Bedtools](https://github.com/arq5x/bedtools2/releases) (in $PATH - BASH functions)
 + [ncbi-blast+](https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) (Compile from .src.tar.gz with ./configure && make all_r && sudo make install) (or sudo alien -i ncbi-blast-X.XX.X+-2.src.rpm) (or download binaries) ([Docs](https://www.ncbi.nlm.nih.gov/books/NBK52640/) & [Compilation](http://www.ncbi.nlm.nih.gov/books/NBK279671/#_introduction_Source_tarball))
@@ -69,13 +70,12 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 <a name="examples"/>
 
 ## Run Example
-To run the example, from the context of your current working directory (TEST for example), 
+To run the example, from the context of your current working directory, 
 + Download [OrthoDB(ODB) files](#odb) (optional) and [Tools](#tools)
 + Provide paths and options in the parameters file
     + **NOTE : Default parameters file ([parameters.txt](inst/pkg_data/parameters.txt)) is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
 
 ```{R}
-setwd("TEST")
 params_list <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
 ```
