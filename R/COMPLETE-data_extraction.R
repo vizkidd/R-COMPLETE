@@ -1007,13 +1007,13 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   tictoc::tic(msg = paste("Processed:",org))
   
   if(grepl(x = basename(URLdecode(genome)), pattern="gz")){
-    genome_path<-paste(params_list$GENOMES_PATH, "/",org,".",tools::file_ext(tools::file_path_sans_ext(basename(URLdecode(genome)))),sep = "")  #".gtf.gz"
+    genome_path<-paste(params_list$GENOMES_PATH, "/",org,".",tools::file_ext(tools::file_path_sans_ext(basename(URLdecode(genome)))),".gz",sep = "")  
   }else{
     genome_path<- paste(params_list$GENOMES_PATH, "/",org,".",tools::file_ext(basename(URLdecode(genome))),sep = "")  
   }
   
   if(grepl(x = basename(URLdecode(gtf)), pattern="gz")){
-    gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(tools::file_path_sans_ext(basename(URLdecode(gtf)))),sep = "")  #".gtf.gz"
+    gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(tools::file_path_sans_ext(basename(URLdecode(gtf)))),".gz",sep = "")  #".gtf.gz"
   }else{
     gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(basename(URLdecode(gtf))),sep = "")  #".gtf.gz"
   }

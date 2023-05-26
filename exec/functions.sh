@@ -907,7 +907,8 @@ function extract_genomic_regions(){
 	#if [[ $(echo $ANNO_FILE | grep -q -i "gtf") != 0 ]] ; then
 	if ! basename $ANNO_FILE | grep -q -i "gtf" ; then 
 	  local file_name=${ANNO_FILE%.*}
-	  zcat -f $ANNO_FILE | gffread - -T -O -E -o - | gzip -c > $ANNOS_PATH/"$f_org_name".gtf.gz &
+	  #zcat -f $ANNO_FILE | gffread - -T -O -E -o - | gzip -c > $ANNOS_PATH/"$f_org_name".gtf.gz & ## -O ONLY FOR GFF3
+	  zcat -f $ANNO_FILE | gffread - -T -E -o - | gzip -c > $ANNOS_PATH/"$f_org_name".gtf.gz &
 	  local anno_proc_id=$(echo $!)
 	  local ANNO_FILE=$ANNOS_PATH/"$f_org_name".gtf.gz
 	fi
