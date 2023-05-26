@@ -970,7 +970,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 #'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 #'     fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'     fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
-#'     fetch_FASTA_user(c(org="xenopus_laevis",genome="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_genome.fa.gz",gtf="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_GCF_XBmodels.gff3",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+#'     fetch_FASTA_user(c(org="xenopus_laevis",genome="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_genome.fa.gz",gtf="https://download.xenbase.org/xenbase/Genomics/JGI/Xenla10.1/XENLA_10.1_GCF.gff3.gz",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param data Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").
 #' @param params_list Output of load_params()
@@ -1005,8 +1005,18 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   }
 
   tictoc::tic(msg = paste("Processed:",org))
-  genome_path<-paste(params_list$GENOMES_PATH, "/",org,".fa.gz",sep = "")
-  gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(basename(URLdecode(gtf))),sep = "")  #".gtf.gz"
+  
+  if(grepl(x = basename(URLdecode(genome)), pattern="gz")){
+    genome_path<-paste(params_list$GENOMES_PATH, "/",org,".",tools::file_ext(tools::file_path_sans_ext(basename(URLdecode(genome)))),sep = "")  #".gtf.gz"
+  }else{
+    genome_path<- paste(params_list$GENOMES_PATH, "/",org,".",tools::file_ext(basename(URLdecode(genome))),sep = "")  
+  }
+  
+  if(grepl(x = basename(URLdecode(gtf)), pattern="gz")){
+    gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(tools::file_path_sans_ext(basename(URLdecode(gtf)))),sep = "")  #".gtf.gz"
+  }else{
+    gtf_path<-paste(params_list$ANNOS_PATH, "/",org,".",tools::file_ext(basename(URLdecode(gtf))),sep = "")  #".gtf.gz"
+  }
   org_fasta_path <- file.path(params_list$FASTA_OUT_PATH ,org)
 
   if(grepl("://|http|ftp|www",genome)){

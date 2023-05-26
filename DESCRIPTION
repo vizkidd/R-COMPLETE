@@ -67,4 +67,3 @@ Collate:
     'COMPLETE-data_extraction.R'
     'COMPLETE-BLAST_wrapper.R'
     'COMPLETE-find_orthologs.R'
-    'Rgb-read.gtf.R'
