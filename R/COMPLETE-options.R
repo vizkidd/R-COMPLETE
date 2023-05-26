@@ -183,7 +183,7 @@ load_params <- function(param_file){
   BED_PATH <- tools::file_path_as_absolute(check_param(param_table,"bed_path",optional=F,CAST_FUN=as.character,create_dir=T))
   PLOT_PATH <- tools::file_path_as_absolute(check_param(param_table,"plot_path",optional=F,CAST_FUN=as.character,create_dir=T))
   GENE_DROP_THRESHOLD <- check_param(param_table,"gene_drop_thresh",optional=F,CAST_FUN=as.double)
-  ORTHODB_PREFIX <- check_param(param_table,"orthodb_path_prefix",optional=F,CAST_FUN=as.character)
+  ORTHODB_PREFIX <- check_param(param_table,"orthodb_path_prefix",optional=T,CAST_FUN=as.character)
   MACSE_PATH <- tools::file_path_as_absolute(check_param(param_table,"macse_path",optional=F,CAST_FUN=as.character))
   MAFFT_PATH <- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
   TRANSAT_PATH <- tools::file_path_as_absolute(check_param(param_table,"transat_path",optional=F,CAST_FUN=as.character))
@@ -195,6 +195,7 @@ load_params <- function(param_file){
   MIN_COVERAGE_THRESHOLD <- check_param(param_table,"min_coverage_thres",optional=F,CAST_FUN=as.double)
 
   COMPLETE_env$numWorkers <- max_concurrent_jobs
+COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
 
   #COMPLETE_env <- new.env(parent=emptyenv())
   #COMPLETE_env$PARAMS <-
@@ -241,6 +242,7 @@ load_params <- function(param_file){
   if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
     message("Warning: NCBI-BLAST path is empty")
   }
+  
   class(param_list) <- c(class(param_list), "COMPLETE-options")
   return(param_list)
 }
@@ -262,6 +264,7 @@ INITIALIZE <- function() {
   COMPLETE_env$curl_handle <- RCurl::getCurlMultiHandle()
   COMPLETE_env$process_list <- c()
   COMPLETE_env$SKIP_USER_DATA <- FALSE
+  COMPLETE_env$USE_ORTHODB <- FALSE
   
   #if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   #  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
@@ -303,3 +306,8 @@ INITIALIZE <- function() {
   tryCatch({INITIALIZE()}, error=function(cond) {stop(cond)})
   packageStartupMessage("R-COMPLETE loaded successfully!")
 }
+
+.onUnload <- function(libname, pkgname){
+  rm(COMPLETE_env)
+}
+

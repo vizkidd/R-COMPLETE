@@ -1109,6 +1109,11 @@ function check_OrthoDB(){
 	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}' ) #| check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
 
+	if [[ -z $ORTHODB_PATH_PREFIX ]]; then
+		>&2 color_FG_Bold $Yellow "Not using OrthoDB!"
+		return 0
+	fi
+	
 	if [[ -z $n_threads || $n_threads == 0 || $n_threads == " " ]]; then
 		n_threads=$(nproc)
 	fi

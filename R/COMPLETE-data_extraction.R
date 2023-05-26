@@ -855,18 +855,20 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   dir.create(paste(params_list$OUT_PATH,"/genes/",org, sep=""),showWarnings = F,recursive = T)
 
   odb_list_genes <- c()
-  if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
-    #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
-    proc <- do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_env$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
-    proc$wait(timeout=-1)
-  }
-  if(file.exists(odb_list) && file.info(odb_list)$size > 0){
-    odb_list_genes <- factor(scan(odb_list, character(), quiet = T))
-    odb_list_genes <- odb_list_genes[grep("gene",tolower(odb_list_genes), invert = T, fixed = T)]
-    #odb_list_data <- get_gtf_mart(org, odb_list_genes)
-    #gtf_data <- unique(merge(odb_list_data,gtf_data))
-  }else{
-    message(paste("ODB gene list could not be found for : ",org))
+  if(COMPLETE_env$USE_ORTHODB){
+    if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
+      #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
+      proc <- do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_env$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
+      proc$wait(timeout=-1)
+    }
+    if(file.exists(odb_list) && file.info(odb_list)$size > 0){
+      odb_list_genes <- factor(scan(odb_list, character(), quiet = T))
+      odb_list_genes <- odb_list_genes[grep("gene",tolower(odb_list_genes), invert = T, fixed = T)]
+      #odb_list_data <- get_gtf_mart(org, odb_list_genes)
+      #gtf_data <- unique(merge(odb_list_data,gtf_data))
+    }else{
+      message(paste("ODB gene list could not be found for : ",org))
+    }
   }
 
   gtf_data <- invisible( tryCatch(
@@ -932,8 +934,10 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   #   x$kill(close_connections = TRUE)
   # }, mc.cores = params_list$numWorkers))
   #print(paste(org_fasta_path,org,genes,odb_gene_map,params_list)) #DEBUG
-  label_FASTA_files(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list, duplicates.method = "merge")
-
+  
+  print(c( org_fasta_path, org, odb_gene_map))
+  ##label_FASTA_files(fasta_path = org_fasta_path,org = org,gene_list = genes,odb_gene_map = odb_gene_map,params_list = params_list, duplicates.method = "merge")
+  
   names(gtf_stats)[grep(pattern="transcript_length",names(gtf_stats))] <- "transcript_length.annotated"
   gtf_stats <- gtf_stats %>% mutate(org=org)
   gtf_stats$transcript_length.estimated <- gtf_stats$five_flank + gtf_stats$total_cds_len + gtf_stats$three_flank
@@ -1132,40 +1136,40 @@ index_FASTA_IDs <- function(path, index_out){
 #' @export
 deduplicate_FASTA <- function(fasta_path, duplicates.method, n_threads=4) {
   seq_set <- Biostrings::readDNAStringSet(filepath = fasta_path,format = "fasta",use.names = T)
-
-  seq_set <- dplyr::bind_rows(x = parallel::mclapply(split(seq_set,factor(names(seq_set))),function(x){
+  seq_set <- split(seq_set,factor(names(seq_set)))
+  seq_set <- dplyr::bind_rows(x = parallel::mclapply(seq_along(seq_set),function(x){
    if(stringi::stri_cmp_eq(duplicates.method,"merge")){
 
-      merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
-      merged_seq_name <- unique(names(x))
-      return(data.frame(seq_name=merged_seq_name, seq=merged_seq))
+      merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(seq_set[[x]],collapse="")))
+      merged_seq_name <- unique(names(seq_set[[x]]))
+      return(data.frame(seq_name=merged_seq_name, seq=paste(merged_seq))) #return(data.frame(seq_name=merged_seq_name, seq=merged_seq)) 
     }else if(stringi::stri_cmp_eq(duplicates.method,"make_unique")){
-      if(length(x)==1){
-        return(data.frame(seq_name=names(x), seq=paste(x)))
+      if(length(seq_set[[x]])==1){
+        return(data.frame(seq_name=names(seq_set[[x]]), seq=paste(seq_set[[x]]))) #return(data.frame(seq_name=names(seq_set[[x]]), seq=paste(seq_set[[x]])))
       }
-      uniq_seqs <- unique(paste(x))
-      seq_match_val <- match(uniq_seqs,x) #match(x,uniq_seqs)
+      uniq_seqs <- unique(paste(seq_set[[x]]))
+      seq_match_val <- match(uniq_seqs,seq_set[[x]]) #match(x,uniq_seqs)
 
       if(any(!is.na(seq_match_val)) && length(unique(seq_match_val)) == 1){ #length(uniq_seqs) == 1
         uniq_seqs <- gsub("[[:space:]]", "", paste(uniq_seqs)) # Biostrings::DNAString(
         uniq_seq_name <- unique(names(uniq_seqs))
         names(uniq_seqs) <- uniq_seq_name
-        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
+        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs))) #data.frame
       }else{
-        uniq_seq_name <- names(x)[seq_match_val]
+        uniq_seq_name <- names(seq_set[[x]])[seq_match_val]
         if(any(duplicated(uniq_seq_name))){
           uniq_seq_name <- paste(paste("block",1:length(uniq_seq_name),sep=""),uniq_seq_name,sep=".")
         }
         #uniq_seqs <- list(uniq_seqs)
         names(uniq_seqs) <- uniq_seq_name
-        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs)))
+        return(data.frame(seq_name=uniq_seq_name, seq=paste(uniq_seqs))) #data.frame
       }
     }else if(stringi::stri_cmp_eq(duplicates.method,"delete")){
       #x <- x[!which(duplicated(paste(x)))]
       #x <- x[!which(duplicated(names(x)))]
-      x <- x[!intersect(which(duplicated(paste(x))),which(duplicated(names(x))))]
-      if(nrow(x) > 0){
-        return(data.frame(seq_name=names(x), seq=paste(x)))
+      x <- x[!intersect(which(duplicated(paste(seq_set[[x]]))),which(duplicated(names(seq_set[[x]]))))]
+      if(nrow(seq_set[[x]]) > 0){
+        return(data.frame(seq_name=names(seq_set[[x]]), seq=paste(seq_set[[x]]))) #data.frame
       }
     }
   }, mc.cores = n_threads,mc.silent = T))
@@ -1404,8 +1408,10 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     gene_list <- tmp_gene_list
   }
 
-  if(!merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
-    merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
+  if(COMPLETE_env$USE_ORTHODB){
+    if(!merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
+      merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = F,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
+      }
   }
 
   cat("Checking and downloading transcripts...\n")
