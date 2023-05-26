@@ -42,6 +42,8 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 + LZMA SDK - (sudo apt-get install liblzma-dev or yum install xz-devel)
 + BZLIB - (sudo apt-get install libbz2-dev libclang-dev or yum install bzip2-devel.x86_64)
 
+<a name="odb"/>
+
 ### OrthoDB :
 + [OrthoDB (ODB) Flat Files (>= v10.1)](https://www.orthodb.org/?page=filelist) (Pipeline is tested with ODB v10.1) 
      + [odb10v1_species.tab.gz](https://v101.orthodb.org/download/odb10v1_species.tab.gz) - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
@@ -50,6 +52,8 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
     (OR)
      + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline - Only once)
      + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline - For different gene sets)
+
+<a name="tools"/>
 
 ### Tools - (Paths for parameters file)
 + [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
@@ -62,11 +66,10 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 <a name="examples"/>
 
 ## Run Examples
-
-   To run the example (with the default parameters and example data), from the context of your current working directory (TEST for example), 
-    + Put the programs from [Tools section](#requires) into TEST/tools/
-    + Download OrthoDB(ODB) files and place them in TEST/OrthoDB/
-    + setwd("TEST")
+To run the example (with the default parameters and example data), from the context of your current working directory (TEST for example), 
++ Put the programs from [Tools section](#tools) into TEST/tools/
++ Download [OrthoDB(ODB) files](#odb) and place them in TEST/OrthoDB/
++ setwd("TEST")
 
 ```{R}
 params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
