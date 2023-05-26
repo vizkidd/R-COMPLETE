@@ -308,10 +308,10 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
 
     return(gene_stats)
   },  mc.cores = n_cores))
-save("utr_len_df",file="utr_len.RData")
-  if(nrow(utr_len_df) > 0 || length(utr_len_df) > 0 || !is.null(utr_len_df)){
+#save("utr_len_df",file="utr_len.RData")
+  if(any(nrow(utr_len_df) > 0, length(utr_len_df) > 0, !is.null(utr_len_df))){
     utr_len_df <- utr_len_df %>% mutate(org=org_name)
-    print(utr_len_df$gene_name)
+  #  print(utr_len_df$gene_name)
     utr_len_df$gene_name <- tolower(utr_len_df$gene_name)
     write.table(utr_len_df, file(output_file, open = "w"), sep = ",", quote = F,row.names = F, col.names = T,na = "-")
 
@@ -401,7 +401,7 @@ if(is.na(n_cores) || n_cores > max_concurrent_jobs){
 dir.create(path = file.path(BED_PATH,org_name),recursive = T,showWarnings = F)
 BED_PATH_PREFIX <- file.path(BED_PATH,org_name,org_name)
 
-if (stringi::stri_isempty(slice_file_path) || stringi::stri_isempty(org_name) || stringi::stri_isempty(output_file)) {
+if (any(stringi::stri_isempty(slice_file_path), stringi::stri_isempty(org_name), stringi::stri_isempty(output_file))) {
   stop("One/Many parameters are empty")
 }
 

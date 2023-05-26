@@ -14,7 +14,7 @@ deduplicate_FASTA <- function(fasta_file, duplicates.method, n_threads=4) {
 
       merged_seq <- Biostrings::DNAString(gsub("[[:space:]]", "", paste(x,collapse="")))
       merged_seq_name <- unique(names(x))
-      return(data.frame(seq_name=merged_seq_name, seq=merged_seq))
+      return(data.frame(seq_name=merged_seq_name, seq=paste(merged_seq)))
     }else if(stringi::stri_cmp_eq(duplicates.method,"make_unique")){
       if(length(x)==1){
         return(data.frame(seq_name=names(x), seq=paste(x)))
@@ -87,7 +87,7 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
     #print(paste(x, safe_gene,odb_clusters)) #DEBUG
     future_map(list.files(path = fasta_path,pattern = safe_gene,full.names = T,ignore.case = T), function(y){ #mclapply
       #if(file.exists(y)){
-      seq_set <- deduplicate_FASTA(fasta_path=fasta_path, duplicates.method=duplicates.method, n_threads=params_list$numWorkers)
+      seq_set <- deduplicate_FASTA(fasta_file=y, duplicates.method=duplicates.method, n_threads=params_list$numWorkers)
 
         split_seq_names <- stringi::stri_split(str = names(seq_set), fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)
         if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)

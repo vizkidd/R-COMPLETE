@@ -1,7 +1,7 @@
 Package: COMPLETE
 Type: Package
 Title: Comparative Orthologous Motif Prediction of Localization Elements with Transcript Extraction
-Version: 0.1.1
+Version: 0.2.1
 Authors@R: c(
 	person("Vishvesh", "Karthik", role=c("aut","cre"),
 		email="vishveshkarthik@gmail.com"))

@@ -424,7 +424,7 @@ function get_FASTA() {
 
 	  if [[ -s $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed || -L $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed ]]; then
 	    #if [[ $LABEL_FASTA ==  "TRUE" ]] ; then
-	      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #-split #NOTUSING name+ because it also gives coordinates
+	      bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -name -fullHeader > "$FASTA_PATH/$s_name.$reg" #-split #NOTUSING name+ because it also gives coordinates
 	    #else
 	    #  bedtools getfasta -s -split -fi $genome_fa -bed $TEMP_PATH/"$s_name"_"$reg"_FETCH.bed -nameOnly -fullHeader > "$FASTA_PATH/$s_name.$reg" #NOTUSING name+ because it also gives coordinates
 	    #fi
@@ -1012,7 +1012,7 @@ function extract_genomic_regions(){
 	  exit 255
 	fi
 
-	#sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/final.list
+	sed 1d $OUT_PATH/genes/$f_org_name/gtf_stats.csv | awk -F',' '{print $1"\n"}' | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/final.list
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/gtf_stats.csv")
