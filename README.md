@@ -32,6 +32,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 ## REQUIRES:
 + Linux with BASH ($SHELL must be set or /bin/bash must exist) (export SHELL="/bin/bash")
++ Lot of space in `genomes_path`, `fasta_path` and `annos_path` path locations (in [parameters file](#params))
 + Parameters File (fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 + GNU parallel (in $PATH - BASH functions)
 + [Samtools](http://www.htslib.org/download/) (in $PATH - BASH functions)
@@ -70,14 +71,13 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ## Run Example
 To run the example, from the context of your current working directory (TEST for example), 
 + Download [OrthoDB(ODB) files](#odb) (optional) and [Tools](#tools)
-+ Provide paths and options in the parameters file (Default : [parameters.txt](inst/pkg_data/parameters.txt))
-    + **NOTE : Create your own parameters file with [parameters.txt](inst/pkg_data/parameters.txt) as template**  
-    + **NOTE : Default parameters file is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
++ Provide paths and options in the parameters file
+    + **NOTE : Default parameters file ([parameters.txt](inst/pkg_data/parameters.txt)) is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
 
 ```{R}
 setwd("TEST")
-params <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
-COMPLETE::EXTRACT_DATA(params_list = params, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
+params_list <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
+COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
 ```
 
 <span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure (if OrthoDB is used)**</span>
@@ -97,13 +97,15 @@ COMPLETE::EXTRACT_DATA(params_list = params, gene_list = fs::path_package("COMPL
    The pipeline takes a single parameter file. This design was chosen,
    + To expose as many options as possible to the end-user
    + The pipeline uses BASH to BLAST and handle files (significantly faster than R) and the parameter file is shared between R and BASH.    
-
+   + Parameters tagged as output in comment column are outputs from COMPLETE
+   
 ```diff
 * Delimited by '=='
 * Inputs and Ouputs are specified in the comments
 * The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (hard to check and convert param types in BASH). 
 * A default/example file is in fs::path_package("COMPLETE","pkg_data","parameters.txt")
 ```
+[EXTRACT_DATA()](#fun1) - `genomes_path`, `annos_path`, 
 
 ### USER DATA :
 
