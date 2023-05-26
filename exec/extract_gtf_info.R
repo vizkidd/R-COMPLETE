@@ -139,7 +139,7 @@ extract_info <- function(gtf, strandedness="+") {
 
   #save(file = "gtf_split.RData",list="gtf_split")
 
-  return(mclapply(gtf_split, function(gtf_x){
+  tmp_list <- mclapply(gtf_split, function(gtf_x){
     gtf_gr <- GRanges(
       seqnames=Rle(gtf_x$seqname),
       ranges=IRanges(gtf_x$start, gtf_x$end),
@@ -155,9 +155,9 @@ extract_info <- function(gtf, strandedness="+") {
     g_name <- unique(gtf_x$gene_name)
     #print(g_name)
 
-    if (strandedness=="+" || strandedness=="-") {
+    if (any(strandedness=="+" || strandedness=="-")) {
       gtf_gr <- gtf_gr[strand(gtf_gr)==strandedness,]
-      if(is.null(gtf_gr) || length(gtf_gr)==0 || all(is.na(gtf_gr))){ ##Probably the mrna is not in the + strand so we can safely discard it
+      if(any(is.null(gtf_gr),length(gtf_gr)==0,all(is.na(gtf_gr)))){ ##Probably the mrna is not in the + strand so we can safely discard it
         message(paste("No",strandedness,"strand info (or) region of gtf missing for the gene : ", g_name))
         return()
       }
@@ -166,7 +166,7 @@ extract_info <- function(gtf, strandedness="+") {
     exon <- gtf_gr[gtf_gr$feature=="exon",]
     cds <- gtf_gr[gtf_gr$feature=="CDS",]
 
-    if(length(cds)==0 || length(exon)==0 || is.na(cds) || is.na(exon)){ ##Probably the mrna is not in the strand we want so we can safely discard it
+    if(any(length(cds)==0,length(exon)==0,is.na(cds),is.na(exon))){ ##Probably the mrna is not in the strand we want so we can safely discard it
       message(paste("Missing CDS/exon features for the gene : ", g_name))
       return()
     }
@@ -231,7 +231,9 @@ extract_info <- function(gtf, strandedness="+") {
     #}
 
     return(list(utr_len=utr_len,bed_data=as.data.frame(gtf_gr),gene_name=g_name))
-  }, mc.cores = n_cores))
+  }, mc.cores = n_cores, mc.silent = F)
+  
+  return(tmp_list)
 }
 
 get_bed <- function(bed_df, BED_PATH_PREFIX, TRANSCRIPT_REGIONS) {
@@ -306,9 +308,10 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
 
     return(gene_stats)
   },  mc.cores = n_cores))
-
+save("utr_len_df",file="utr_len.RData")
   if(nrow(utr_len_df) > 0 || length(utr_len_df) > 0 || !is.null(utr_len_df)){
     utr_len_df <- utr_len_df %>% mutate(org=org_name)
+    print(utr_len_df$gene_name)
     utr_len_df$gene_name <- tolower(utr_len_df$gene_name)
     write.table(utr_len_df, file(output_file, open = "w"), sep = ",", quote = F,row.names = F, col.names = T,na = "-")
 
@@ -390,7 +393,7 @@ TRANSCRIPT_ID_DELIM <<-  check_param(param_table,"transcript_delimiter",optional
 TRANSCRIPT_REGIONS <<- tolower(gsub("[[:space:]]","",x = unlist(stringi::stri_split( check_param(param_table,"transcript_regions",optional=F,CAST_FUN=as.character) ,fixed = ","))))
 CLEAN_EXTRACT <<- check_param(param_table,"clean_extract",optional=F,CAST_FUN=as.logical)
 STRAND <<- check_param(param_table,"strand",optional=F,CAST_FUN=as.character)
-n_cores <<- detectCores(all.tests = TRUE, logical = TRUE)
+n_cores <<- parallel::detectCores(all.tests = TRUE, logical = TRUE)
 if(is.na(n_cores) || n_cores > max_concurrent_jobs){
   n_cores <<- max_concurrent_jobs
 }
@@ -398,7 +401,7 @@ if(is.na(n_cores) || n_cores > max_concurrent_jobs){
 dir.create(path = file.path(BED_PATH,org_name),recursive = T,showWarnings = F)
 BED_PATH_PREFIX <- file.path(BED_PATH,org_name,org_name)
 
-if (stri_isempty(slice_file_path) || stri_isempty(org_name) || stri_isempty(output_file)) {
+if (stringi::stri_isempty(slice_file_path) || stringi::stri_isempty(org_name) || stringi::stri_isempty(output_file)) {
   stop("One/Many parameters are empty")
 }
 

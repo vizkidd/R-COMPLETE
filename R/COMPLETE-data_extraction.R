@@ -168,7 +168,7 @@ calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parall
 
     if (strandedness=="+" || strandedness=="-") {
       gtf_gr <- gtf_gr[strand(gtf_gr)==strandedness,]
-      if(is.null(gtf_gr) || length(gtf_gr)==0 || all(is.na(gtf_gr))){ ##Probably the mrna is not in the required strand so we can safely discard it
+      if(any(is.null(gtf_gr), length(gtf_gr)==0, all(is.na(gtf_gr)))){ ##Probably the mrna is not in the required strand so we can safely discard it
         #message(paste("No",strandedness,"strand info (or) region of gtf missing for the gene : ", g_name))
         return()
       }
@@ -733,13 +733,13 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
     org_fasta_path <- file.path(params_list$FASTA_OUT_PATH ,org_name)
 
     if( suppressMessages( biomartr::is.genome.available(db="ensembl", organism = org_name) ) ){
-      if(!file.exists(gtf_path) || file.info(gtf_path)$size <= 20 || params_list$CLEAN_EXTRACT){
+      if(any(!file.exists(gtf_path), file.info(gtf_path)$size <= 20, params_list$CLEAN_EXTRACT)){
         gtf_ori <- biomartr::getGTF(organism = org_name, db="ensembl",path = params_list$ANNOS_PATH) #,release=org$release-1)
         if(!is.logical(gtf_ori)){
           file.rename(tools::file_path_as_absolute(gtf_ori),gtf_path)
         }
       }
-      if(!file.exists(genome_path) || file.info(genome_path)$size <= 20 || params_list$CLEAN_EXTRACT){
+      if(any(!file.exists(genome_path), file.info(genome_path)$size <= 20, params_list$CLEAN_EXTRACT)){
         genome_ori <- biomartr::getGenome(organism = org_name, db="ensembl",path = params_list$GENOMES_PATH,reference = T,gunzip = F) #,release=org$release-1)
         if(!is.logical(genome_ori)){
           file.rename(tools::file_path_as_absolute(genome_ori),genome_path)
@@ -856,7 +856,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
 
   odb_list_genes <- c()
   if(COMPLETE_env$USE_ORTHODB){
-    if(params_list$CLEAN_EXTRACT || !file.exists(odb_list) || file.info(odb_list)$size == 0){
+    if(any(params_list$CLEAN_EXTRACT, !file.exists(odb_list), file.info(odb_list)$size == 0)){
       #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
       proc <- do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_env$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
       proc$wait(timeout=-1)
@@ -996,7 +996,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
     gene_list <- paste(params_list$TEMP_PATH,"/gene_list.txt",sep = "")
   }
 
-  if(genome == "-" || gtf == "-" || genome == " " || gtf == " " || stringi::stri_isempty(genome) || stringi::stri_isempty(gtf)){
+  if(any(genome == "-", gtf == "-", genome == " ", gtf == " ", stringi::stri_isempty(genome), stringi::stri_isempty(gtf))){
     return( tryCatch(fetch_FASTA(org_row = c(name=as.character(org),genome="-",gtf="-"), params_list = params_list, gene_list = genes, verbose = T),error=function(cond){
       stop(cond)
       #return(NULL)
@@ -1020,7 +1020,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   org_fasta_path <- file.path(params_list$FASTA_OUT_PATH ,org)
 
   if(grepl("://|http|ftp|www",genome)){
-    if(!file.exists(genome_path) || !file.info(genome_path)$size > 20 || params_list$CLEAN_EXTRACT){
+    if(any(!file.exists(genome_path), !file.info(genome_path)$size > 20, params_list$CLEAN_EXTRACT)){
       ret_code <- curl::curl_fetch_disk(genome, paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
       if(ret_code$status_code==404){
         message(paste("Error 404 : check genome URL :",org,"-",gtf))
@@ -1054,7 +1054,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   }
 
   if(grepl("://|http|ftp|www",gtf)){
-    if(!file.exists(gtf_path) || !file.info(gtf_path)$size > 20 || params_list$CLEAN_EXTRACT){
+    if(any(!file.exists(gtf_path), !file.info(gtf_path)$size > 20, params_list$CLEAN_EXTRACT)){
       ret_code <- curl::curl_fetch_disk(gtf, paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""))
       #gtf_path <- paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep="")
       if(ret_code$status_code==404){

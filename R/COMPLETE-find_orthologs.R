@@ -1454,7 +1454,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
       #print(head(files_in_dir)) #DEBUG
       #print(head(clusters_in_dir)) #DEBUG
       #print(match(all_clusters,clusters_in_dir)) #DEBUG
-      if( any(is.na(match(all_clusters,clusters_in_dir))) || length(clusters_in_dir) == 0 || length(all_clusters) == 0 ){ #all_clusters[which(!is.na(match(all_clusters,clusters_in_dir)))] #|| length(which(!is.na(match(all_clusters,clusters_in_dir)))) != length(which(!is.na(match(clusters_in_dir,all_clusters)))) #any(is.na(match(all_clusters[which(!is.na(match(all_clusters,clusters_in_dir)))] ,clusters_in_dir[which(!is.na(match(clusters_in_dir,all_clusters)))])))
+      if( any(any(is.na(match(all_clusters,clusters_in_dir))), length(clusters_in_dir) == 0, length(all_clusters) == 0 )){ #all_clusters[which(!is.na(match(all_clusters,clusters_in_dir)))] #|| length(which(!is.na(match(all_clusters,clusters_in_dir)))) != length(which(!is.na(match(clusters_in_dir,all_clusters)))) #any(is.na(match(all_clusters[which(!is.na(match(all_clusters,clusters_in_dir)))] ,clusters_in_dir[which(!is.na(match(clusters_in_dir,all_clusters)))])))
         stop("Regrouping sequences...\n")
       }
     },error=function(cond){

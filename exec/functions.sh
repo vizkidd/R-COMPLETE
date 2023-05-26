@@ -508,7 +508,8 @@ function index_genome(){
 	fi
 
 	#if [[ ! -s $gfile_name.fai ]]; then
-  samtools faidx --fai-idx $gfile_name.fai $gfile_name #&
+  #samtools faidx --fai-idx $gfile_name.fai $gfile_name #&
+  samtools faidx $gfile_name #--fai-idx $gfile_name.fai 
   	#genome_index_proc=$(echo $!)
 	#else
 	#  rm -f $FIFO_FILE
