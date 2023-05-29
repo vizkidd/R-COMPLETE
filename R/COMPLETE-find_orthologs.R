@@ -41,7 +41,7 @@ index_table_column <- function(in_table, index_col, offset=0){
 #'
 #' Convert longer FASTA IDs into short indices. BLAST table IDs need to be short for downstream processing (eg, graph package does not accept long names). The IDs are stored as an extra column and returned along with the BLAST table.
 #'
-#' @note WARNING : Do not index it more than once (although you may do index it as much as you like)
+#' @note WARNING : Do not index it more than once (although you may index it as much as you like)
 #'
 #' @examples
 #'  in_data <- index_BLAST_tables(blast_tables = list(data1,data2),query_index_cols = 1, subject_index_cols = 2)
