@@ -842,7 +842,7 @@ function merge_OG2genes_OrthoDB(){
 	fi
 }
 
-function extract_genomic_regions(){
+function extract_transcript_regions(){
 	# $1 = genome fasta file
 	# $2 = formatted gtf/gff3(UNTESTED) file
 	# $3 = input gene list
@@ -889,7 +889,7 @@ function extract_genomic_regions(){
 	  local MODE="-w"
 	fi
 
-	echo "Command : $0 extract_genomic_regions $@"
+	echo "Command : $0 extract_transcript_regions $@"
 
 	if [[ $CLEAN_EXTRACT ==  "TRUE" ]] ; then
 	  rm -rf $FASTA_PATH/$f_org_name
@@ -1332,7 +1332,7 @@ export -f get_length_dist
 export -f get_count_dist
 export -f check_param
 export -f merge_OG2genes_OrthoDB
-export -f extract_genomic_regions
+export -f extract_transcript_regions
 export -f check_OrthoDB
 #export -f label_sequenceIDs
 #export -f test_print

@@ -701,10 +701,24 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   return(gtf_stats[!is.na(match(gtf_stats$transcript_id,bm_df$transcript_id)),])
 }
 
+#' Extract Transcripts from Genome
+#' 
+#' Requires a genome and an annotation. #' This function invokes external SHELL function extract_transcript_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
+#' 
+#' @param genome_path Path to genom
+#' @param gtf_path Path to annotation
+#' @param gene_list Filename of gene list
+#' @param org_name Name of the organism
+#' @param params_list Parameter list from load_params()
+#' @export
+extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_name, params_list, verbose) {
+  do.call(COMPLETE::add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
+}
+
 #' Internal Function - Get FASTA data from BIOMART (using biomartr)
 #'
 #' This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
-#' This function invokes external SHELL function extract_genomic_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
+#' This function invokes external SHELL function extract_transcript_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
 #'
 #' @examples
 #'     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
@@ -762,11 +776,11 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
     if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list)){
       if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE_env$SKIP_USER_DATA) {
         dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
-        ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
-        #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
+        ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
+        #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
         cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org_name,".log\n",sep=""))
-        do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
-        ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
+        extract_transcript_regions(genome_path, gtf_path, gene_list, org_name, params_list, verbose)
+        ##return(do.call(add_to_process,list(p_cmd = c("./extract_transcript_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
         cat(print_toc(tictoc::toc(quiet = T, log = T)))
         return(c(org_row, source="r-biomartr"))
       }else{
@@ -858,7 +872,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
   if(COMPLETE_env$USE_ORTHODB){
     if(any(params_list$CLEAN_EXTRACT, !file.exists(odb_list), file.info(odb_list)$size == 0)){
       #proc <- do.call(add_to_process,list(p_cmd = c(system.file("exec", "check_OrthoDB.sh", mustWork = T ,package = "COMPLETE")),p_args = c(org,gene_list, odb_list, odb_gene_map,param_file))) #time
-      proc <- do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_env$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
+      proc <- do.call(COMPLETE::add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"), "check_OrthoDB",org,gene_list, odb_list, odb_gene_map,params_list$param_file, COMPLETE_env$SELECT_ALL_GENES), params_list=params_list,verbose = verbose))
       proc$wait(timeout=-1)
     }
     if(file.exists(odb_list) && file.info(odb_list)$size > 0){
@@ -1113,11 +1127,11 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
     if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE_env$SKIP_USER_DATA) {
       dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
-      ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_genomic_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
-      #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,param_file)))
+      ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
+      #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,param_file)))
       cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org,".log\n",sep=""))
-      do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_genomic_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
-      ##return(do.call(add_to_process,list(p_cmd = c("./extract_genomic_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
+      do.call(COMPLETE::add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
+      ##return(do.call(add_to_process,list(p_cmd = c("./extract_transcript_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       return(c(data, source="user-provided"))
     }else{
@@ -1639,7 +1653,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'     1) EXTRACT_DATA() - 
 #'            Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
 #'        from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
-#'        and BASH function extract_genomic_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
+#'        and BASH function extract_transcript_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
 #'          - ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()
 #'          - Orthologous genes are found for genes which are not present in the organism with BASH function check_OrthoDB()
 #'          - Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?calculate_gtf_stats)

@@ -145,7 +145,7 @@ COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("
 
    1) <b>EXTRACT_DATA()</b> - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
      from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
-     and BASH function *extract_genomic_regions()* for user provided data.
+     and BASH function *extract_transcript_regions()* for user provided data.
      Extraction priority/flow : User Data > biomaRt > biomartr
         + ODB Files are merged and transformed with BASH function *merge_OG2genes_OrthoDB()*
         + Orthologous genes are found for genes which are not present in the organism with BASH function *check_OrthoDB()*
