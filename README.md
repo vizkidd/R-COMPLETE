@@ -131,6 +131,7 @@ COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("
 
   + Order of FASTA ID labels are stored in ``COMPLETE_env$FORMAT_ID_INDEX``
   + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+  + COMPLETE.format.ids are indexed(internally) with `COMPLETE::index_BLAST_tables()` for compatibility
 
 ```diff
 >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
