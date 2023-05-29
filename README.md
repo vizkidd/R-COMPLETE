@@ -117,7 +117,7 @@ COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("
 ```
 [EXTRACT_DATA()](#fun1) - `genomes_path`, `annos_path`, 
 
-### USER DATA : (Oprtional)
+### USER DATA : (Optional)
 
 <a name="user_data"/>
 
@@ -132,7 +132,7 @@ COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("
 <a name="ids"/>
 
   + Order of FASTA ID labels are stored in ``COMPLETE_env$FORMAT_ID_INDEX``
-  + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
+  + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) <i>(seqID_delimiter & transcripID_delimiter set in parameters, `::` & `||` respectively in this context)</i>
   + COMPLETE.format.ids are indexed(internally) with `COMPLETE::index_BLAST_tables()` for compatibility
 
 ```diff
