@@ -308,6 +308,9 @@ INITIALIZE <- function() {
 }
 
 .onUnload <- function(libname, pkgname){
-  rm(COMPLETE_env)
+  ##rm(COMPLETE_env)
+  if(exists("COMPLETE_env", mode="environment")){
+    COMPLETE_env <- new.env(parent=emptyenv())
+  }
 }
 
