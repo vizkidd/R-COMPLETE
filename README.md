@@ -85,7 +85,10 @@ To run the example, from the context of your current working directory,
 
 ```{R}
 params_list <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
-COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
+gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt")
+user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt")
+COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = gene_list, user_data = user_data, only.user.data = F )
+COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_list, blast_program = Sys.which("tblastx"), run.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS, verbose=T, seed=123)
 ```
 
 <span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure (if OrthoDB is used)**</span>
