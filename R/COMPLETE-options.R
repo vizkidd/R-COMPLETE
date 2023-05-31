@@ -258,9 +258,15 @@ INITIALIZE <- function() {
   COMPLETE_env <<- new.env(parent=baseenv())
   
   COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
-  COMPLETE_env$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_env$ENSEMBL_MART)) #For biomaRt
-  COMPLETE_env$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_env$using.mart)) #For biomaRt
-  COMPLETE_env$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+  
+  if (curl::has_internet()) {
+    COMPLETE_env$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_env$ENSEMBL_MART)) #For biomaRt
+    COMPLETE_env$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_env$using.mart)) #For biomaRt
+    COMPLETE_env$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+  }else{
+    warning("Warning : Check if there is an internet connection")
+  }
+  
   COMPLETE_env$curl_handle <- RCurl::getCurlMultiHandle()
   COMPLETE_env$process_list <- c()
   COMPLETE_env$SKIP_USER_DATA <- FALSE
@@ -310,7 +316,7 @@ INITIALIZE <- function() {
 .onUnload <- function(libname, pkgname){
   ##rm(COMPLETE_env)
   if(exists("COMPLETE_env", mode="environment")){
-    COMPLETE_env <- new.env(parent=emptyenv())
+    COMPLETE_env <<- new.env(parent=emptyenv())
   }
 }
 

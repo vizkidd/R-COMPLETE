@@ -14,7 +14,7 @@ FIND_TRANSCRIPT_ORTHOLOGS(
 )
 }
 \arguments{
-\item{gene_list}{Vector/Filename of gene names. (essentially Filenames of FASTA sequences)}
+\item{gene_list}{Vector/Filename of gene names.}
 
 \item{params_list}{Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().}
 

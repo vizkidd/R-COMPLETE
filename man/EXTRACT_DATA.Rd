@@ -13,7 +13,7 @@ EXTRACT_DATA(params_list, gene_list, user_data = NULL, only.user.data = F)
 
 \item{user_data}{File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.}
 
-\item{only.user.data}{Process only user data and not process all available organisms in Ensembl? (TRUE/FALSE). Default FALSE}
+\item{only.user.data}{ONLY Process user data and not all available organisms? (TRUE/FALSE). Default FALSE}
 }
 \description{
 This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","pkg_data","parameters.txt").
