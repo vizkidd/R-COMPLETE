@@ -85,12 +85,12 @@ index_BLAST_tables <- function(blast_tables, query_index_cols, subject_index_col
   #print(head(indexed_ids)) #DEBUG
   blast_tables <- parallel::mclapply(seq_along(blast_tables), function(x){
     tmp_tbl <- blast_tables[[x]]
-    tmp_tbl <- tmp_tbl %>% mutate(tmp_tbl[,query_index_cols[[x]]])
+    tmp_tbl <- tmp_tbl %>% dplyr::mutate(tmp_tbl[,query_index_cols[[x]]])
     tmp_tbl[,query_index_cols[[x]]] <- indexed_ids[match(tmp_tbl[,query_index_cols[[x]]],indexed_ids$id), c("index")]
     colnames(tmp_tbl)[query_index_cols[[x]]] <- paste("indexed",old_query_cols[[x]],sep="_")
     colnames(tmp_tbl)[ncol(tmp_tbl)] <- old_query_cols[[x]]
 
-    tmp_tbl <- tmp_tbl %>% mutate(tmp_tbl[,subject_index_cols[[x]]])
+    tmp_tbl <- tmp_tbl %>% dplyr::mutate(tmp_tbl[,subject_index_cols[[x]]])
     tmp_tbl[,subject_index_cols[[x]]] <- indexed_ids[match(tmp_tbl[,subject_index_cols[[x]]],indexed_ids$id), c("index")]
     colnames(tmp_tbl)[subject_index_cols[[x]]] <- paste("indexed",old_subject_cols[[x]],sep="_")
     colnames(tmp_tbl)[ncol(tmp_tbl)] <- old_subject_cols[[x]]
@@ -163,7 +163,7 @@ run_WISARD <- function(blast_hits, score_col,n_threads=4, verbose=F){
   subject_vector <- unique(S4Vectors::runValue(GenomicRanges::seqnames(gr)))
   bhits_combo <- unique(tidyr::crossing(query_vector,subject_vector))
 
-  bhits_combo <- bhits_combo %>% mutate(num_factors=1:nrow(bhits_combo))
+  bhits_combo <- bhits_combo %>% dplyr::mutate(num_factors=1:nrow(bhits_combo))
 
   gr <- dplyr::inner_join(as.data.frame(gr),bhits_combo, by=c("seqnames"="subject_vector","query_id"="query_vector"))
 
@@ -232,7 +232,7 @@ merge_wisard_lists <- function(x, y){
 melt_wisard_list <- function(x){
   wis_df <- dplyr::bind_rows(lapply(x, function(wis_obj){
     tmp_df <- data.frame(wis_obj[["alignments"]])
-    tmp_df <- mutate(tmp_df, max_score=wis_obj[["max_score"]])
+    tmp_df <- dplyr::mutate(tmp_df, max_score=wis_obj[["max_score"]])
     return(tmp_df)
   }))
   names(wis_df)[grep(pattern="seqnames",names(wis_df))] <- "subject_id"
@@ -270,8 +270,8 @@ calculate_gene_conservation <- function(blast_table, gene, score_col=3,available
   dir.create(identities_out_path,showWarnings = F,recursive = T)
   dir.create(oinfo_out_path)
 
-  blast_table <- blast_table %>% mutate(from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE_env$FORMAT_ID_INDEX$ORG])})))
-  blast_table <- blast_table %>% mutate(to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE_env$FORMAT_ID_INDEX$ORG])})))
+  blast_table <- blast_table %>% dplyr::mutate(from_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,1],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE_env$FORMAT_ID_INDEX$ORG])})))
+  blast_table <- blast_table %>% dplyr::mutate(to_org=unlist(lapply(stringi::stri_split_fixed(blast_table[,2],delimiter,n=4,tokens_only = T),function(x){return(x[COMPLETE_env$FORMAT_ID_INDEX$ORG])})))
 
   blast_table[,1] <- factor(blast_table[,1])
   blast_table[,2] <- factor(blast_table[,2])
@@ -488,7 +488,7 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
   #print(paste(bk_ids,collapse = ",")) #DEBUG
 
   id_combinations <- unique(tidyr::crossing(q_ids,s_ids)) #id_combinations <- data.frame(q_ids=q_ids,s_ids=s_ids)
-  id_combinations <- id_combinations %>% mutate(num_factors=1:nrow(id_combinations))
+  id_combinations <- id_combinations %>% dplyr::mutate(num_factors=1:nrow(id_combinations))
   #id_combinations$num_factors <- as.factor(id_combinations$num_factors)
   id_combinations_rev <- unique(tidyr::crossing(s_ids,q_ids))
   #id_combinations[match(id_combinations$q_ids,id_combinations$s_ids),c("num_factors")] <- id_combinations[match(id_combinations$s_ids,id_combinations$q_ids),c("num_factors")]
@@ -503,8 +503,8 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
 
 
 
-  blast_table[[1]] <- blast_table[[1]] %>% mutate(direction="forward")
-  blast_table[[2]] <- blast_table[[2]] %>% mutate(direction="reverse")
+  blast_table[[1]] <- blast_table[[1]] %>% dplyr::mutate(direction="forward")
+  blast_table[[2]] <- blast_table[[2]] %>% dplyr::mutate(direction="reverse")
 
   blast_table <- dplyr::full_join(blast_table[[1]],blast_table[[2]])
 
@@ -1348,11 +1348,12 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
 #' @param gene_list Vector/Filename of gene names.
 #' @param params_list Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list. Default is Sys.which("tblastx")
-#' @param run.mode A value from COMPLETE_env$FORMAT_ID_INDEX. Default - COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE_env$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS groups sequences based on protein identity.
+#' @param group.mode A value from COMPLETE_env$FORMAT_ID_INDEX. Default - COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE_env$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS groups sequences based on clusters (based on protein identity).
+#' @param run.mode "both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits
 #' @param verbose Print DEBUG Messages?
 #' @param seed Seed value for reproducibility. Default - 123
 #' @export
-FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.which("tblastx"), run.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS, verbose=F, seed=123){ #gene_list
+FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.which("tblastx"), group.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS, run.mode="both", verbose=F, seed=123){ #gene_list
   set.seed(seed)
 
   if(stringi::stri_isempty(blast_program)){
@@ -1362,8 +1363,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     BLAST_BIN <- dirname(blast_program)
   }
 
-  if(is.na(match(run.mode,COMPLETE_env$FORMAT_ID_INDEX)) || is.null(run.mode)) {
-    stop(paste("run.mode must be one of COMPLETE_env$FORMAT_ID_INDEX"))
+  if(is.na(match(group.mode,COMPLETE_env$FORMAT_ID_INDEX)) || is.null(group.mode)) {
+    stop(paste("group.mode must be one of COMPLETE_env$FORMAT_ID_INDEX"))
   }
 
   if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
@@ -1429,7 +1430,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     # available_genes <- unique(purrr::reduce(available_genes_list, union))
 
     #find which clusters they belong to
-    # if(grepl(pattern = "cluster", x=run.mode)) {
+    # if(grepl(pattern = "cluster", x=group.mode)) {
     #   # odb_map_list <- parallel::mclapply(paste(loaded_PARAMS$OUT_PATH,"/genes/",REF_ORGS,sep=""),function(x){
     #   #   if(file.exists(paste(x,"/odb.final_map",sep="")) && file.info(paste(x,"/odb.final_map",sep=""))$size > 0 ){
     #   #     return(read.table(paste(x,"/odb.final_map",sep=""),header = F,sep = "\t",quote = "", col.names = c("cluster","genes")))
@@ -1442,7 +1443,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     #
     #   #if(length(dir(loaded_PARAMS$GROUPS_PATH)==0)){
     #GROUPING FASTA SEQUENCES
-    #print(run.mode) #DEBUG
+    #print(group.mode) #DEBUG
     available_clusters <- c()
     tryCatch({
 
@@ -1459,10 +1460,10 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
       }
     },error=function(cond){
       message(cond) #paste(cond,":",loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""))
-      tictoc::tic(msg = paste("Storing sequences into groups (",names(COMPLETE_env$FORMAT_ID_INDEX)[as.numeric(run.mode)],") ..."))
+      tictoc::tic(msg = paste("Storing sequences into groups (",names(COMPLETE_env$FORMAT_ID_INDEX)[as.numeric(group.mode)],") ..."))
       #print("here1")
       unlink(paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""),force = T,expand = T)
-      all_clusters <- group_FASTA(gene_list=gene_list, params_list = loaded_PARAMS, id.col.index = as.numeric(run.mode),remove.invalid.files=T,verbose = T) # fix.invalid.labels = T
+      all_clusters <- group_FASTA(gene_list=gene_list, params_list = loaded_PARAMS, id.col.index = as.numeric(group.mode),remove.invalid.files=T,verbose = T) # fix.invalid.labels = T
       #print(all_clusters) #DEBUG
       cat(print_toc(tictoc::toc(quiet = T, log=T)))
       #write.table(x = all_clusters,file = paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F)
@@ -1484,17 +1485,17 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     #available_clusters <- scan(paste(loaded_PARAMS$OUT_PATH,"/ALL_GROUPS.txt",sep=""), character(),quiet = T) #unique((tools::file_path_sans_ext(list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = F,recursive = F,include.dirs = F))))
     if(length(available_clusters)==0){
       #available_clusters <- "ungrouped"
-      stop("No clusters were found!. Try other values for run.mode")
+      stop("No clusters were found!. Try other values for group.mode")
     }
 
-    #STEP 1 - ONLY for run.mode="cluster" - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters) ##EG - ungrouped.1013114at2759.fw.all2all, 1013114at2759.ungrouped.bk.all2all
+    #STEP 1 - ONLY for group.mode="cluster" - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters) ##EG - ungrouped.1013114at2759.fw.all2all, 1013114at2759.ungrouped.bk.all2all
     #all2allblast and then wisard and then RBH for grouping ungrouped clusters
     if(any(grepl(pattern = "ungrouped",x = available_clusters,ignore.case = T))){
       message("STEP 1 - Placing ungrouped sequences into groups\n")
       tictoc::tic(msg = "Placing ungrouped sequences into groups...")
 
       parallel::mclapply(available_clusters, function(x){
-        extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = ".cds",clusters_left = "ungrouped",clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out,clean_extract = loaded_PARAMS$CLEAN_EXTRACT,verbose = verbose, seed=seed, run.mode="both")
+        extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = ".cds",clusters_left = "ungrouped",clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2all_out,clean_extract = loaded_PARAMS$CLEAN_EXTRACT,verbose = verbose, seed=seed, run.mode=run.mode)
       }, mc.cores = ceiling(loaded_PARAMS$numWorkers/2), mc.silent = !verbose, mc.set.seed = seed) #loaded_PARAMS$numWorkers
 
       if(length(available_clusters)>1){
@@ -1536,7 +1537,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
           final_hits <- LoadBLASTHits(infile = paste(all2all_out,"/","ungrouped.ungrouped.all2all.final_out.gz",sep=""),header = T)
           final_coverage <- read.table(file = paste(all2all_out,"/","ungrouped.ungrouped.all2all.coverage.gz",sep=""),header = T)
           final_coverage <- final_coverage[final_coverage$min>loaded_PARAMS$MIN_COVERAGE_THRESHOLD,]
-          final_coverage <- final_coverage %>% mutate(cluster=kmeans(final_coverage$min,centers = ceiling(sd(final_coverage$min)))$cluster)
+          final_coverage <- final_coverage %>% dplyr::mutate(cluster=kmeans(final_coverage$min,centers = ceiling(sd(final_coverage$min)))$cluster)
           #final_coverage <- split(final_coverage,f=factor(final_coverage$cluster))
             id_clusters_q <- stringi::stri_split(str = final_coverage$query_id, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
             id_clusters_s <- stringi::stri_split(str = final_coverage$subject_id, fixed = loaded_PARAMS$SEQUENCE_ID_DELIM, simplify=T)
@@ -1546,8 +1547,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
             id_clusters_s <- unique(id_clusters_s)
             id_clusters_q <- data.frame(seq_id=paste(id_clusters_q[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_q[,COMPLETE_env$FORMAT_ID_INDEX$ORG],id_clusters_q[,COMPLETE_env$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_q[,COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS])
             id_clusters_s <- data.frame(seq_id=paste(id_clusters_s[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID],id_clusters_s[,COMPLETE_env$FORMAT_ID_INDEX$ORG],id_clusters_s[,COMPLETE_env$FORMAT_ID_INDEX$GENE],sep=loaded_PARAMS$SEQUENCE_ID_DELIM),cluster=id_clusters_s[,COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS])
-            id_clusters_q <- unique(id_clusters_q %>% group_by(seq_id) %>% mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
-            id_clusters_s <- unique(id_clusters_s %>% group_by(seq_id) %>% mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
+            id_clusters_q <- unique(id_clusters_q %>% dplyr::group_by(seq_id) %>% dplyr::mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
+            id_clusters_s <- unique(id_clusters_s %>% dplyr::group_by(seq_id) %>% dplyr::mutate(cluster=paste("-cluster",cluster,sep="",collapse=",")))
             id_clusters_q <- unlist(apply(id_clusters_q, MARGIN = 1, FUN=function(x){
               return(paste(x,collapse = loaded_PARAMS$SEQUENCE_ID_DELIM,sep=loaded_PARAMS$SEQUENCE_ID_DELIM))
             }))
@@ -1573,7 +1574,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
           #})
          #})
       }
-    all_clusters <- group_FASTA(gene_list=gene_list, params_list = loaded_PARAMS, id.col.index = as.numeric(run.mode),remove.invalid.files=T,verbose = T)
+    all_clusters <- group_FASTA(gene_list=gene_list, params_list = loaded_PARAMS, id.col.index = as.numeric(group.mode),remove.invalid.files=T,verbose = T)
 
     files_in_dir <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
     non_cds_file_list <- grep(x = files_in_dir , pattern = "cds", ignore.case = T,invert = T, value = T)
@@ -1587,10 +1588,10 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 
       cat(print_toc(tictoc::toc(quiet = T, log=T)))
     }else{
-      message("STEP 1 - Skipped because all sequences are grouped\n") # or run.mode != COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS
+      message("STEP 1 - Skipped because all sequences are grouped\n") # or group.mode != COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS
     }
     # }else{
-    #   message("STEP 1 - Skipped because run.mode='gene'\n")
+    #   message("STEP 1 - Skipped because group.mode='gene'\n")
     #   all_genes <- group_FASTA(params_list = loaded_PARAMS, id.col.index = COMPLETE_env$FORMAT_ID_INDEX$GENE)
     #   available_clusters <- list.files(path=loaded_PARAMS$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)
     # }
@@ -1606,7 +1607,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     message(paste("STEP 2 - Select transcript level orthologs between orgs/genes/clusters, based on minimum coverage\n"))
     tictoc::tic(msg = "Extracting Transcript Orthologs...")
     parallel::mclapply(available_clusters, function(x){
-      extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = "cds", clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out, clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose = verbose, seed=seed, run.mode="both")
+      extract_transcript_orthologs(blast_program = blast_program, blast_options =  loaded_PARAMS$BLAST_OPTIONS, params_list = loaded_PARAMS, transcript_region = "cds", clusters_left = x,clusters_right = x, input_dir = loaded_PARAMS$GROUPS_PATH,output_dir = all2allfinal_out, clean_extract = loaded_PARAMS$CLEAN_EXTRACT, verbose = verbose, seed=seed, run.mode=run.mode)
     }, mc.cores = ceiling(loaded_PARAMS$numWorkers), mc.silent = !verbose, mc.set.seed = seed) #loaded_PARAMS$numWorkers
     cat(print_toc(tictoc::toc(quiet = T,log=T)))
 
@@ -1616,23 +1617,23 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
     if(!is.null(all_gtf_stats) && nrow(all_gtf_stats) > 0){
      # parallel::mclapply(available_clusters, function(x){
         #load *.coverage and *.fw.final_out, *.bk.final_out from all2allfinal_out
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(query_org=unlist(purrr::map(tmp_cove$coverage[,1],function(x){
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(query_org=unlist(purrr::map(tmp_cove$coverage[,1],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
           #print(org)
           return(org[,COMPLETE_env$FORMAT_ID_INDEX$ORG])
         })) )
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(subject_org=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(subject_org=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
           return(org[,COMPLETE_env$FORMAT_ID_INDEX$ORG])
         })) )
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(query_transcript_id=unlist(purrr::map(tmp_cove$coverage[,1],function(x){
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(query_transcript_id=unlist(purrr::map(tmp_cove$coverage[,1],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
           return(stringi::stri_split_fixed(tx_id[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
         })) )
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(subject_transcript_id=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(subject_transcript_id=unlist(purrr::map(tmp_cove$coverage[,2],function(x){
           #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
           tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
           return(stringi::stri_split_fixed(tx_id[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
@@ -1652,9 +1653,9 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
         tmp_cove$blast_table[[2]] <- dplyr::full_join(x = tmp_cove$coverage,y = tmp_cove$blast_table[[2]]) #, by=c("query_id"="query_id","subject_id"="subject_id", "query_len"="query_len", "subject_len"="subject_len", "query_org"="query_org", "subject_org"="subject_org"))
         tmp_cove$coverage <- tmp_cove$coverage[tmp_cove$coverage$query_transcript_id!=tmp_cove$coverage$subject_transcript_id,]
         tmp_cove$coverage <- tmp_cove$coverage[tmp_cove$coverage$query_org!=tmp_cove$coverage$subject_org,]
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(query_cds_count=all_gtf_stats[match(tmp_cove$coverage$query_transcript_id,all_gtf_stats$transcript_id),c("cds_count")])
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(subject_cds_count=all_gtf_stats[match(tmp_cove$coverage$subject_transcript_id,all_gtf_stats$transcript_id),c("cds_count")])
-        tmp_cove$coverage <- tmp_cove$coverage %>% mutate(same_cds_count=query_cds_count==subject_cds_count)
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(query_cds_count=all_gtf_stats[match(tmp_cove$coverage$query_transcript_id,all_gtf_stats$transcript_id),c("cds_count")])
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(subject_cds_count=all_gtf_stats[match(tmp_cove$coverage$subject_transcript_id,all_gtf_stats$transcript_id),c("cds_count")])
+        tmp_cove$coverage <- tmp_cove$coverage %>% dplyr::mutate(same_cds_count=query_cds_count==subject_cds_count)
         #tmp_cove$coverage <- tmp_cove$coverage[complete.cases(tmp_cove$coverage),] #IF you do not want any NAs
 
         #PLOTTING
@@ -1681,7 +1682,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
             #subset_data_plots <- parallel::mclapply(list(subset_data1,subset_data2),function(b_table){
               if(nrow(b_table) > 0){
 
-                b_table <- b_table %>% mutate(group=1:nrow(b_table))
+                b_table <- b_table %>% dplyr::mutate(group=1:nrow(b_table))
 
                 b_table <- b_table[order(b_table$start),]
                 b_table1_GO <- GenomicRanges::makeGRangesFromDataFrame(b_table,keep.extra.columns = T,seqnames.field = c("subject_id"), start.field = "start",end.field = "end",na.rm=TRUE)
@@ -1698,7 +1699,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
                 line_coords <- unique(data.frame(query=rep(line_coords$query_id,each=2),subject=rep(line_coords$subject_id,each=2),from=line_coords$coords[which(line_coords$position=="query")],to=line_coords$coords[which(line_coords$position=="subject")], raw_cov_q=rep(subset_data$raw_cov_q,each=2), raw_cov_s=rep(subset_data$raw_cov_s,each=2),pident=rep(subset_data$pidentity,each=2),query_len=rep(subset_data$query_len,each=2),subject_len=rep(subset_data$subject_len,each=2),hit_src=line_coords$position,min_cov=rep(subset_data$min_raw_cov,each=2),max_cov=rep(subset_data$max_raw_cov,each=2))) #groups=rep(1:data_rows,each=2),
                 line_coords_grp <- tidyr::crossing(unique(line_coords$query),unique(line_coords$subject) )
                 line_coords_grp <- line_coords_grp[line_coords_grp[,1]!=line_coords_grp[,2],]
-                line_coords_grp <- line_coords_grp %>% mutate(groups=1:nrow(line_coords_grp))
+                line_coords_grp <- line_coords_grp %>% dplyr::mutate(groups=1:nrow(line_coords_grp))
                 colnames(line_coords_grp) <- c("query","subject","groups")
                 line_coords <- dplyr::inner_join(line_coords,line_coords_grp)
                 line_coords$groups <- factor(line_coords$groups)

@@ -22,7 +22,7 @@ Depends: Rcpp (>= 1.0.8.3),
     IRanges (>= 2.26.0),
     S4Vectors (>= 0.30.2),
     BiocGenerics,
-    R (>= 3.5.0),
+    R (>= 4.1.0),
     purrr (>= 0.3.4),
     utils
 Imports: 
