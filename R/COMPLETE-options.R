@@ -322,5 +322,5 @@ INITIALIZE <- function() {
   }
 }
 
-#' @importFrom GenomicRanges mcols
+#' @importFrom S4Vectors mcols
 NULL
