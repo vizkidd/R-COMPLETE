@@ -322,3 +322,5 @@ INITIALIZE <- function() {
   }
 }
 
+#' @importFrom GenomicRanges mcols
+NULL
