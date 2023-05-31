@@ -112,25 +112,25 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   }
 
   if(COMPLETE.format.ids && !is.null(params_list)){
-    blast_input <- blast_input %>% mutate(subject_gene=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
+    blast_input <- blast_input %>% dplyr::mutate(subject_gene=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       genes <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(genes[,COMPLETE_env$FORMAT_ID_INDEX$GENE])
     })) )
 
-    blast_input <- blast_input %>% mutate(query_gene=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
+    blast_input <- blast_input %>% dplyr::mutate(query_gene=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       genes <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(genes[,COMPLETE_env$FORMAT_ID_INDEX$GENE])
     })) )
 
-    blast_input <- blast_input %>% mutate(subject_transcript_id=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
+    blast_input <- blast_input %>% dplyr::mutate(subject_transcript_id=unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(stringi::stri_split_fixed(tx_id[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
     })) )
 
-    blast_input <- blast_input %>% mutate(query_transcript_id=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
+    blast_input <- blast_input %>% dplyr::mutate(query_transcript_id=unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
       #genes <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       tx_id <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(stringi::stri_split_fixed(tx_id[,COMPLETE_env$FORMAT_ID_INDEX$TRANSCRIPT_ID],pattern = params_list$TRANSCRIPT_ID_DELIM, simplify=T)[,1])
@@ -173,38 +173,38 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
 
   tmp_df <- data.frame(seq_names=blast_input[,col.indices[["sseqid"]]])
 
-  #tmp_df <- mutate(tmp_df, seqnames=S4Vectors::Rle(blast_input[,col.indices["sseqid"]]))
-  #tmp_df <- mutate(tmp_df, ranges=IRanges::IRanges(start = blast_input[,col.indices["sstart"]], end = blast_input[,col.indices["send"]],strand= blast_input[,col.indices["sstrand"]]))
-  tmp_df <- mutate(tmp_df, sstart = blast_input[,col.indices[["sstart"]]])
-  tmp_df <- mutate(tmp_df, send = blast_input[,col.indices[["send"]]])
-  tmp_df <- mutate(tmp_df, sstrand= blast_input[,col.indices[["sstrand"]]])
+  #tmp_df <- dplyr::mutate(tmp_df, seqnames=S4Vectors::Rle(blast_input[,col.indices["sseqid"]]))
+  #tmp_df <- dplyr::mutate(tmp_df, ranges=IRanges::IRanges(start = blast_input[,col.indices["sstart"]], end = blast_input[,col.indices["send"]],strand= blast_input[,col.indices["sstrand"]]))
+  tmp_df <- dplyr::mutate(tmp_df, sstart = blast_input[,col.indices[["sstart"]]])
+  tmp_df <- dplyr::mutate(tmp_df, send = blast_input[,col.indices[["send"]]])
+  tmp_df <- dplyr::mutate(tmp_df, sstrand= blast_input[,col.indices[["sstrand"]]])
   #print(tmp_df) #DEBUG
-  tmp_df <- mutate(tmp_df, Hsp_num=c(1:nrow(blast_input))) #seq(1,nrow(tmp_blast),1)
-  if(!is.null(col.indices[["bitscore"]])) tmp_df <- mutate(tmp_df, Hsp_bit.score = blast_input[,col.indices[["bitscore"]]])
-  if(!is.null(col.indices[["qcovhsp"]])) tmp_df <- mutate(tmp_df, Hsp_score = blast_input[,col.indices[["qcovhsp"]]])
-  if(!is.null(col.indices[["evalue"]])) tmp_df <- mutate(tmp_df, Hsp_evalue = blast_input[,col.indices[["evalue"]]])
-  tmp_df <- mutate(tmp_df, subject_HSP_from = blast_input[,col.indices[["sstart"]]])
-  tmp_df <- mutate(tmp_df, subject_HSP_to = blast_input[,col.indices[["send"]]])
-  tmp_df <- mutate(tmp_df, query_id = blast_input[,col.indices[["qseqid"]]])
-  if(!is.null(col.indices[["qlen"]])) tmp_df <- mutate(tmp_df, query_len = blast_input[,col.indices[["qlen"]]])
-  if(!is.null(col.indices[["slen"]])) tmp_df <- mutate(tmp_df, subject_len = blast_input[,col.indices[["slen"]]])
-  tmp_df <- mutate(tmp_df, query_HSP_from = blast_input[,col.indices[["qstart"]]])
-  tmp_df <- mutate(tmp_df, query_HSP_to = blast_input[,col.indices[["qend"]]])
-  if(!is.null(col.indices[["frames"]])) tmp_df <- mutate(tmp_df, query.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
+  tmp_df <- dplyr::mutate(tmp_df, Hsp_num=c(1:nrow(blast_input))) #seq(1,nrow(tmp_blast),1)
+  if(!is.null(col.indices[["bitscore"]])) tmp_df <- dplyr::mutate(tmp_df, Hsp_bit.score = blast_input[,col.indices[["bitscore"]]])
+  if(!is.null(col.indices[["qcovhsp"]])) tmp_df <- dplyr::mutate(tmp_df, Hsp_score = blast_input[,col.indices[["qcovhsp"]]])
+  if(!is.null(col.indices[["evalue"]])) tmp_df <- dplyr::mutate(tmp_df, Hsp_evalue = blast_input[,col.indices[["evalue"]]])
+  tmp_df <- dplyr::mutate(tmp_df, subject_HSP_from = blast_input[,col.indices[["sstart"]]])
+  tmp_df <- dplyr::mutate(tmp_df, subject_HSP_to = blast_input[,col.indices[["send"]]])
+  tmp_df <- dplyr::mutate(tmp_df, query_id = blast_input[,col.indices[["qseqid"]]])
+  if(!is.null(col.indices[["qlen"]])) tmp_df <- dplyr::mutate(tmp_df, query_len = blast_input[,col.indices[["qlen"]]])
+  if(!is.null(col.indices[["slen"]])) tmp_df <- dplyr::mutate(tmp_df, subject_len = blast_input[,col.indices[["slen"]]])
+  tmp_df <- dplyr::mutate(tmp_df, query_HSP_from = blast_input[,col.indices[["qstart"]]])
+  tmp_df <- dplyr::mutate(tmp_df, query_HSP_to = blast_input[,col.indices[["qend"]]])
+  if(!is.null(col.indices[["frames"]])) tmp_df <- dplyr::mutate(tmp_df, query.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
     frames <- as.integer(unlist(stringi::stri_split_fixed(x,pattern = "/")))
     return(frames[1])
   })) )
-  if(!is.null(col.indices[["frames"]])) tmp_df <- mutate(tmp_df, subject.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
+  if(!is.null(col.indices[["frames"]])) tmp_df <- dplyr::mutate(tmp_df, subject.frame =  unlist(purrr::map(blast_input[,col.indices[["frames"]]],function(x){
     frames <- as.integer(unlist(stringi::stri_split_fixed(x,pattern = "/")))
     return(frames[2])
   })) )
   if(COMPLETE.format.ids && !is.null(params_list)){
-    tmp_df <- mutate(tmp_df, query_org = unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
+    tmp_df <- dplyr::mutate(tmp_df, query_org = unlist(purrr::map(blast_input[,col.indices[["qseqid"]]],function(x){
       #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(org[,COMPLETE_env$FORMAT_ID_INDEX$ORG])
     })) )
-    tmp_df <- mutate(tmp_df, subject_org = unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
+    tmp_df <- dplyr::mutate(tmp_df, subject_org = unlist(purrr::map(blast_input[,col.indices[["sseqid"]]],function(x){
       #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
       org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
       return(org[,COMPLETE_env$FORMAT_ID_INDEX$ORG])
@@ -214,16 +214,16 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   #warning(paste("is.null(params_list)==",is.null(params)," && COMPLETE.format.ids==",COMPLETE.format.ids,". Must be COMPLETE.format.ids==TRUE && is.null(params_list)==FALSE",sep=""))
   #}
 
-  if(!is.null(col.indices[["pident"]])) tmp_df <- mutate(tmp_df, pidentity = blast_input[,col.indices[["pident"]]])
+  if(!is.null(col.indices[["pident"]])) tmp_df <- dplyr::mutate(tmp_df, pidentity = blast_input[,col.indices[["pident"]]])
   #gr$Hsp_positive <-
-  if(!is.null(col.indices[["gaps"]])) tmp_df <- mutate(tmp_df, Hsp_gaps = blast_input[,col.indices[["gaps"]]])
-  if(!is.null(col.indices[["length"]])) tmp_df <- mutate(tmp_df, Hsp_align.len =  blast_input[,col.indices[["length"]]])
+  if(!is.null(col.indices[["gaps"]])) tmp_df <- dplyr::mutate(tmp_df, Hsp_gaps = blast_input[,col.indices[["gaps"]]])
+  if(!is.null(col.indices[["length"]])) tmp_df <- dplyr::mutate(tmp_df, Hsp_align.len =  blast_input[,col.indices[["length"]]])
   #print(head(blast_input)) #DEBUG
   if(COMPLETE.format.ids  && !is.null(params_list)){
-    tmp_df <- mutate(tmp_df, subject_gene =  blast_input[,c("subject_gene")])
-    tmp_df <- mutate(tmp_df, query_gene =  blast_input[,c("query_gene")])
-    tmp_df <- mutate(tmp_df, query_transcript_id =  blast_input[,c("query_transcript_id")])
-    tmp_df <- mutate(tmp_df, subject_transcript_id =  blast_input[,c("subject_transcript_id")])
+    tmp_df <- dplyr::mutate(tmp_df, subject_gene =  blast_input[,c("subject_gene")])
+    tmp_df <- dplyr::mutate(tmp_df, query_gene =  blast_input[,c("query_gene")])
+    tmp_df <- dplyr::mutate(tmp_df, query_transcript_id =  blast_input[,c("query_transcript_id")])
+    tmp_df <- dplyr::mutate(tmp_df, subject_transcript_id =  blast_input[,c("subject_transcript_id")])
   }
 
   #print(tmp_df) #DEBUG
