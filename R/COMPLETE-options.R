@@ -309,7 +309,9 @@ INITIALIZE <- function() {
 .onLoad <- function(libname, pkgname) {
   # something to run
   packageStartupMessage("Initializing R-COMPLETE")
-  tryCatch({INITIALIZE()}, error=function(cond) {stop(cond)})
+  tryCatch({
+    INITIALIZE()
+    }, error=function(cond) {stop(cond)})
   packageStartupMessage("R-COMPLETE loaded successfully!")
 }
 

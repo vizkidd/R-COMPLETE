@@ -8,7 +8,8 @@ FIND_TRANSCRIPT_ORTHOLOGS(
   gene_list,
   params_list,
   blast_program = Sys.which("tblastx"),
-  run.mode = COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS,
+  group.mode = COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS,
+  run.mode = "both",
   verbose = F,
   seed = 123
 )
@@ -20,7 +21,9 @@ FIND_TRANSCRIPT_ORTHOLOGS(
 
 \item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. BLAST options are taken from params_list. Default is Sys.which("tblastx")}
 
-\item{run.mode}{A value from COMPLETE_env$FORMAT_ID_INDEX. Default - COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE_env$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS groups sequences based on protein identity.}
+\item{group.mode}{A value from COMPLETE_env$FORMAT_ID_INDEX. Default - COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS. Find transcript orthologs in the level of Orgs, Genes or Ortholog Clusters. Genes have more tight orthology and fewer transcript orthologs which may be very similar. Ortholog Clusters are a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. run.mode=COMPLETE_env$FORMAT_ID_INDEX$GENE is NOT RECOMMENDED because the sequences are grouped based on gene names, while run.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS groups sequences based on clusters (based on protein identity).}
+
+\item{run.mode}{"both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits}
 
 \item{verbose}{Print DEBUG Messages?}
 

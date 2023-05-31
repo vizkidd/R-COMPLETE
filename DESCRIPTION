@@ -19,6 +19,7 @@ Additional_repositories:
 biocViews:
 Depends: Rcpp (>= 1.0.8.3),
     dplyr (>= 1.0.9),
+    GenomicRanges (>= 1.44.0),
     IRanges (>= 2.26.0),
     S4Vectors (>= 0.30.2),
     BiocGenerics,
