@@ -170,7 +170,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
         + <i>"both"</i> - Uses both "coverage_distance" and "coverage_filter" and is very strict. (Default) . `(coverage_distance >= min_coverage_filter && cov_q >= min_coverage_filter && cov_s >= min_coverage_filter)`
         + <i>"no_filter"</i> - Only calculates HSP coverages and does not filter any Hits . 
 </br>
-Execution Flow (for each group): all2all BLAST -> [wisard](https://github.com/robbueck/wisard/) -> RBH -> calculate_HSP_coverage()
+    Execution Flow (for each group): all2all BLAST -> [WISARD](https://github.com/robbueck/wisard/) -> RBH -> calculate_HSP_coverage()
         + (ONLY for run.mode="cluster") - Place ungrouped sequences into groups 
         + Select transcript level orthologs with minimum coverage between clusters/genes
         + Creates compatible sets of organisms based on compatible sets of genes
