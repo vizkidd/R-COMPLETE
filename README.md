@@ -169,6 +169,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
         + <i>"coverage_filter"</i> - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). `(cov_q >= min_coverage_filter && cov_s >= min_coverage_filter)`
         + <i>"both"</i> - Uses both "coverage_distance" and "coverage_filter" and is very strict. (Default) . `(coverage_distance >= min_coverage_filter && cov_q >= min_coverage_filter && cov_s >= min_coverage_filter)`
         + <i>"no_filter"</i> - Only calculates HSP coverages and does not filter any Hits . 
+</br>
 Execution Flow (for each group): all2all BLAST -> [wisard](https://github.com/robbueck/wisard/) -> RBH -> calculate_HSP_coverage()
         + (ONLY for run.mode="cluster") - Place ungrouped sequences into groups 
         + Select transcript level orthologs with minimum coverage between clusters/genes
