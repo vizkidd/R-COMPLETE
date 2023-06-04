@@ -10,7 +10,7 @@ LoadBLASTHits(
   col.names = NULL,
   sep = "\\t",
   header = F,
-  n_threads = 2
+  use.feather = F
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ LoadBLASTHits(
 
 \item{header}{Does the file have a header? . Default - FALSE}
 
-\item{n_threads}{Number of Threads}
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 }
 \value{
 Data Frame with BLAST Results

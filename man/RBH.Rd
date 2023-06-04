@@ -18,7 +18,8 @@ RBH(
   n_threads = tryCatch(parallel::detectCores(all.tests = T, logical = T), error =
     function(cond) {
      return(2)
- })
+ }),
+  use.feather = FALSE
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ RBH(
 \item{process.weights.func}{Pass a function name to process the weights (eg, sum/max/min etc) (Default - max). Only valid if weight.col is given in col.indices}
 
 \item{n_threads}{Number of Threads (Optional)}
+
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 }
 \value{
 Named List list(in1,in2) with the selected Hits which are RBHs between in1 and in2 data

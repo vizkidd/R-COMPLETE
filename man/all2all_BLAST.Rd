@@ -21,7 +21,8 @@ all2all_BLAST(
   n_threads = 8,
   verbose = F,
   seed = 123,
-  return_data = TRUE
+  return_data = TRUE,
+  use.feather = FALSE
 )
 }
 \arguments{
@@ -58,6 +59,8 @@ all2all_BLAST(
 \item{seed}{Seed value for reproducibility. Default - 123}
 
 \item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
+
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 }
 \value{
 Named List of GRObjects (of BLAST Hits)
@@ -69,6 +72,6 @@ Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output 
 ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
 }
 \examples{
- all2all_BLAST(first_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F), second_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F),blast_DB_dir = "files/blastdb",blast_program = "tblastx",output_dir = "files/all2all",blast_options = "-strand plus",input_prefix_path = NULL,params_list=NULL)
+ all2all_BLAST(first_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F), second_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F),blast_DB_dir = "files/blastdb",blast_program = "tblastx",output_dir = "files/all2all",blast_options = "-strand plus",input_prefix_path = NULL,params_list=NULL, use.feather=T,gzip.output=F)
 
 }

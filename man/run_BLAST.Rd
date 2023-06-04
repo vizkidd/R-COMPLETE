@@ -20,7 +20,8 @@ run_BLAST(
   clean_extract = F,
   verbose = F,
   seed = 123,
-  return_data = TRUE
+  return_data = TRUE,
+  use.feather = FALSE
 )
 }
 \arguments{
@@ -55,6 +56,8 @@ run_BLAST(
 \item{seed}{Seed value for reproducibility. Default - 123}
 
 \item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
+
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 }
 \value{
 BLAST Hits as GRanges Object
@@ -66,7 +69,7 @@ BLAST between two FASTA files. BLAST output is saved temporarily in BLAST format
 ASSUMES Nucleotide FASTA sequences. Files are copied to tempdir() and split by blast.sequence.limit before blasting. Not checking/Not working for Protein/Peptide sequences and FASTQ files. Columns of GRanges BLAST 6 output are c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")
 }
 \examples{
-    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", run_name = "blast_positive",blast_options = "-strand plus", gzip.output=T)
+    run_BLAST(query_path = "query.fasta",subject_path = "subject.fasta",blast_DB_dir = "files/blastdb", blast_program="tblastx", run_name = "blast_positive",blast_options = "-strand plus", gzip.output=F, use.feather=T)
     run_BLAST(query_path = Biostrings::DNAString(gsub("[\r\n]", "", "ATTGTCGAAGTTGTCGCTCGAGAGGCGGGAGTTTACCGACACTTTTCCTCAGAAGTTTAC
     CGTGAAGCTGACCGGAGAACGGCGGAGTCTGTGCTGAATCTGCCATCATGTCCAGGCGGA
     ")), subject_path=Biostrings::DNAString(gsub("[\r\n]", "", "TTACCGACACTTTTCCTCAGAAGTTTACCGTGAAGCTGACCGGAGAACGGCGGAGTCTGT

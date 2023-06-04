@@ -16,6 +16,7 @@ calculate_HSP_coverage(
   sep = "\\t",
   header = F,
   n_threads = 8,
+  use.feather = F,
   verbose = T,
   seed = 123
 )
@@ -29,7 +30,7 @@ calculate_HSP_coverage(
 
 \item{group}{Name of the group/BLAST Run. Default -  "ungrouped"}
 
-\item{run.mode}{"both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits}
+\item{run.mode}{"both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance >= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits}
 
 \item{min_coverage_filter}{Minimum HSP Coverage value to filter out Hits (Default - 0.5)}
 
@@ -42,6 +43,8 @@ calculate_HSP_coverage(
 \item{header}{Does the input files have header?. Only valid if blast_table is a file. Default - FALSE}
 
 \item{n_threads}{Number of threads}
+
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 
 \item{verbose}{Print Output Messages?}
 

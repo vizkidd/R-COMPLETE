@@ -12,7 +12,8 @@ GRObject_from_BLAST(
     = 3, gaps = 14, length = 4, sstrand = 17),
   params_list = NULL,
   sep = "\\t",
-  header = F
+  header = F,
+  use.feather = F
 )
 }
 \arguments{
@@ -27,6 +28,8 @@ GRObject_from_BLAST(
 \item{sep}{Delimiter of the BLAST File columns. Default - '\\t'}
 
 \item{header}{Does the file have a header? . Default - FALSE}
+
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 }
 \value{
 A GRanges object of BLAST hits

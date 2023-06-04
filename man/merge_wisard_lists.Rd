@@ -4,12 +4,10 @@
 \alias{merge_wisard_lists}
 \title{Internal Function - To Merge WISARD OUTPUTS Lists}
 \usage{
-merge_wisard_lists(x, y)
+merge_wisard_lists(...)
 }
 \arguments{
-\item{x}{WIZARD output List x}
-
-\item{y}{WIZARD output List y}
+\item{...}{WIZARD output Lists to merge}
 }
 \value{
 A Merged List of WISARD Outputs

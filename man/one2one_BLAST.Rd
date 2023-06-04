@@ -22,7 +22,8 @@ one2one_BLAST(
   n_threads = 8,
   verbose = F,
   seed = 123,
-  return_data = TRUE
+  return_data = TRUE,
+  use.feather = FALSE
 )
 }
 \arguments{
@@ -61,6 +62,8 @@ one2one_BLAST(
 \item{seed}{Seed value for reproducibility. Default - 123}
 
 \item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
+
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
 }
 \value{
 A GRObject of BLAST Hits
@@ -72,6 +75,6 @@ Executes One-to-One BLAST between two lists of organisms/genes/clusters. The BLA
 ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.
 }
 \examples{
-one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, verbose=verbose)
+one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, verbose=verbose, use.feather=use.feather)
 
 }
