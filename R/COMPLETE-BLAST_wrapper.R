@@ -540,7 +540,7 @@ set.seed(seed)
     }, .options = furrr::furrr_options(seed = seed, scheduling=F))#, mc.cores = n_threads,mc.silent = !verbose,mc.preschedule = T , mc.set.seed = seed)#, .options = furrr::furrr_options(seed = TRUE, scheduling=n_threads))
     tmp_list <<- dplyr::bind_rows(tmp_list)
     #tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
-    arrow::write_feather(x = data.table::data.table(tmp_list),sink = blast_outfile, compression = "lz4")
+    arrow::write_feather(x = as.data.frame(tmp_list),sink = blast_outfile, compression = "lz4")
     #tmp_o_stream$close()
     #print(head(blast_GR)) #DEBUG
     #print("here2")
