@@ -208,7 +208,7 @@ function make_BLAST_DB() {
 	if [[ ! -s "$($blast_bin/blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
 		$blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
 	elif [[ ! -s $fasta_file ]]; then
-		echo "$fasta_file empty..."
+		>&2 echo "$fasta_file empty..."
 		exit 255
 	else
 		echo "BLAST DB for $fasta_file exists!"
@@ -575,8 +575,8 @@ function do_BLAST() {
 		if [[ -s "$BLAST_output" ]]; then
 			rm $BLAST_output
 		fi
-		if [[ ! -s $($prog_path/blastdb_path -db $DB) ]]; then
-			$prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
+		if [[ ! -s $(>&2 $prog_path/blastdb_path -db $DB) ]]; then
+			>&2 $prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
 		fi
 
 		#if [[ -z $parallel_path ]]; then
@@ -588,13 +588,13 @@ function do_BLAST() {
 		if [[ -s "$query" && -s "$DB" ]]; then
  
  	if [[ -z $parallel_path ]]; then
- 		$prog -query $query -db $DB -outfmt 11 $blast_options -out $BLAST_output 
+ 		$prog -query $query -db $DB $blast_options #  #-outfmt 11 -out $BLAST_output 
  	else
  		#$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
- 		$parallel_path -j 1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " 
+ 		$parallel_path -j $n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB $blast_options " #-j 1 #-outfmt 11 -out $BLAST_output 
  	fi
 		
-		echo "$run_name is done"
+		>&2 echo "$run_name is done"
 		else
 			>&2 echo "($run_name) Error: Either ($query)/($DB) is empty/not found"
 			return 255
@@ -1246,7 +1246,7 @@ function convert_BLAST_format(){
 	if [[ -s $blast_archive && -s $blast_formatter_path ]]; then
 		$blast_formatter_path -archive $blast_archive -outfmt "$out_fmt $blast_cols" -out $out_file #&> /dev/null
 	else
-		echo "blast_formatter not found in $blast_formatter_path"
+		>&2 echo "blast_formatter not found in $blast_formatter_path"
 		exit 1
 	fi
 }
@@ -1362,6 +1362,7 @@ export -f color_FG_BG_Bold
 
 if [ $# -gt 0 ] ; then
 	script_args=($(echo $@))
+	#>&2 echo $@
 	#export -f "${script_args[0]}"
 	time "${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
 	exit 0

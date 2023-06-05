@@ -64,7 +64,7 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
 #' @param gene_list File with a list of genes to extract data for(check the github repo for an example)
 check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,create_dir=F){
   if(length(param_table) == 1 && file.exists(param_table)){
-    param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T) #Convert multibyte seperator to one byte sep
+    param_table <- read.table(textConnection(gsub("==", "^", readLines(param_table))),sep="^", header = T, quote = "'") #Convert multibyte seperator to one byte sep
   }
   param_index <- which(param_table==param_id)
   if(is.null(param_index) || is.na(param_index)){
@@ -115,7 +115,7 @@ load_params <- function(param_file){
   # }
 
   #param_file <<- param_file
-  param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T) #Convert multibyte seperator to one byte sep
+  param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T, quote = "'") #Convert multibyte seperator to one byte sep
 
   param_dups <- duplicated(param_table$param_id)
   if(any(param_dups)){
@@ -188,7 +188,7 @@ load_params <- function(param_file){
   MAFFT_PATH <- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
   TRANSAT_PATH <- tools::file_path_as_absolute(check_param(param_table,"transat_path",optional=F,CAST_FUN=as.character))
   RNADECODER_PATH <- tools::file_path_as_absolute(check_param(param_table,"rnadecoder_path",optional=F,CAST_FUN=as.character))
-  #python3_path  <- check_param(param_table,"python3_path",optional=F,CAST_FUN=as.character)
+  MSYS2_PATH  <- check_param(param_table,"msys2_path",optional=T,CAST_FUN=as.character)
   FASTTREE_PATH <- tools::file_path_as_absolute(check_param(param_table,"fasttree_path",optional=F,CAST_FUN=as.character))
   ALIGNMENTS_PATH <- tools::file_path_as_absolute(check_param(param_table,"alignments_path",optional=F,CAST_FUN=as.character,create_dir=T))
   ALIGNMENT_GAP_THRESHOLD  <- check_param(param_table,"aln_gap_thres",optional=F,CAST_FUN=as.double)
@@ -229,6 +229,7 @@ COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
                      PLOT_PATH=PLOT_PATH,
                      GENE_DROP_THRESHOLD=GENE_DROP_THRESHOLD,
                      ORTHODB_PREFIX=ORTHODB_PREFIX,
+                     MSYS2_PATH=MSYS2_PATH,
                      MACSE_PATH=MACSE_PATH,
                      MAFFT_PATH=MAFFT_PATH,
                      TRANSAT_PATH=TRANSAT_PATH,RNADECODER_PATH=RNADECODER_PATH,

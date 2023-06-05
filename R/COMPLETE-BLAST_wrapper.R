@@ -31,7 +31,7 @@ LoadBLASTHits <- function(infile, transcript_ID_metadata=NULL, col.names=NULL, s
     if(!use.feather){
       blast_results <- read.table(file = infile,header = header,sep=sep,quote = "", blank.lines.skip = T) #data.table::fread(file = infile,header = header,sep=sep,quote = "", blank.lines.skip = T, nThread = n_threads)
     }else{
-      blast_results <- arrow::read_feather(file = arrow::MemoryMappedFile$create(infile), mmap = T)
+      blast_results <- arrow::read_feather(file = infile, mmap = T)
     }
     
   }else{
@@ -217,15 +217,16 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   }
   
   if (COMPLETE.format.ids && !is.null(params_list)) {
-    tmp_df <- tmp_df %>%
-      dplyr::mutate(query_org = purrr::map_chr(blast_input[, col.indices[["qseqid"]]], ~{
-        org <- stringi::stri_split_fixed(.x, pattern = params_list$SEQUENCE_ID_DELIM, simplify = TRUE)
-        org[, COMPLETE_env$FORMAT_ID_INDEX$ORG]
-      }),
-      subject_org = purrr::map_chr(blast_input[, col.indices[["sseqid"]]], ~{
-        org <- stringi::stri_split_fixed(.x, pattern = params_list$SEQUENCE_ID_DELIM, simplify = TRUE)
-        org[, COMPLETE_env$FORMAT_ID_INDEX$ORG]
-      }))
+    tmp_df <- dplyr::mutate(tmp_df, query_org = unlist(furrr::future_map(blast_input[,col.indices[["qseqid"]]],function(x){
+      #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
+      org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
+      return(org[,COMPLETE_env$FORMAT_ID_INDEX$ORG])
+    }, .options = furrr::furrr_options(scheduling=F))) )
+    tmp_df <- dplyr::mutate(tmp_df, subject_org = unlist(furrr::future_map(blast_input[,col.indices[["sseqid"]]],function(x){
+      #org <- unlist(stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM))
+      org <- stringi::stri_split_fixed(x,pattern = params_list$SEQUENCE_ID_DELIM, simplify=T)
+      return(org[,COMPLETE_env$FORMAT_ID_INDEX$ORG])
+    }, .options = furrr::furrr_options(scheduling=F))) )
   }
   
   if (!is.null(col.indices[["pident"]]))
@@ -245,8 +246,10 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
              subject_transcript_id = blast_input[, c("subject_transcript_id")])
   }
   
-  #print(tmp_df) #DEBUG
-  tmp_gr <- GenomicRanges::makeGRangesFromDataFrame(df = tmp_df,seqnames.field = "seq_names",start.field = "sstart",end.field = "send",strand.field = "sstrand" ,keep.extra.columns = T,ignore.strand = F)
+  df_cols <- names(unlist(col.indices)[order(unlist(col.indices))])
+  colnames(tmp_df) <- df_cols
+  print(tmp_df) #DEBUG
+  tmp_gr <- GenomicRanges::makeGRangesFromDataFrame(df = tmp_df,seqnames.field = "sseqid",start.field = "sstart",end.field = "send",strand.field = "sstrand" ,keep.extra.columns = T,ignore.strand = F)
 
   return(tmp_gr)
 }
@@ -341,10 +344,10 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
 #' @param gzip.output Should the output files be Gzipped? Default - FALSE
 #' @param seed Seed value for reproducibility. Default - 123
 #' @param return_data Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE
-#' @param use.feather Should feather API be used to read BLAST Hits? - Default - FALSE
+#' @param use.feather Should feather API be used to read BLAST Hits? - Default - TRUE
 #' @return BLAST Hits as GRanges Object
 #' @export
-run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_out=NULL, blast_program=Sys.which("tblastx"), run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, blast.sequence.limit=0,n_threads=8, gzip.output=F, clean_extract=F,verbose=F, seed=123, return_data=TRUE, use.feather=FALSE){ #return_f_callback=return,... #keep.output.files=T
+run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_out=NULL, blast_program=Sys.which("tblastx"), run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, blast.sequence.limit=0,n_threads=8, gzip.output=F, clean_extract=F,verbose=F, seed=123, return_data=TRUE, use.feather=T){ #return_f_callback=return,... #keep.output.files=T
 set.seed(seed)
   tictoc::tic(msg = paste(run_name,":"))
 
@@ -393,25 +396,18 @@ set.seed(seed)
       # }else{
       #   return(NULL)
       # }
-      if(return_data || use.feather){
-        if(use.feather){
-          blast_GR <- arrow::read_feather(file = arrow::MemoryMappedFile$create(blast_out), mmap = T)
-        }else{
-        blast_GR <- GRObject_from_BLAST(blast_input = blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather=F)
-        }
+      if(return_data){
+        blast_GR <- GRObject_from_BLAST(blast_input = blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
+        
         return(list(BLAST_hits=blast_GR,BLAST_file=blast_out,run_name=run_name))
-      }else{
+        }else{
         return(NULL)
       }
     }else{
       unlink(c(blast_out,sprintf("%s.%s", blast_out, "gz")), recursive = F,force = T,expand = T)
     }
   }
-  if(verbose){
-    print(query_path)
-    print(subject_path)
-    #print(blast_out)
-  }
+
   tryCatch({
     fasta_in_paths <- parallel::mclapply(list(query_path,subject_path),function(x){
       if(any(grepl(x = class(x),pattern = "DNAString|AAString|RNAString",ignore.case = T,fixed = F))){
@@ -521,61 +517,50 @@ set.seed(seed)
 
     path_combinations <- unique(tidyr::crossing(query_path,subject_path))
     #print(path_combinations) #DEBUG
-
+    
+    tmp_list <- list()
     furrr::future_map(.x = seq_along(1:nrow(path_combinations)), .f = function(i){
     #parallel::mclapply(seq_along(1:nrow(path_combinations)), function(i){
       q_x <- as.character(path_combinations[i,1])
       s_y <- as.character(path_combinations[i,2])
-      #print(paste(q_x,s_y)) #DEBUG
-      #print(blast_out[i]) #DEBUG
-
-      #if(file.info(q_x)$size==0 && file.info(s_y)$size==0 ){
-      #  return(NULL)
+      #processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = "",stderr = cmd_verbose) #stdout = cmd_verbose
+      tmp_proc <- processx::process$new(command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options),stdout = "|",stderr = cmd_verbose,supervise = T) 
+      tmp_proc$poll_io(timeout=-1)
       #}
-
-      #if(!is.null(params_list)){
-      #  add_to_process(p_cmd =  COMPLETE_env$SHELL,p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,blast_out[i],blast_program,blast_options), verbose = verbose,logfile = cmd_verbose, params_list = params_list)
-      #}else{
-      processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
-      #}
-
-      if(verbose){
-        message(paste("Converting",blast_out[i],"to BLAST Format 6 :", final_blast_out[i]))
+      if(tmp_proc$has_output_connection()){
+        #tmp_proc$wait(timeout=5)
+        #tmp_list <<- append(tmp_list,read.table(textConnection(processx::processx_conn_read_lines(tmp_proc$get_output_connection()),open = "r")))
+        tmp_list <<- append(tmp_list,read.table(textConnection(tmp_proc$read_all_output_lines(),open = "r")))
       }
-
-      convert_BLAST_format(infile = blast_out[i],outfile = final_blast_out[i],conversion_prg_dir = BLAST_BIN, verbose = verbose ) #tools::file_path_as_absolute()
+      #if(verbose){
+      #  message(paste("Converting",blast_out[i],"to BLAST Format 6 :", final_blast_out[i]))
+      #}
+      #convert_BLAST_format(infile = blast_out[i],outfile = final_blast_out[i],conversion_prg_dir = BLAST_BIN, verbose = verbose ) 
 
     }, .options = furrr::furrr_options(seed = seed, scheduling=F))#, mc.cores = n_threads,mc.silent = !verbose,mc.preschedule = T , mc.set.seed = seed)#, .options = furrr::furrr_options(seed = TRUE, scheduling=n_threads))
+    tmp_list <<- dplyr::bind_rows(tmp_list)
+    #tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
+    arrow::write_feather(x = data.table::data.table(tmp_list),sink = blast_outfile, compression = "lz4")
+    #tmp_o_stream$close()
     #print(head(blast_GR)) #DEBUG
     #print("here2")
 
-    if(is.null(blast_outfile)){
-      if(!is.null(params_list)){
-        blast_outfile <- tempfile(pattern="blast_out", tmpdir = params_list$TEMP_PATH)
-      }else{
-        blast_outfile <- tempfile(pattern="blast_out", tmpdir = tempdir())
-      }
-    }
+    # if(is.null(blast_outfile)){
+    #   if(!is.null(params_list)){
+    #     blast_outfile <- tempfile(pattern="blast_out", tmpdir = params_list$TEMP_PATH)
+    #   }else{
+    #     blast_outfile <- tempfile(pattern="blast_out", tmpdir = tempdir())
+    #   }
+    # }
     #print(blast_outfile) #DEBUG
     #print(final_blast_out) #DEBUG
-    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
-    # unlink(x = c(final_blast_out,blast_out), recursive = T,force = T,expand = T)
-
-#   if(!is.null(blast_DB_dir)){
-  #    unlink(x = list.files(blast_DB_dir,pattern = basename(subject_path),full.names = T ), recursive = T,force = T,expand = T)
-  #  }#else{
-    #unlink(x = list.files(dirname(subject_path),pattern = paste(basename(subject_path),".",sep=""),full.names = T ), recursive = T,force = T,expand = T)
-    #unlink(x = list.files(dirname(query_path),pattern = paste(basename(query_path),".",sep=""),full.names = T ), recursive = T,force = T,expand = T)
-    #}
+    #processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
 
     unlink(x = c(final_blast_out,blast_out),recursive = T,force = T,expand = T)
 
-    if(return_data || use.feather){
-    blast_GR <- GRObject_from_BLAST(blast_input = blast_outfile,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = F)
-    if(use.feather){
-      arrow::write_feather(blast_GR, sink = arrow::FileOutputStream$create(blast_out), codec = arrow::Codec$create())
-      #blast_GR <- arrow::read_feather(file = arrow::MemoryMappedFile$create(blast_out), mmap = T))
-    }
+    if(return_data){ 
+    blast_GR <- GRObject_from_BLAST(blast_input = blast_outfile,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
+      
     if(gzip.output){
          gzip_outfile <- sprintf("%s.%s", blast_outfile, "gz")
       R.utils::compressFile(filename=blast_outfile, destname=gzip_outfile, ext="gz", temporary=FALSE, skip=TRUE, overwrite=FALSE, remove=TRUE, FUN=gzfile)
@@ -620,7 +605,7 @@ set.seed(seed)
 #' @param output_dir Path to BLAST output
 #' @param input_prefix_path If input lists/vectors are filenames, then provide input folder to prefix path
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)
-#' @param gzip.output Should the output files be Gzipped? Default - TRUE
+#' @param gzip.output Should the output files be Gzipped? Default - FALSE
 #' @param blast.sequence.limit Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files
 #' @param params_list Output of load_params() (Optional)
 #' @param clean_extract Delete Output file if exists? (Optional). Default - F
@@ -631,7 +616,7 @@ set.seed(seed)
 #' @param use.feather Should feather API be used to read BLAST Hits? - Default - FALSE
 #' @return A GRObject of BLAST Hits
 #' @export
-one2one_BLAST <- function(first_list,second_list, file_ext="fa", run_name="BLAST.one2one" ,blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, gzip.output=T,blast.sequence.limit=0, clean_extract=F, n_threads=8, verbose=F, seed=123,return_data=TRUE, use.feather=FALSE){ #return_f_callback=return,...
+one2one_BLAST <- function(first_list,second_list, file_ext="fa", run_name="BLAST.one2one" ,blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, gzip.output=F,blast.sequence.limit=0, clean_extract=F, n_threads=8, verbose=F, seed=123,return_data=TRUE, use.feather=FALSE){ #return_f_callback=return,...
 set.seed(seed)
   #tictoc::tic(msg = "one2one_BLAST :")
 
@@ -716,7 +701,7 @@ set.seed(seed)
 #' @param output_dir Path to BLAST output
 #' @param input_prefix_path If input lists/vectors are filenames, then provide input folder to prefix path
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)
-#' @param gzip.output Should the output files be Gzipped? Default - TRUE
+#' @param gzip.output Should the output files be Gzipped? Default - FALSE
 #' @param blast.sequence.limit Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files
 #' @param clean_extract Delete Output file if exists? (Optional). Default - F
 #' @param params_list Output of load_params() (Optional)
@@ -724,10 +709,10 @@ set.seed(seed)
 #' @param verbose Print DEBUG Messages?
 #' @param seed Seed value for reproducibility. Default - 123
 #' @param return_data Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE
-#' @param use.feather Should feather API be used to read BLAST Hits? - Default - FALSE
+#' @param use.feather Should feather API be used to read BLAST Hits? - Default - TRUE
 #' @return Named List of GRObjects (of BLAST Hits)
 #' @export
-all2all_BLAST <- function(first_list,second_list,file_ext="fa",blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, gzip.output=T, blast.sequence.limit=0, clean_extract=F, n_threads=8, verbose=F, seed=123,return_data=TRUE, use.feather=FALSE){ #,return_f_callback=return,...
+all2all_BLAST <- function(first_list,second_list,file_ext="fa",blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, gzip.output=F, blast.sequence.limit=0, clean_extract=F, n_threads=8, verbose=F, seed=123,return_data=TRUE, use.feather=T){ #,return_f_callback=return,...
 
   # if(is.null(params_list)){
   #   tryCatch(numWorkers <- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <- 2})
@@ -742,7 +727,7 @@ all2all_BLAST <- function(first_list,second_list,file_ext="fa",blast_DB_dir=temp
   }
   
   if(use.feather){
-    f_ext <- "fst"
+    f_ext <- "arrows"
   }else{
     f_ext <- "gz"  
   }
