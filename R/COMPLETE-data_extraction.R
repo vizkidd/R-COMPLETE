@@ -713,7 +713,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' @param params_list Parameter list from load_params()
 #' @export
 extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_name, params_list, verbose) {
-  do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
+  do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file, COMPLETE_env$parallel), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
 }
 
 #' Internal Function - Get FASTA data from BIOMART (using biomartr)
@@ -1149,21 +1149,6 @@ fetch_FASTA_user <- function(data, params_list, gene_list, verbose=T){
   }
 }
 
-#' Index FASTA IDs
-#'
-#' Convert longer FASTA IDs into short indices. Indices are generated recursively for fasta fasta files within subfolders of the path provided.
-#'
-#' @param path Path with FASTA Files to index
-#' @param index_out Output files with the indices of the format "file"[tab]"long_id"[tab]"index"
-#' @export
-index_FASTA_IDs <- function(path, index_out){
-  if (!is.null(path) && !is.null(index_out)){
-    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = "")
-  }else{
-    stop("Give path and output file for index")
-  }
-}
-
 #' Deduplicate FASTA Sequence
 #'
 #' Merge, Make Unique or Delete FASTA sequences with duplicated names. IF the duplicate sequence names are CDS blocks, merge them. If the duplicate seq names are EXON blocks, make them unique. If duplicate seq names are sequence duplicates, delete them.
@@ -1545,7 +1530,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   }, mc.cores = loaded_PARAMS$numWorkers, mc.silent = T, mc.preschedule = T)
 
   tictoc::tic(msg= "Coercing metdata from available organisms ...")
-
+  
   missing_genes_list <- parallel::mclapply(list.files(path = paste(loaded_PARAMS$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
     if(file.exists(paste(x,"/MISSING_GENES",sep="")) && file.info(paste(x,"/MISSING_GENES",sep=""))$size > 0 ){
       return(scan(paste(x,"/MISSING_GENES",sep=""), character(), quiet = T))

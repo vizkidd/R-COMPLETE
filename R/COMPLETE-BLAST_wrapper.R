@@ -254,6 +254,55 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
   return(tmp_gr)
 }
 
+#' Index FASTA IDs
+#'
+#' Convert longer FASTA IDs into short indices. Indices are generated recursively for fasta fasta files within subfolders of the path provided.
+#'
+#' @param path Path with FASTA Files to index
+#' @param index_out Output files with the indices of the format "file"[tab]"long_id"[tab]"index"
+#' @export
+index_FASTA_IDs <- function(path, index_out){
+  if (!is.null(path) && !is.null(index_out)){
+    invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"index_fastaIDs", index_out,path) ,spinner = T,stdout = "",stderr = ""))
+  }else{
+    stop("Give path and output file for index")
+  }
+}
+
+#' Shorten FASTA IDs
+#'
+#' WARNING - This will convert all the long-format FASTA IDs into short-format(indices) in the files for downstream compatibility. This can be reverted back with Lengthen FASTA IDs
+#'
+#' @param transcript_metadata Transcript Metadata file (from index_FASTA_IDs())
+#' @param fasta_files Vector of FASTA files to shorten IDs (Optional)
+#' @export
+shorten_FASTA_IDs <- function(transcript_metadata, fasta_files=c()){
+  warning("WARNING - This will convert all the long-format FASTA IDs into short-format(indices) for downstream compatibility. This can be reverted back with lengthen_FASTA_IDs()")
+  if (!is.null(transcript_metadata)){
+    install_parallel()
+    invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"shorten_fastaIDs", transcript_metadata, COMPLETE_env$parallel, paste(fasta_files,collapse = " ")) ,spinner = T,stdout = "",stderr = ""))
+  }else{
+    stop("Give transcript metadata file (can be generated with index_FASTA_IDs())")
+  }
+}
+
+#' Lengthen FASTA IDs
+#'
+#' WARNING - This will convert all the short-format(indices) into long-format FASTA IDs in the files.
+#'
+#' @param transcript_metadata Transcript Metadata file (from index_FASTA_IDs())
+#' @param fasta_files Vector of FASTA files (Optional)
+#' @export
+lengthen_FASTA_IDs <- function(transcript_metadata, fasta_files=c()){
+  warning("WARNING - This will convert all the short-format(indices) into long-format FASTA IDs in the files.")
+  if (!is.null(transcript_metadata)){
+    install_parallel()
+    invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"lengthen_FASTA_IDs", transcript_metadata, COMPLETE_env$parallel, paste(fasta_files,collapse = " ")) ,spinner = T,stdout = "",stderr = ""))
+  }else{
+    stop("Give transcript metadata file (can be generated with index_FASTA_IDs())")
+  }
+}
+
 #' Convert between BLAST output formats
 #'
 #' Convert between formats using the blast_formatter program
@@ -282,7 +331,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
     cmd_verbose <- NULL
   }
 
-  processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"convert_BLAST_format",conversion_prg_dir,infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+  invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"convert_BLAST_format",conversion_prg_dir,infile,outfile,outformat,paste(cols,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose))
 
 }
 
@@ -304,7 +353,7 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
     db_check <- processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"check_DB",fasta_file,blast_bin), stdout = "")
 
     if(is.null(db_check$stdout) || clean_extract){
-      processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
+      invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose))
     }
   }else{
     if(verbose){ message(paste("BLAST DB exists for",fasta_file)) }
@@ -398,7 +447,7 @@ set.seed(seed)
       # }
       if(return_data){
         blast_GR <- GRObject_from_BLAST(blast_input = blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
-        
+        #blast_GR <- LoadBLASTHits(blast_out, , use.feather = use.feather)
         return(list(BLAST_hits=blast_GR,BLAST_file=blast_out,run_name=run_name))
         }else{
         return(NULL)
@@ -454,9 +503,9 @@ set.seed(seed)
   subject_path <- fasta_in_paths[[2]]
 
   tryCatch({
-    if (stringi::stri_isempty(COMPLETE_env$parallel)) {
-      stop("Problem with GNU parallel installation. Reload R-COMPLETE")
-    }
+    #if (stringi::stri_isempty(COMPLETE_env$parallel)) {
+    #  stop("Problem with GNU parallel installation. Reload R-COMPLETE")
+    #}
 
     if(stringi::stri_isempty(blast_program)){
       stop("BLAST+ not found in $PATH. Provide blast_program")
@@ -530,7 +579,7 @@ set.seed(seed)
       if(tmp_proc$has_output_connection()){
         #tmp_proc$wait(timeout=5)
         #tmp_list <<- append(tmp_list,read.table(textConnection(processx::processx_conn_read_lines(tmp_proc$get_output_connection()),open = "r")))
-        tmp_list <<- append(tmp_list,read.table(textConnection(tmp_proc$read_all_output_lines(),open = "r")))
+        tmp_list <- append(tmp_list,read.table(textConnection(tmp_proc$read_all_output_lines(),open = "r")))
       }
       #if(verbose){
       #  message(paste("Converting",blast_out[i],"to BLAST Format 6 :", final_blast_out[i]))
@@ -538,7 +587,7 @@ set.seed(seed)
       #convert_BLAST_format(infile = blast_out[i],outfile = final_blast_out[i],conversion_prg_dir = BLAST_BIN, verbose = verbose ) 
 
     }, .options = furrr::furrr_options(seed = seed, scheduling=F))#, mc.cores = n_threads,mc.silent = !verbose,mc.preschedule = T , mc.set.seed = seed)#, .options = furrr::furrr_options(seed = TRUE, scheduling=n_threads))
-    tmp_list <<- dplyr::bind_rows(tmp_list)
+    tmp_list <- dplyr::bind_rows(tmp_list)
     #tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
     arrow::write_feather(x = as.data.frame(tmp_list),sink = blast_outfile, compression = "lz4")
     #tmp_o_stream$close()
@@ -560,7 +609,7 @@ set.seed(seed)
 
     if(return_data){ 
     blast_GR <- GRObject_from_BLAST(blast_input = blast_outfile,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
-      
+    #blast_GR <- LoadBLASTHits(blast_outfile, use.feather = use.feather)
     if(gzip.output){
          gzip_outfile <- sprintf("%s.%s", blast_outfile, "gz")
       R.utils::compressFile(filename=blast_outfile, destname=gzip_outfile, ext="gz", temporary=FALSE, skip=TRUE, overwrite=FALSE, remove=TRUE, FUN=gzfile)

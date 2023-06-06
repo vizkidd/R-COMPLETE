@@ -59,135 +59,47 @@ function index_fastaIDs() {
 	grep ">" -H -r "${arg_arr[@]:1}" | awk -F'>' -v x=$x '{ x = ++x; print substr($1, 1, length($1)-1) "\t" $2 "\t" "i"x; }' > "${arg_arr[0]}" #$1
 }
 
-function fastaID_to_number() {
-	#SLOWER implementation
-	#while IFS= read -r rna_id
-	#do
-	#	rna_file=$(echo $rna_id | awk '{print $1}')
-	#	rna_name=$(echo $rna_id | awk '{print $2}')
-	#	rna_num=$(echo $rna_id | awk '{print $3}')
-	#	echo $rna_file $rna_name $rna_num
-	#	sed --in-place "s/$rna_name/$rna_num/g" $rna_file 
-	#done < "files/rna_ids.txt"
+function shorten_fastaIDs() {
 	local arg_arr=($@)
+	export GNU_PARALLEL=${arg_arr[1]}
+	local transcript_meta=${arg_arr[0]}
+	local fasta_files=(${arg_arr[@]:2})
+	echo "${fasta_files[@]}"
+	# if [ $# -eq 0 ]
+  # 	then
+  #   	echo "Executed with shorten_fastaIDs transcript_metadata (or optional list of files to replace fasta IDs)"
+  #   	echo "If optional files are given then the IDs in files from transcript_metadata are not replaced "
+  #   	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
+  #   	return 1
+	# fi
+if [[ ${#fasta_files} > 0 ]]; then
+	$GNU_PARALLEL -j0 "sed -i -f <(grep -w {} $transcript_meta | awk -F'\t' '{print \"s/\"\$2\"/\"\$3\"/g\"}') {}" ::: $(grep -f <(echo "${fasta_files[@]}") $transcript_meta | awk -F'\t' '{print $1}' | sort -u)
+else
+	$GNU_PARALLEL -j0 "sed -i -f <(grep -w {} $transcript_meta | awk -F'\t' '{print \"s/\"\$2\"/\"\$3\"/g\"}') {}" ::: "$(awk -F'\t' '{print $1}' $transcript_meta | sort -u)"
+fi
 
-	if [ $# -eq 0 ]
-  	then
-    	echo "Executed with fastaID_to_number transcript_metadata (or optional list of files to replace fasta IDs)"
-    	echo "If optional files are given then the IDs in files from transcript_metadata are not replaced "
-    	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
-    	return 1
-	fi
-	if [ $# == 1 ]
-	then
-		local file_ids=$(parallel "basename {}" ::: $(awk '{print $1}' ${arg_arr[1]} | sort | uniq))
-		parallel -j ${#file_ids} "fID_to_num_parallel $1 {}" ::: ${file_ids[@]}
-	else
-		parallel -j $# "fID_to_num_multi $1 {}" ::: "${arg_arr[@]:1}"
-	fi
 }
 
-function fID_to_num_multi() {
-	#echo $@
-	if [ $# -lt 2 ]
-  	then
-    	echo "Please use fastaID_to_number, this is a parallel(multi file) implementation"
-    	return 1
-	fi
-
-	local f_name=$(basename $2)
-
-	##GETS FASTA IDs which are same between metadata and user provided file
-	grep -w -z -o "$(grep "${f_name%%.*}" $1 | awk '{print $2}')" $2 | while read -r line; do 
-		local rna_num=$(grep -w "$line" $1 | awk '{print $3}')
-		printf "%s %s -> %s\n" $2 $line $rna_num
-		sed --in-place "s/\<$line\>/$rna_num/g" $2
-	done
-}
-
-function fID_to_num_parallel() {
-	#PARALLEL implementation
-	if [ $# -lt 2 ]
-  	then
-    	echo "Please use fastaID_to_number, this is a parallel implementation"
-    	return 1
-	fi
-
-	grep -w $2 $1 | while read -r line; do 
-		local rna_file=$(echo $line | awk '{print $1}')
-		local rna_name=$(echo $line | awk '{print $2}')
-		local rna_num=$(echo $line | awk '{print $3}')
-		printf "%s %s -> %s\n" $rna_file $rna_name $rna_num
-		sed --in-place "s/\<$rna_name\>/$rna_num/g" $rna_file 
-	done
-}
-
-function number_to_fastaID() {
-	#SLOWER implementation
-	#while IFS= read -r rna_id
-	#do
-	#	rna_file=$(echo $rna_id | awk '{print $1}')
-	#	rna_name=$(echo $rna_id | awk '{print $2}')
-	#	rna_num=$(echo $rna_id | awk '{print $3}')
-	#	echo $rna_file $rna_name $rna_num
-	#	sed --in-place "s/$rna_num/$rna_name/g" $rna_file 
-	#done < "files/rna_ids.txt"
-
-	#echo "$# files"
+function lengthen_fastaIDs() {
 	local arg_arr=($@)
+	export GNU_PARALLEL=${arg_arr[1]}
+	local transcript_meta=${arg_arr[0]}
+	local fasta_files=(${arg_arr[@]:2})
 
-	if [ $# -eq 0 ]
-  	then
-    	echo "Executed with number_to_fastaID transcript_metadata (and optional list of files to replace fasta IDs)"
-    	echo "If optional files are given then the IDs in files from transcript_metadata are not replaced "
-    	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
-    	return 1
-	fi
-	if [ $# == 1 ]
-	then
-		local file_ids=$(parallel "basename {}" ::: $(awk '{print $1}' $1 | sort | uniq))
-		parallel -j ${#file_ids} "num_to_fID_parallel $1 {}" ::: ${file_ids[@]}
-	else
-		parallel -j $# "num_to_fID_multi $1 {}" ::: "${arg_arr[@]:1}"
-	fi
-}
+	# if [ $# -eq 0 ]
+  # 	then
+  #   	echo "Executed with lengthen_fastaIDs transcript_metadata (and optional list of files to replace fasta IDs)"
+  #   	echo "If optional files are given then the IDs in files from transcript_metadata are not replaced "
+  #   	echo "Transcript metadata has (filename, FASTA ID, numeric ID), can be generated with index_fastaIDs"
+  #   	return 1
+	# fi
+	
+if [[ ${#fasta_files} > 0 ]]; then
+	$GNU_PARALLEL -j0 "sed -i -f <(grep -w {} $transcript_meta | awk -F'\t' '{print \"s/\"\$3\"/\"\$2\"/g\"}') {}" ::: $(grep -f <(echo "${fasta_files[@]}") $transcript_meta | awk -F'\t' '{print $1}' | sort -u)
+else
+	$GNU_PARALLEL -j0 "sed -i -f <(grep -w {} $transcript_meta | awk -F'\t' '{print \"s/\"\$3\"/\"\$2\"/g\"}') {}" ::: "$(awk -F'\t' '{print $1}' $transcript_meta | sort -u)"
+fi
 
-function num_to_fID_multi() {
-	#echo $@
-	if [ $# -lt 2 ]
-  	then
-    	echo "Please use number_to_fastaID, this is a parallel(multi file) implementation"
-    	return 1
-	fi
-	##GETS numeric IDs which are same between metadata and user provided file
-	local f_name=$(basename $2)
-	echo $@
-	echo $f_name
-	#grep -w -z -o "$(seq $(awk 'BEGIN{a=   0}{if ($3>0+a) a=$3} END{print a}' $1) )" $2 | while read -r line; do 
-	grep -w -z -o "$(grep "${f_name%%.*}" $1 | awk '{print $3}')" $2 | while read -r line; do 
-		local rna_name=$(grep -w "$line" $1 | awk '{print $2}')
-		printf "%s %s -> %s\n" $2 $line $rna_name
-		sed --in-place "s/\<$line\>/$rna_name/g" $2
-	done
-}
-
-function num_to_fID_parallel() {
-	#PARALLEL implementation
-	#id_sub_list=($(grep $2 $1))
-	#echo ${id_sub_list[*]}
-	if [ $# -lt 2 ]
-  	then
-    	echo "Please use number_to_fastaID, this is a parallel implementation"
-    	return 1
-	fi
-
-	grep -w $2 $1 | while read -r line; do 
-		local rna_file=$(echo $line | awk '{print $1}')
-		local	rna_name=$(echo $line | awk '{print $2}')
-		local	rna_num=$(echo $line | awk '{print $3}')
-		printf "%s %s -> %s\n" $rna_file $rna_name $rna_num
-		sed --in-place "s/\<$rna_num\>/$rna_name/g" $rna_file 
-	done
 }
 
 function check_DB(){
@@ -206,12 +118,12 @@ function make_BLAST_DB() {
 	local blast_bin=${script_args[1]}
 	#echo "$1"
 	if [[ ! -s "$($blast_bin/blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
-		$blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #|| true # -parse_seqids -out $2
+		>&2 $blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #-parse_seqids #|| true # -parse_seqids -out $2
 	elif [[ ! -s $fasta_file ]]; then
 		>&2 echo "$fasta_file empty..."
 		exit 255
 	else
-		echo "BLAST DB for $fasta_file exists!"
+		>&2 echo "BLAST DB for $fasta_file exists!"
 		exit 0
 	fi
 }
@@ -532,6 +444,19 @@ function index_genome(){
 # 	done
 # }
 
+function concatenate_FASTA_groups(){
+	local script_args=($(echo $@))
+	local GROUPS_PATH=${script_args[0]}
+	local PARALLEL_PATH=${script_args[1]} 
+	if [[ ! -z $GROUPS_PATH && ! -z $PARALLEL_PATH ]]; then
+		group_files=($(awk -F'.' '{print $1"."$2}' <(ls -1 $GROUPS_PATH) | sort -u))
+		$PARALLEL_PATH -j0 "cat $GROUPS_PATH/{}* > $GROUPS_PATH/{}" ::: $(echo ${group_files[@]})
+		rm -f $GROUPS_PATH/*.*.*
+	else
+		>&2 echo "concatenate_FASTA_groups() - Requires GROUPS_PATH and PARALLEL_PATH."
+	fi
+}
+
 function group_FASTA_seqs(){
 	local script_args=($(echo $@))
 	local PARALLEL_PATH=${script_args[0]} 
@@ -544,8 +469,9 @@ function group_FASTA_seqs(){
 	local FASTA_PATH=${script_args[7]}
 
 	local f_org_name=$(basename $(dirname $FASTA_FILE))
-	grep ">" $FASTA_FILE | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS.$run_mode
-	grep ">" $FASTA_FILE | awk -F">" -v s_delim="$seqID_delimiter" -v run_mode=$run_mode -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH  --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} >> $GROUPS_PATH/\"{4}\".\"{5}\""
+	grep ">" $FASTA_FILE | sed "s/>/\n>/g" | awk -F"$seqID_delimiter" '{print $NF}' | awk '{split($0,a,","); for(key in a) print a[key];}' | sort -u > $OUT_PATH/genes/$f_org_name/ORG_CLUSTERS.$run_mode
+	#grep ">" $FASTA_FILE | sed "s/>/\n>/g" | awk -F">" -v s_delim="$seqID_delimiter" -v run_mode=$run_mode -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH  --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} | sed \"s/>/\n>/g\" >> $GROUPS_PATH/\"{4}\".\"{5}\".$RANDOM"
+	grep ">" $FASTA_FILE | sed "s/>/\n>/g" | awk -F">" -v s_delim="$seqID_delimiter" -v run_mode=$run_mode -v f_file=$FASTA_FILE '{split($2,a,s_delim); n=split(f_file,s,"."); split(a[run_mode],b,","); for (key in b) print f_file"\t"$2"\t"a[run_mode]"\t"b[key]"\t"s[n] ;}' | $PARALLEL_PATH --max-procs $n_threads --colsep '\t' --recend '\n' "samtools faidx {1} {2} | sed \"s/>/\n>/g\" >> $GROUPS_PATH/\"{4}\".\"{5}\".$RANDOM"
 	rm -f $FASTA_FILE.fai
 
 	return 0
@@ -855,6 +781,7 @@ function extract_transcript_regions(){
 	local GENE_LIST=${script_args[2]} #$3
 	local f_org_name=${script_args[3]} #$4
 	local param_file=${script_args[4]} #$5
+	local PARALLEL_PATH=${script_args[5]} #$5
 	local org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2; } ;')
 
 	#chmod a+x $GENOME_FILE
@@ -1035,7 +962,7 @@ function extract_transcript_regions(){
 
 	if [[ -s $gfile_name ]]; then
 
-	  time parallel --max-procs $n_threads "get_FASTA {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $OUT_PATH ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+	  time $PARALLEL_PATH --max-procs $n_threads "get_FASTA {1} {2} $bed_prefix/$f_org_name $gfile_name $f_org_name $FASTA_PATH/$f_org_name $ANNO_FILE $TEMP_PATH/$f_org_name $OUT_PATH ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
 
 	  >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name")
 	else
@@ -1316,9 +1243,10 @@ export -f cat_files
 export -f sed_replace
 ##DATA EXTRACTION FUNCTIONS
 #export -f group_FASTA_clusters
+export -f concatenate_FASTA_groups
 export -f group_FASTA_seqs
-export -f number_to_fastaID
-export -f fastaID_to_number
+export -f lengthen_fastaIDs
+export -f shorten_fastaIDs
 export -f index_fastaIDs
 export -f index_genome
 export -f collate_fasta
@@ -1336,11 +1264,6 @@ export -f extract_transcript_regions
 export -f check_OrthoDB
 #export -f label_sequenceIDs
 #export -f test_print
-
-export -f fID_to_num_parallel
-export -f fID_to_num_multi
-export -f num_to_fID_parallel
-export -f num_to_fID_multi
 
 ##FIND ORTHOLOGS FUNCTIONS
 export -f all2allblast
@@ -1360,9 +1283,14 @@ export -f color_BG
 export -f color_FG_BG
 export -f color_FG_BG_Bold
 
+export BLASTDB_LMDB_MAP_SIZE=3000000
+
+#export GNU_PARALLEL=$(which parallel)
+
 if [ $# -gt 0 ] ; then
 	script_args=($(echo $@))
 	#>&2 echo $@
+	#echo "${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
 	#export -f "${script_args[0]}"
 	time "${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
 	exit 0

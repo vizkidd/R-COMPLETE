@@ -1377,13 +1377,16 @@ group_FASTA <- function(gene_list ,params_list, id.col.index, remove.invalid.fil
   # cat(print_toc(tictoc::toc(quiet = T)))
 
   furrr::future_map(fasta_files, function(x){
-    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"group_FASTA_seqs",COMPLETE_env$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL)
+    invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"group_FASTA_seqs",COMPLETE_env$parallel,x,params_list$GROUPS_PATH,params_list$SEQUENCE_ID_DELIM,params_list$numWorkers,params_list$OUT_PATH,id.col.index,params_list$FASTA_OUT_PATH ) ,spinner = T,stdout = NULL,stderr = NULL))
   }, .options = furrr::furrr_options(seed = TRUE, scheduling=params_list$numWorkers))
   # all_groups_list <- parallel::mclapply(list.files(path = paste(params_list$OUT_PATH,"/genes/",sep=""),include.dirs=TRUE, full.names=TRUE),function(x){
   #   if(file.exists(paste(x,"/ORG_CLUSTERS.",grouping_by,sep="")) && file.info(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""))$size > 0 ){
   #     return(scan(paste(x,"/ORG_CLUSTERS.",grouping_by,sep=""), character(), quiet = T))
   #   }
   # }, mc.cores =  params_list$numWorkers, mc.preschedule = T, mc.silent = !verbose)
+  
+  invisible(processx::process$new(command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"concatenate_FASTA_groups", params_list$GROUPS_PATH, COMPLETE_env$parallel), stdout = "",stderr=""))
+  
   all_groups <- unique(basename(tools::file_path_sans_ext(list.files(path=params_list$GROUPS_PATH,full.names = T,recursive = F,include.dirs = F)))) #unique(unlist(all_groups_list,recursive = T)) #purrr::reduce(all_groups_list, union)
   data.table::fwrite(x = list(all_groups), file = paste(params_list$OUT_PATH,"/ALL_GROUPS.txt",sep=""), quote = F, row.names = F,col.names = F,na = "-", append = F, nThread = params_list$numWorkers)
   return(all_groups)
@@ -1540,6 +1543,9 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
       stop("No clusters were found!. Try other values for group.mode")
     }
 
+    index_FASTA_IDs(loaded_PARAMS$GROUPS_PATH,index_out = paste(loaded_PARAMS$OUT_PATH,"/fasta_ids.meta",sep=""))
+    shorten_FASTA_IDs(paste(loaded_PARAMS$OUT_PATH,"/fasta_ids.meta",sep=""))
+    
     #STEP 1 - ONLY for group.mode="cluster" - Place ungrouped sequences into groups (all2allblast BLAST ungrouped cluster againts all clusters) ##EG - ungrouped.1013114at2759.fw.all2all, 1013114at2759.ungrouped.bk.all2all
     #all2allblast and then wisard and then RBH for grouping ungrouped clusters
     if(any(grepl(pattern = "ungrouped",x = available_clusters,ignore.case = T))){
@@ -1578,7 +1584,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
               if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
                 return(NULL)
               }
-              processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+              invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL))
             }, mc.cores = 3)
           })) #, mc.cores = loaded_PARAMS$numWorkers)
 
@@ -1619,7 +1625,7 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
                 if(stringi::stri_cmp_eq(paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM))){
                   return(NULL)
                 }
-                processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL)
+                invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"sed_replace", paste(in_file[idx],".",reg,sep=""), paste(old_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM), paste(split_id[idx,],collapse=loaded_PARAMS$SEQUENCE_ID_DELIM) ) ,spinner = T,stdout = NULL,stderr = NULL))
               }, mc.cores = 3)
             })) #, mc.cores = loaded_PARAMS$numWorkers)
 
