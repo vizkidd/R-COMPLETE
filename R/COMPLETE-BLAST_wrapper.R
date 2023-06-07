@@ -297,7 +297,7 @@ lengthen_FASTA_IDs <- function(transcript_metadata, fasta_files=c()){
   warning("WARNING - This will convert all the short-format(indices) into long-format FASTA IDs in the files.")
   if (!is.null(transcript_metadata)){
     install_parallel()
-    invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"lengthen_FASTA_IDs", transcript_metadata, COMPLETE_env$parallel, paste(fasta_files,collapse = " ")) ,spinner = T,stdout = "",stderr = ""))
+    invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"lengthen_fastaIDs", transcript_metadata, COMPLETE_env$parallel, paste(fasta_files,collapse = " ")) ,spinner = T,stdout = "",stderr = ""))
   }else{
     stop("Give transcript metadata file (can be generated with index_FASTA_IDs())")
   }
@@ -356,8 +356,8 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
       invisible(processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",fasta_file, blast_bin) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose))
     }
   }else{
-    if(verbose){ message(paste("BLAST DB exists for",fasta_file)) }
-    return(fasta_file)
+    if(verbose){ stop(paste("make_BLAST_DB() - Missing File - ",fasta_file)) }
+    #return(fasta_file)
   }
 }
 
@@ -394,9 +394,10 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
 #' @param seed Seed value for reproducibility. Default - 123
 #' @param return_data Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE
 #' @param use.feather Should feather API be used to read BLAST Hits? - Default - TRUE
+#' @param header Does the BLAST format output have header? (Some do, check it, by default fmt 6 is used which does not have a header) - FALSE
 #' @return BLAST Hits as GRanges Object
 #' @export
-run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_out=NULL, blast_program=Sys.which("tblastx"), run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, blast.sequence.limit=0,n_threads=8, gzip.output=F, clean_extract=F,verbose=F, seed=123, return_data=TRUE, use.feather=T){ #return_f_callback=return,... #keep.output.files=T
+run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_out=NULL, blast_program=Sys.which("tblastx"), run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, blast.sequence.limit=1000,n_threads=8, gzip.output=F, clean_extract=F,verbose=F, seed=123, return_data=TRUE, use.feather=T, header=F){ #return_f_callback=return,... #keep.output.files=T
 set.seed(seed)
   tictoc::tic(msg = paste(run_name,":"))
 
@@ -423,7 +424,7 @@ set.seed(seed)
   }
 
   if(!is.null(blast_out)){
-    if(file.exists(sprintf("%s.%s", blast_out, "gz")) && file.info(sprintf("%s.%s", blast_out, "gz"))$size >0 || file.exists(blast_out) && file.info(blast_out)$size >0 && !clean_extract){
+    if(any(all(file.exists(sprintf("%s.%s", blast_out, "gz")), file.info(sprintf("%s.%s", blast_out, "gz"))$size >0), all(file.exists(blast_out), file.info(blast_out)$size >0, !clean_extract))){
       if(file.exists(sprintf("%s.%s", blast_out, "gz")) && file.info(sprintf("%s.%s", blast_out, "gz"))$size >0) {
         unlink(x = blast_out,recursive = F,force = T,expand = T)
         blast_out <- sprintf("%s.%s", blast_out, "gz")
@@ -456,7 +457,9 @@ set.seed(seed)
       unlink(c(blast_out,sprintf("%s.%s", blast_out, "gz")), recursive = F,force = T,expand = T)
     }
   }
-
+  blast_DB_dir <- file.path(tempdir(),run_name)
+  unlink(blast_DB_dir,force = T,recursive = T,expand = T)
+  dir.create(blast_DB_dir,showWarnings = F)
   tryCatch({
     fasta_in_paths <- parallel::mclapply(list(query_path,subject_path),function(x){
       if(any(grepl(x = class(x),pattern = "DNAString|AAString|RNAString",ignore.case = T,fixed = F))){
@@ -468,7 +471,7 @@ set.seed(seed)
             cat(paste("Sequence Count :", num_seqs,", File Count :", num_files))
           }
         }
-        tmp_fasta_file <- tempfile(pattern = paste("tmp.",seq(1:length(x)),".",sep=""),fileext = ".fa") #tempfile(pattern = "tmp",fileext = ".FASTA")
+        tmp_fasta_file <- tempfile(pattern = paste("tmp.",seq(1:length(x)),".",sep=""),fileext = ".fa", tmpdir = blast_DB_dir) #tempfile(pattern = "tmp",fileext = ".FASTA")
         return( unlist( parallel::mclapply(seq_along(x), function(y){
           Biostrings::writeXStringSet(x = Biostrings::DNAStringSet(x[[y]]),filepath = tmp_fasta_file[[y]], append = F,format = "fasta")
           return(tmp_fasta_file[[y]])
@@ -483,7 +486,7 @@ set.seed(seed)
           if(verbose){
             cat(paste("\nSequence Count :", num_seqs,", File Count :", num_files))
           }
-          tmp_fasta_file <- tempfile(pattern = paste("tmp.",seq(1:length(x)),".",sep=""),fileext = ".fa") #tempfile(pattern = "tmp",fileext = ".FASTA")
+          tmp_fasta_file <- tempfile(pattern = paste("tmp.",seq(1:length(x)),".",sep=""),fileext = ".fa",tmpdir = blast_DB_dir) #tempfile(pattern = "tmp",fileext = ".FASTA")
           return( unlist( parallel::mclapply(seq_along(x), function(y){
             Biostrings::writeXStringSet(x = Biostrings::DNAStringSet(x[[y]]),filepath = tmp_fasta_file[[y]], append = F,format = "fasta")
             return(tmp_fasta_file[[y]])
@@ -509,30 +512,29 @@ set.seed(seed)
 
     if(stringi::stri_isempty(blast_program)){
       stop("BLAST+ not found in $PATH. Provide blast_program")
-    }
-    else{
+    }else{
       BLAST_BIN <- dirname(blast_program)
     }
 
     #subject_path <- tools::file_path_as_absolute(subject_path)
-    if (!is.null(blast_DB_dir)) {
-      dir.create(blast_DB_dir,showWarnings = F,recursive = T)
+    #if (!is.null(blast_DB_dir)) {
+      #dir.create(blast_DB_dir,showWarnings = F,recursive = T)
       #query_DB <- tools::file_path_as_absolute(paste(blast_DB_dir,"/",basename(query_path),sep=""))
-      subject_DB <- paste(blast_DB_dir,"/",basename(subject_path),sep="") #tools::file_path_as_absolute()
+      #subject_DB <- paste(blast_DB_dir,"/",basename(subject_path),sep="") #tools::file_path_as_absolute()
       #if(!stringi::stri_cmp_eq(query_path,query_DB)){
       #  file.copy(query_path,query_DB,overwrite = T)
       #}
       #if(!stringi::stri_cmp_eq(subject_path,subject_DB)){
-      tryCatch(file.copy(subject_path,subject_DB,overwrite = T), error=function(cond){
-        #stop(cond)
-      })
+      #invisible(tryCatch(file.copy(subject_path,subject_DB,overwrite = T), error=function(cond){
+      #  #stop(cond)
+      #}))
       #}
       #query_path <- query_DB
       #if(verbose){
       # print(subject_DB)
       #}
-      subject_path <- subject_DB
-    }
+      #subject_path <- subject_DB
+    #}
 
     blast_outfile <- blast_out
     #if(is.null(blast_out)){
@@ -542,8 +544,8 @@ set.seed(seed)
       blast_out <- tempfile(pattern="blast_out", tmpdir = tempdir())
     }
     #}
-    final_blast_out <- paste(blast_out,seq(1:(length(query_path) * length(subject_path))),"blast6",sep=".")
-    blast_out <- paste(tools::file_path_sans_ext(final_blast_out),".blast11",sep="")
+    final_blast_out <- paste(blast_out,seq(1:length(subject_path)),"arrow",sep=".")
+    #blast_out <- paste(tools::file_path_sans_ext(final_blast_out),".blast11",sep="")
 
     if(verbose){
       print(query_path)
@@ -567,19 +569,27 @@ set.seed(seed)
     path_combinations <- unique(tidyr::crossing(query_path,subject_path))
     #print(path_combinations) #DEBUG
     
-    tmp_list <- list()
+    #tmp_list <- list()#
+    arrow_lfs <- arrow::LocalFileSystem$create()
+    arrow_ao_stream <- arrow_lfs$OpenAppendStream(blast_outfile) #arrow::FileOutputStream$create(blast_outfile)
     furrr::future_map(.x = seq_along(1:nrow(path_combinations)), .f = function(i){
     #parallel::mclapply(seq_along(1:nrow(path_combinations)), function(i){
       q_x <- as.character(path_combinations[i,1])
       s_y <- as.character(path_combinations[i,2])
       #processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = "",stderr = cmd_verbose) #stdout = cmd_verbose
-      tmp_proc <- processx::process$new(command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options),stdout = "|",stderr = cmd_verbose,supervise = T) 
-      tmp_proc$poll_io(timeout=-1)
-      #}
-      if(tmp_proc$has_output_connection()){
-        #tmp_proc$wait(timeout=5)
-        #tmp_list <<- append(tmp_list,read.table(textConnection(processx::processx_conn_read_lines(tmp_proc$get_output_connection()),open = "r")))
-        tmp_list <- append(tmp_list,read.table(textConnection(tmp_proc$read_all_output_lines(),open = "r")))
+      tmp_proc <- processx::process$new(command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options),stdout = "|", stderr = cmd_verbose,supervise = T) 
+      invisible(tmp_proc$poll_io(timeout=5)) ##DONT POLL without timeout when there is no output (or) when using linux fifo
+      
+      if(all(tmp_proc$is_alive(), tmp_proc$has_output_connection())){ # , !tmp_proc$is_incomplete_output()
+      #  #tmp_proc$wait(timeout=5)
+      #  #tmp_list <<- append(tmp_list,read.table(textConnection(processx::processx_conn_read_lines(tmp_proc$get_output_connection()),open = "r")))
+      #  #tmp_list <- append(tmp_list,read.table(fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r",blocking = F))) #textConnection(readLines(tmp_proc$get_output_connection(),open = "r"))
+      #tmp_read <- arrow::BufferReader$create(read.table(fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r",blocking = F)))
+      #read.table(readLines(fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r",blocking = T))) %>% arrow::write_dataset(path=paste(final_blast_out[i],"_arrow",sep=""), format = "feather")
+        #print(paste(final_blast_out[i],"_arrow",sep=""))
+        file_pipe <- fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r", blocking = T)
+      arrow::write_feather(x= read.table( file_pipe , row.names = NULL, header = header, fill = T, na.strings = "NA"), sink =arrow_ao_stream, compression = "lz4")  #fill = T, na.strings = "NA"
+
       }
       #if(verbose){
       #  message(paste("Converting",blast_out[i],"to BLAST Format 6 :", final_blast_out[i]))
@@ -587,11 +597,17 @@ set.seed(seed)
       #convert_BLAST_format(infile = blast_out[i],outfile = final_blast_out[i],conversion_prg_dir = BLAST_BIN, verbose = verbose ) 
 
     }, .options = furrr::furrr_options(seed = seed, scheduling=F))#, mc.cores = n_threads,mc.silent = !verbose,mc.preschedule = T , mc.set.seed = seed)#, .options = furrr::furrr_options(seed = TRUE, scheduling=n_threads))
-    tmp_list <- dplyr::bind_rows(tmp_list)
-    #tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
-    arrow::write_feather(x = as.data.frame(tmp_list),sink = blast_outfile, compression = "lz4")
-    #tmp_o_stream$close()
-    #print(head(blast_GR)) #DEBUG
+    #tmp_list <- dplyr::bind_rows(tmp_list)
+    
+    #}
+    arrow_ao_stream$close()
+    tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
+    purrr::map(final_blast_out,.f = function(b_out){
+      arrow::write_feather(x=as.data.frame(arrow::read_feather(paste(b_out,"_arrow",sep=""))), sink = tmp_o_stream,compression = "lz4")  
+      unlink(x = c(b_out,paste(b_out,"_arrow",sep="")),force = T,expand = T)
+    })
+    tmp_o_stream$close()
+    
     #print("here2")
 
     # if(is.null(blast_outfile)){

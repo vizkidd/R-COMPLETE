@@ -898,7 +898,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
         blast_GO <- blast_GO[which(blast_GO$query_transcript_id != blast_GO$subject_transcript_id),]
         blast_GO <- blast_GO[which(blast_GO$query_org != blast_GO$subject_org),]
         
-        arrow::write_feather(blast_GO, sink = arrow::FileOutputStream$create(in_file), codec = arrow::Codec$create()) #gzfile(in_file, open = "w")
+        arrow::write_feather(as.data.frame(blast_GO), sink = in_file, compression = "lz4") #gzfile(in_file, open = "w")
         
         wis_GO <- invisible(run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",n_threads = ceiling(params_list$numWorkers/2), verbose = verbose)) #score_col=16)
         wis_GO <- melt_wisard_list(wis_GO)
@@ -909,7 +909,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
         #wis_GO <- data.frame(wis_GO, stringsAsFactors = FALSE)
         #data.table::fwrite(x = as.matrix(wis_GO),file = out_file,quote = F,col.names = T,row.names = F,sep = "\t", nThread = params_list$numWorkers, compress = "auto", verbose = verbose)
         #write.table(x = wis_GO,file = gzfile(out_file,open = "w"),quote = F,col.names = T,row.names = F,sep = "\t")
-        arrow::write_feather(x = wis_GO,sink = arrow::FileOutputStream$create(out_file), codec = arrow::Codec$create()) #gzfile(out_file,open = "w")
+        arrow::write_feather(x = as.data.frame(wis_GO), sink = out_file, compression="lz4") #gzfile(out_file,open = "w")
       }
     },.options = furrr::furrr_options( seed = seed, scheduling=F)) #params_list$numWorkers
   },.options = furrr::furrr_options( seed = seed, scheduling=F)) #params_list$numWorkers
@@ -971,8 +971,8 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
         if(all(!is.null(unlist(sapply(RBH_out,is.null))))){
           #write.table(x = as.data.frame(RBH_out$in1), file = gzfile(out1, open = "w"),quote = F,col.names = T,row.names = F, sep = "\t")
           #write.table(x = as.data.frame(RBH_out$in2), file = gzfile(out2, open="w"),quote = F,col.names = T,row.names = F, sep = "\t")
-          arrow::write_feather(x = as.data.frame(RBH_out$in1),sink = arrow::FileOutputStream$create(out1), codec = arrow::Codec$create()) #gzfile(out1,open = "w")
-          arrow::write_feather(x = as.data.frame(RBH_out$in2),sink = arrow::FileOutputStream$create(out2), codec = arrow::Codec$create()) #gzfile(out2,open = "w")
+          arrow::write_feather(x = as.data.frame(RBH_out$in1),sink = out1, compression = "lz4") #gzfile(out1,open = "w")
+          arrow::write_feather(x = as.data.frame(RBH_out$in2),sink = out2, compression = "lz4") #gzfile(out2,open = "w")
           #data.table::fwrite(x = list(RBH_out$in1), file = out1,quote = F,col.names = T,row.names = F, sep = "\t", nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
           #data.table::fwrite(x = list(RBH_out$in2), file = out2,quote = F,col.names = T,row.names = F, sep = "\t", nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
         }
@@ -1022,8 +1022,8 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
           #write.table(x = final_blast_table$blast_table$BLAST_hits,file = gzfile(out1, open = "w"),quote = F,col.names = T,row.names = F, sep = "\t") #,nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
           #data.table::fwrite(x = list(final_blast_table$blast_table[[2]]),file = out2_data,quote = F,col.names = T,row.names = F, sep = "\t",nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
           #write.table(x = final_blast_table$coverage, file = gzfile(out_cov_data, open = "w"),quote = F,col.names = T,row.names = F, sep = "\t") #,nThread = params_list$numWorkers,compress = "auto", verbose = verbose)
-          arrow::write_feather(x = final_blast_table$blast_table$BLAST_hits, sink = arrow::FileOutputStream$create(out1), codec = arrow::Codec$create()) #gzfile(out1, open = "w")
-          arrow::write_feather(x = final_blast_table$coverage, sink = arrow::FileOutputStream$create(out_cov_data), codec = arrow::Codec$create()) #gzfile(out_cov_data, open = "w")
+          arrow::write_feather(x = as.data.frame(final_blast_table$blast_table$BLAST_hits), sink = out1, compression="lz4") #gzfile(out1, open = "w")
+          arrow::write_feather(x = as.data.frame(final_blast_table$coverage), sink = out_cov_data, compression="lz4") #gzfile(out_cov_data, open = "w")
         }
         #return(list(coverage=final_blast_table, run_name=run_name, BLAST_files=c(in1,in2)))
       } ) #, mc.cores = params_list$numWorkers, mc.silent = !verbose, mc.set.seed = seed)

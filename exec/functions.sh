@@ -450,7 +450,7 @@ function concatenate_FASTA_groups(){
 	local PARALLEL_PATH=${script_args[1]} 
 	if [[ ! -z $GROUPS_PATH && ! -z $PARALLEL_PATH ]]; then
 		group_files=($(awk -F'.' '{print $1"."$2}' <(ls -1 $GROUPS_PATH) | sort -u))
-		$PARALLEL_PATH -j0 "cat $GROUPS_PATH/{}* > $GROUPS_PATH/{}" ::: $(echo ${group_files[@]})
+		$PARALLEL_PATH -j0 "cat $GROUPS_PATH/{}* | awk 'NF' > $GROUPS_PATH/{}" ::: $(echo ${group_files[@]})
 		rm -f $GROUPS_PATH/*.*.*
 	else
 		>&2 echo "concatenate_FASTA_groups() - Requires GROUPS_PATH and PARALLEL_PATH."
@@ -501,7 +501,7 @@ function do_BLAST() {
 		if [[ -s "$BLAST_output" ]]; then
 			rm $BLAST_output
 		fi
-		if [[ ! -s $(>&2 $prog_path/blastdb_path -db $DB) ]]; then
+		if [[ ! -s $($prog_path/blastdb_path -db $DB) ]]; then
 			>&2 $prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
 		fi
 
@@ -512,14 +512,17 @@ function do_BLAST() {
 		>&2 echo "$run_name Started..."
 
 		if [[ -s "$query" && -s "$DB" ]]; then
- 
+ 			mkfifo "$BLAST_output"_pipe
  	if [[ -z $parallel_path ]]; then
- 		$prog -query $query -db $DB $blast_options #  #-outfmt 11 -out $BLAST_output 
+ 		$prog -query $query -db $DB $blast_options 1> "$BLAST_output"_pipe & #  #-outfmt 11 -out $BLAST_output 
+ 		#proc=$!
  	else
  		#$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
- 		$parallel_path -j $n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB $blast_options " #-j 1 #-outfmt 11 -out $BLAST_output 
+ 		$parallel_path -j $n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB $blast_options " 1> "$BLAST_output"_pipe & #-j 1 #-outfmt 11 -out $BLAST_output 
+ 		#proc=$!
  	fi
-		
+		wait $!
+		rm -f "$BLAST_output"_pipe 
 		>&2 echo "$run_name is done"
 		else
 			>&2 echo "($run_name) Error: Either ($query)/($DB) is empty/not found"
