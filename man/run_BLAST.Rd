@@ -7,7 +7,7 @@
 run_BLAST(
   query_path,
   subject_path,
-  blast_DB_dir = tempdir(),
+  blast_DB_dir = file.path(tempdir(), run_name),
   blast_out = NULL,
   blast_program = Sys.which("tblastx"),
   run_name = "BLAST",
@@ -21,7 +21,8 @@ run_BLAST(
   verbose = F,
   seed = 123,
   return_data = TRUE,
-  use.feather = FALSE
+  use.feather = T,
+  header = F
 )
 }
 \arguments{
@@ -57,7 +58,9 @@ run_BLAST(
 
 \item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
 
-\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - TRUE}
+
+\item{header}{Does the BLAST format output have header? (Some do, check it, by default fmt 6 is used which does not have a header) - FALSE}
 }
 \value{
 BLAST Hits as GRanges Object

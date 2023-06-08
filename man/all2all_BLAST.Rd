@@ -15,14 +15,14 @@ all2all_BLAST(
   input_prefix_path = NULL,
   params_list = NULL,
   COMPLETE.format.ids = F,
-  gzip.output = T,
+  gzip.output = F,
   blast.sequence.limit = 0,
   clean_extract = F,
   n_threads = 8,
   verbose = F,
   seed = 123,
   return_data = TRUE,
-  use.feather = FALSE
+  use.feather = T
 )
 }
 \arguments{
@@ -46,7 +46,7 @@ all2all_BLAST(
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)}
 
-\item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
+\item{gzip.output}{Should the output files be Gzipped? Default - FALSE}
 
 \item{blast.sequence.limit}{Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files}
 
@@ -60,7 +60,7 @@ all2all_BLAST(
 
 \item{return_data}{Logical. Should GRanges Object of BLAST Hits be returned? Default - TRUE}
 
-\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - FALSE}
+\item{use.feather}{Should feather API be used to read BLAST Hits? - Default - TRUE}
 }
 \value{
 Named List of GRObjects (of BLAST Hits)

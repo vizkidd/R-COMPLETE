@@ -16,7 +16,7 @@ one2one_BLAST(
   input_prefix_path = NULL,
   params_list = NULL,
   COMPLETE.format.ids = F,
-  gzip.output = T,
+  gzip.output = F,
   blast.sequence.limit = 0,
   clean_extract = F,
   n_threads = 8,
@@ -49,7 +49,7 @@ one2one_BLAST(
 
 \item{COMPLETE.format.ids}{Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE (Default) otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN) (Optional)}
 
-\item{gzip.output}{Should the output files be Gzipped? Default - TRUE}
+\item{gzip.output}{Should the output files be Gzipped? Default - FALSE}
 
 \item{blast.sequence.limit}{Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files}
 

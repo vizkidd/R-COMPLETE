@@ -118,7 +118,7 @@ function make_BLAST_DB() {
 	local blast_bin=${script_args[1]}
 	#echo "$1"
 	if [[ ! -s "$($blast_bin/blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
-		>&2 $blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  -hash_index #-parse_seqids #|| true # -parse_seqids -out $2
+		>&2 $blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  #-hash_index #-parse_seqids #|| true # -parse_seqids -out $2
 	elif [[ ! -s $fasta_file ]]; then
 		>&2 echo "$fasta_file empty..."
 		exit 255
@@ -487,6 +487,7 @@ function do_BLAST() {
 	# $6 - BLAST options
 
 	#echo $1 $2 $3 $4 $5 $6 $7
+	#>&2 echo $@
 	local script_args=($(echo $@))
 	local parallel_path=${script_args[0]}
 	local run_name=${script_args[1]}
@@ -502,28 +503,31 @@ function do_BLAST() {
 			rm $BLAST_output
 		fi
 		if [[ ! -s $($prog_path/blastdb_path -db $DB) ]]; then
-			>&2 $prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index || true
+			>&2 $prog_path/makeblastdb -in "$DB" -dbtype nucl  #-hash_index || true
 		fi
 
 		#if [[ -z $parallel_path ]]; then
 		#	local parallel_path=$(which parallel)
 		#fi
 
-		>&2 echo "$run_name Started..."
-
+		#>&2 echo "$run_name Started..."
+		#>&2 echo "$prog -db $DB $blast_options -out - "
 		if [[ -s "$query" && -s "$DB" ]]; then
- 			mkfifo "$BLAST_output"_pipe
+ 			rm -f "$BLAST_output"
+ 			mkfifo "$BLAST_output" #_pipe
  	if [[ -z $parallel_path ]]; then
- 		$prog -query $query -db $DB $blast_options 1> "$BLAST_output"_pipe & #  #-outfmt 11 -out $BLAST_output 
- 		#proc=$!
+ 		$prog -query $query -db $DB $blast_options -out - 1> $BLAST_output & #_pipe & #  #-outfmt 11 -out $BLAST_output 
+ 		proc=$!
  	else
  		#$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
- 		$parallel_path -j $n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB $blast_options " 1> "$BLAST_output"_pipe & #-j 1 #-outfmt 11 -out $BLAST_output 
- 		#proc=$!
+ 		$parallel_path -j$n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --line-buffer --block -1 "$prog -db $DB $blast_options -out - "  1> "$BLAST_output" & #-j 1 #-outfmt 11 -out $BLAST_output #--block -1 #--group #--keep-order
+ 		proc=$!
  	fi
-		wait $!
-		rm -f "$BLAST_output"_pipe 
-		>&2 echo "$run_name is done"
+		
+		wait $proc
+		rm -f "$BLAST_output" 
+
+		#>&2 echo "$run_name is done"
 		else
 			>&2 echo "($run_name) Error: Either ($query)/($DB) is empty/not found"
 			return 255

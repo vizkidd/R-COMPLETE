@@ -4,21 +4,10 @@
 \alias{LoadBLASTHits}
 \title{Load BLAST Hits into a data.frame}
 \usage{
-LoadBLASTHits(
-  infile,
-  transcript_ID_metadata = NULL,
-  col.names = NULL,
-  sep = "\\t",
-  header = F,
-  use.feather = F
-)
+LoadBLASTHits(infile, sep = "\\t", header = F, use.feather = F)
 }
 \arguments{
 \item{infile}{BLAST hits filename (not a connection) (Gzipped files supported)}
-
-\item{transcript_ID_metadata}{Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.}
-
-\item{col.names}{Name of the columns of the BLAST File}
 
 \item{sep}{Delimiter of the BLAST File columns. Default - '\\t'}
 
@@ -30,9 +19,11 @@ LoadBLASTHits(
 Data Frame with BLAST Results
 }
 \description{
-Give the path to a BLAST Hits file to load it into a data.frame(BLAST HITs Table). The column names can be provided as col.names. Rows with NAs are automatically removed
+Give the path to a BLAST Hits file to load it into a data.frame(BLAST HITs Table). The column names can be provided as col.names. Rows with NAs are automatically removed.
 }
 \details{
+Note : If use.feather is enabled, then the functions returns an arrow::RecordBatchStreamReader object. Call wrap it in an iterators::iter() (like batch_iter <- iter(function(){ batch_reader$read_next_batch() })) and call iterators::nextElem(batch_iter) to get each batch of the BLAST Hits.
+
 Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in fs::path_package("COMPLETE","exec","functions.sh"))
 }
 \note{

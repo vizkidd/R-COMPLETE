@@ -1,7 +1,11 @@
 #@param sep2 Delimiter 2 of the BLAST File columns. Default - c("","|",""). Check ?data.table::fwrite or ?data.table::fread
+#@param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
+#@param col.names Name of the columns of the BLAST File
 #' Load BLAST Hits into a data.frame
 #'
-#' Give the path to a BLAST Hits file to load it into a data.frame(BLAST HITs Table). The column names can be provided as col.names. Rows with NAs are automatically removed
+#' Give the path to a BLAST Hits file to load it into a data.frame(BLAST HITs Table). The column names can be provided as col.names. Rows with NAs are automatically removed.
+#' 
+#' Note : If use.feather is enabled, then the functions returns an arrow::RecordBatchStreamReader object. Call wrap it in an iterators::iter() (like batch_iter <- iter(function(){ batch_reader$read_next_batch() })) and call iterators::nextElem(batch_iter) to get each batch of the BLAST Hits.
 #'
 #' Optional : You can provide the file/table with indexed Transcsript IDs. The format must be "file"[tab]"long_id"[tab]"index" (without a header). It can be generated with the  index_FASTA_IDs() (check ?index_FASTA_IDs or index_fastaIDs() in fs::path_package("COMPLETE","exec","functions.sh"))
 #'
@@ -11,54 +15,58 @@
 #' @note Column indices will be used when processing the data. Column names are only for user reference. First column must be the query sequence ID and the second column must be the subject sequence ID
 #'
 #' @param infile BLAST hits filename (not a connection) (Gzipped files supported)
-#' @param transcript_ID_metadata Tab-delimited File with the filenames, indexed transcript IDs and the long transcript IDs.
-#' @param col.names Name of the columns of the BLAST File
 #' @param sep Delimiter of the BLAST File columns. Default - '\\t'
 #' @param header Does the file have a header? . Default - FALSE
 #' @param use.feather Should feather API be used to read BLAST Hits? - Default - FALSE
 #' @return Data Frame with BLAST Results
 #' @export
-LoadBLASTHits <- function(infile, transcript_ID_metadata=NULL, col.names=NULL, sep="\t", header = F,use.feather=F){ #,sep2 = c("","|","") # gzipped=F
+LoadBLASTHits <- function(infile, sep="\t", header = F,use.feather=F){ # transcript_ID_metadata=NULL, col.names=NULL,  ##,sep2 = c("","|","") # gzipped=F
 
-  if(!is.null(transcript_ID_metadata) && is.character(transcript_ID_metadata)){
-    transcript_ID_metadata <- read.table(file = transcript_ID_metadata,header = F,sep="\t",quote = "")
-  }
+  # if(!is.null(transcript_ID_metadata) && is.character(transcript_ID_metadata)){
+  #   transcript_ID_metadata <- read.table(file = transcript_ID_metadata,header = F,sep="\t",quote = "")
+  # }
   if(try(file.exists(infile))&& file.info(infile)$size > 0){ #any(grepl(x = class(infile), pattern = "gzfile|connection", ignore.case = T)) #
     #if(gzipped){
     #  infile <- gzfile(description = infile, open = "r")
     #}
     #blast_results <- read.table(file = infile,header = header,sep=sep,quote = "", blank.lines.skip = T, fill = t,na.strings = NA)
     if(!use.feather){
-      blast_results <- read.table(file = infile,header = header,sep=sep,quote = "", blank.lines.skip = T) #data.table::fread(file = infile,header = header,sep=sep,quote = "", blank.lines.skip = T, nThread = n_threads)
+      blast_results <- iterators::iread.table(file = infile,row.names = NULL,header = header,sep=sep,quote = "", blank.lines.skip = T, fill=T,na.strings="NA") #data.table::fread(file = infile,header = header,sep=sep,quote = "", blank.lines.skip = T, nThread = n_threads)
+      return(blast_results)
     }else{
-      blast_results <- arrow::read_feather(file = infile, mmap = T)
+      arrow_lfs <- arrow::LocalFileSystem$create()
+      arrow_i_stream <- arrow_lfs$OpenInputStream(infile)
+      batch_reader <- arrow::RecordBatchStreamReader$create(arrow_i_stream)
+      #blast_results <- arrow::read_feather(file = infile, mmap = T)
+      return(batch_reader) #batch_iter <- iter(function())
     }
     
   }else{
     stop(paste("File",infile,"does not exist or size 0"))
   }
-  if(!is.null(col.names)){
-    if(ncol(blast_results) == length(col.names)){
-      colnames(blast_results) <- col.names
-    }else{
-      stop(paste("Number of columns in BLAST file and length of given column names are not equal!",ncol(blast_results),"!=",length(col.names)))
-    }
-  }
+  # if(!is.null(col.names)){
+  #   if(ncol(blast_results) == length(col.names)){
+  #     colnames(blast_results) <- col.names
+  #   }else{
+  #     stop(paste("Number of columns in BLAST file and length of given column names are not equal!",ncol(blast_results),"!=",length(col.names)))
+  #   }
+  # }
 
-  if(!is.null(transcript_ID_metadata)){
-    transcript_ID_metadata <- as.data.frame(transcript_ID_metadata)
-    colnames(transcript_ID_metadata) <- c("file","id","index")
-
-    query_long_IDs <- transcript_ID_metadata[match(blast_results[,c(1)],transcript_ID_metadata$index),c("id")]
-    subject_long_IDs <- transcript_ID_metadata[match(blast_results[,c(2)],transcript_ID_metadata$index),c("id")]
-
-    blast_results[,c(1)] <- query_long_IDs
-    blast_results[,c(2)] <- subject_long_IDs
-  }
-
-  blast_results <- blast_results[apply(blast_results, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),] #REMOVING NAs
-
-  return(blast_results)
+  # if(!is.null(transcript_ID_metadata)){
+  #   transcript_ID_metadata <- as.data.frame(transcript_ID_metadata)
+  #   colnames(transcript_ID_metadata) <- c("file","id","index")
+  # 
+  #   query_long_IDs <- transcript_ID_metadata[match(blast_results[,c(1)],transcript_ID_metadata$index),c("id")]
+  #   subject_long_IDs <- transcript_ID_metadata[match(blast_results[,c(2)],transcript_ID_metadata$index),c("id")]
+  # 
+  #   blast_results[,c(1)] <- query_long_IDs
+  #   blast_results[,c(2)] <- subject_long_IDs
+  # }
+  # 
+  # blast_results <- blast_results[apply(blast_results, MARGIN=1,FUN=function(x){return(!any(is.na(x)))}),] #REMOVING NAs
+  # 
+  # return(blast_results)
+  return(NULL)
 }
 
 #@param sep2 Delimiter 2 of the BLAST File columns. Default - c("","|",""). Check ?data.table::fwrite or ?data.table::fread
@@ -342,7 +350,7 @@ convert_BLAST_format <- function(infile, outfile,outformat=6,cols=c("qseqid","ss
 #' @param clean_extract Remove existing BLAST DB?
 #' @param verbose Print DEBUG Messages?
 #' @export
-make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),clean_extract=F, verbose=F){
+make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),clean_extract=T, verbose=F){
   if(file.exists(fasta_file)){
     if(verbose){
       cmd_verbose <- ""
@@ -397,7 +405,7 @@ make_BLAST_DB <- function(fasta_file,blast_bin=dirname(Sys.which("tblastx")),cle
 #' @param header Does the BLAST format output have header? (Some do, check it, by default fmt 6 is used which does not have a header) - FALSE
 #' @return BLAST Hits as GRanges Object
 #' @export
-run_BLAST <- function(query_path, subject_path,blast_DB_dir = tempdir(), blast_out=NULL, blast_program=Sys.which("tblastx"), run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, blast.sequence.limit=1000,n_threads=8, gzip.output=F, clean_extract=F,verbose=F, seed=123, return_data=TRUE, use.feather=T, header=F){ #return_f_callback=return,... #keep.output.files=T
+run_BLAST <- function(query_path, subject_path,blast_DB_dir = file.path(tempdir(),run_name), blast_out=NULL, blast_program=Sys.which("tblastx"), run_name="BLAST",blast_options="", COMPLETE.format.ids=F,params_list=NULL, blast.sequence.limit=0,n_threads=8, gzip.output=F, clean_extract=F,verbose=F, seed=123, return_data=TRUE, use.feather=T, header=F){ #return_f_callback=return,... #keep.output.files=T
 set.seed(seed)
   tictoc::tic(msg = paste(run_name,":"))
 
@@ -457,7 +465,6 @@ set.seed(seed)
       unlink(c(blast_out,sprintf("%s.%s", blast_out, "gz")), recursive = F,force = T,expand = T)
     }
   }
-  blast_DB_dir <- file.path(tempdir(),run_name)
   unlink(blast_DB_dir,force = T,recursive = T,expand = T)
   dir.create(blast_DB_dir,showWarnings = F)
   tryCatch({
@@ -520,15 +527,16 @@ set.seed(seed)
     #if (!is.null(blast_DB_dir)) {
       #dir.create(blast_DB_dir,showWarnings = F,recursive = T)
       #query_DB <- tools::file_path_as_absolute(paste(blast_DB_dir,"/",basename(query_path),sep=""))
-      #subject_DB <- paste(blast_DB_dir,"/",basename(subject_path),sep="") #tools::file_path_as_absolute()
+      subject_DB <- file.path(blast_DB_dir,basename(subject_path)) #tools::file_path_as_absolute()
       #if(!stringi::stri_cmp_eq(query_path,query_DB)){
       #  file.copy(query_path,query_DB,overwrite = T)
       #}
-      #if(!stringi::stri_cmp_eq(subject_path,subject_DB)){
+      if(!all(stringi::stri_cmp_eq(subject_path,subject_DB))){
+        file.copy(subject_path, subject_DB, overwrite = T)
       #invisible(tryCatch(file.copy(subject_path,subject_DB,overwrite = T), error=function(cond){
       #  #stop(cond)
       #}))
-      #}
+      }
       #query_path <- query_DB
       #if(verbose){
       # print(subject_DB)
@@ -563,7 +571,7 @@ set.seed(seed)
     #Only subject fasta files needs to be a BLAST DB
     #processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"make_BLAST_DB",query_path, dirname(blast_program)) ,spinner = T,stdout = "",stderr = "")
     invisible( furrr::future_map(subject_path,.f = function(x){
-      make_BLAST_DB(fasta_file=x,blast_bin=BLAST_BIN, verbose=verbose)
+      make_BLAST_DB(fasta_file=x,blast_bin=BLAST_BIN, verbose=verbose, clean_extract = T)
     }, .options = furrr::furrr_options(seed = seed, scheduling=F)) ) #n_threads
 
     path_combinations <- unique(tidyr::crossing(query_path,subject_path))
@@ -576,6 +584,7 @@ set.seed(seed)
     #parallel::mclapply(seq_along(1:nrow(path_combinations)), function(i){
       q_x <- as.character(path_combinations[i,1])
       s_y <- as.character(path_combinations[i,2])
+      
       #processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options) ,spinner = T,stdout = "",stderr = cmd_verbose) #stdout = cmd_verbose
       tmp_proc <- processx::process$new(command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"do_BLAST",COMPLETE_env$parallel,run_name,q_x,s_y,final_blast_out[i],blast_program,n_threads,blast_options),stdout = "|", stderr = cmd_verbose,supervise = T) 
       invisible(tmp_proc$poll_io(timeout=5)) ##DONT POLL without timeout when there is no output (or) when using linux fifo
@@ -587,9 +596,11 @@ set.seed(seed)
       #tmp_read <- arrow::BufferReader$create(read.table(fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r",blocking = F)))
       #read.table(readLines(fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r",blocking = T))) %>% arrow::write_dataset(path=paste(final_blast_out[i],"_arrow",sep=""), format = "feather")
         #print(paste(final_blast_out[i],"_arrow",sep=""))
-        file_pipe <- fifo(description = paste(final_blast_out[i],"_pipe",sep=""), open = "r", blocking = T)
-      arrow::write_feather(x= read.table( file_pipe , row.names = NULL, header = header, fill = T, na.strings = "NA"), sink =arrow_ao_stream, compression = "lz4")  #fill = T, na.strings = "NA"
-
+        
+        file_pipe <- fifo(description = final_blast_out[i], open = "r", blocking = T) #paste(final_blast_out[i],"_pipe",sep="")
+        out_tbl <- arrow::Table$create(read.table( file_pipe , row.names = NULL, header = header, fill = T, na.strings = "NA"))
+      arrow::write_feather(x= out_tbl, sink =arrow_ao_stream, compression = "lz4")  #fill = T, na.strings = "NA"
+      
       }
       #if(verbose){
       #  message(paste("Converting",blast_out[i],"to BLAST Format 6 :", final_blast_out[i]))
@@ -621,7 +632,7 @@ set.seed(seed)
     #print(final_blast_out) #DEBUG
     #processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"cat_files",blast_outfile, paste(final_blast_out,collapse = " ") ) ,spinner = T,stdout = cmd_verbose,stderr = cmd_verbose)
 
-    unlink(x = c(final_blast_out,blast_out),recursive = T,force = T,expand = T)
+    unlink(x = c(final_blast_out,blast_out, blast_DB_dir),recursive = T,force = T,expand = T)
 
     if(return_data){ 
     blast_GR <- GRObject_from_BLAST(blast_input = blast_outfile,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)

@@ -7,7 +7,7 @@
 make_BLAST_DB(
   fasta_file,
   blast_bin = dirname(Sys.which("tblastx")),
-  clean_extract = F,
+  clean_extract = T,
   verbose = F
 )
 }
