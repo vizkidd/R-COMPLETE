@@ -541,7 +541,7 @@ set.seed(seed)
       #if(verbose){
       # print(subject_DB)
       #}
-      #subject_path <- subject_DB
+      subject_path <- subject_DB
     #}
 
     blast_outfile <- blast_out
@@ -612,12 +612,13 @@ set.seed(seed)
     
     #}
     arrow_ao_stream$close()
-    tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
-    purrr::map(final_blast_out,.f = function(b_out){
-      arrow::write_feather(x=as.data.frame(arrow::read_feather(paste(b_out,"_arrow",sep=""))), sink = tmp_o_stream,compression = "lz4")  
-      unlink(x = c(b_out,paste(b_out,"_arrow",sep="")),force = T,expand = T)
-    })
-    tmp_o_stream$close()
+   
+    # tmp_o_stream <- arrow::FileOutputStream$create(blast_outfile)
+    #purrr::map(final_blast_out,.f = function(b_out){
+    #  arrow::write_feather(x=as.data.frame(arrow::read_feather(paste(b_out,"_arrow",sep=""))), sink = tmp_o_stream,compression = "lz4")  
+    #  unlink(x = c(b_out,paste(b_out,"_arrow",sep="")),force = T,expand = T)
+    #})
+    #tmp_o_stream$close()
     
     #print("here2")
 

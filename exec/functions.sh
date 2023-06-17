@@ -118,7 +118,7 @@ function make_BLAST_DB() {
 	local blast_bin=${script_args[1]}
 	#echo "$1"
 	if [[ ! -s "$($blast_bin/blastdb_path -db "$fasta_file")" ]]; then #if [ -s "$1" ]; then
-		>&2 $blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl  #-hash_index #-parse_seqids #|| true # -parse_seqids -out $2
+		>&2 $blast_bin/makeblastdb -in "$fasta_file" -dbtype nucl -hash_index #-parse_seqids #|| true # -parse_seqids -out $2
 	elif [[ ! -s $fasta_file ]]; then
 		>&2 echo "$fasta_file empty..."
 		exit 255
@@ -503,7 +503,7 @@ function do_BLAST() {
 			rm $BLAST_output
 		fi
 		if [[ ! -s $($prog_path/blastdb_path -db $DB) ]]; then
-			>&2 $prog_path/makeblastdb -in "$DB" -dbtype nucl  #-hash_index || true
+			>&2 $prog_path/makeblastdb -in "$DB" -dbtype nucl  -hash_index #|| true
 		fi
 
 		#if [[ -z $parallel_path ]]; then
@@ -520,7 +520,7 @@ function do_BLAST() {
  		proc=$!
  	else
  		#$parallel_path -j1 --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --block -1 "$prog -db $DB -outfmt 11 $blast_options -out $BLAST_output " #-word_size 5 -evalue 1e-25
- 		$parallel_path -j$n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --line-buffer --block -1 "$prog -db $DB $blast_options -out - "  1> "$BLAST_output" & #-j 1 #-outfmt 11 -out $BLAST_output #--block -1 #--group #--keep-order
+ 		$parallel_path -j$n_threads --joblog $(dirname $DB)/parallel_JOBLOG.txt --compress --pipepart -a "$query" --recstart '>' --line-buffer --block -1 "$prog -db $DB $blast_options -out - "  1> "$BLAST_output" & #-j 1 #-outfmt 11 -out $BLAST_output #--block -1 #--group #--keep-order #$n_threads
  		proc=$!
  	fi
 		
