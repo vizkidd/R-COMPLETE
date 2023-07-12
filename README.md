@@ -8,6 +8,7 @@
     + [User Data](#user_data)
     + [COMPLETE.format.ids](#ids)
     + [QuickBLAST](#blast)
+        + [QuickBLAST Options](#blast_options)
     + [Flow](#flow)
         + [EXTRACT_DATA()](#fun1)
         + [FIND_TRANSCRIPT_ORTHOLOGS()](#fun2)      
@@ -154,6 +155,12 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 + all2all - all2all BLAST between a list of files
 + run_QuickBLAST* - Run QuickBLAST - Multithreaded Streaming of FASTA files
 + run_BLAST - Call blast suite of programs from cmdline
+
+<a name="blast_options"/>
+
+#### QuickBLAST Options :
+    Same as BLAST but only the BLAST options and not the INPUT, OUTPUT, Sequence specifications. List of available options can be checked with `COMPLETE::GetAvailableBLASTOptions()`. Inputs and Outputs are provided as parameters and sequence specification can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()`. Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
+
   
 <a name="flow"/>
 
