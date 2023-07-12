@@ -255,7 +255,7 @@ COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
 INITIALIZE <- function() {
   options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
   #options(download.file.method="curl")
-  
+
   COMPLETE_env <<- new.env(parent=baseenv())
   
   COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
@@ -296,6 +296,21 @@ INITIALIZE <- function() {
   Sys.chmod(fs::path_package("COMPLETE","exec","functions.sh"), "777", use_umask = FALSE)
   
   #Rcpp::sourceCpp(file=fs::path_package("COMPLETE","exec","run_WISARD.cpp"))
+  
+  # dyn.load(fs::path_package("COMPLETE","libs","QuickBLAST.so"), local=F, now=T)
+  # mod <- Module("blast_module",inline::getDynLib("QuickBLAST"))
+  # get_add_ptr <- function() {
+  #   .C("myPackage_get_add_ptr", PACKAGE = "myPackage")[[1]]
+  # }
+  
+  # remotes::install_local(fs::path_package("COMPLETE","libs","QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz"),build = F, quiet = T)
+  # bw_ptr  <- QuickBLAST::CreateNewBLASTInstance(0,0,F)
+  # QuickBLAST::BLAST2Seqs(bw_ptr, ">i11166\nATGGCACGTCTGGTAGCAGTTTGCAGGGAAGGGGAAGAGGAATACCCGTTTCTCGCCAGACAGATCCCCCTCTTCATCGATGACACTCTCACGATGGTGATGGAGTTTTCCGATAGCGTCATGGATGTTGACAGCCATGAAATAAACGCGTCTCATTGGAAACAATTTTCTGAGTACCACTCCAAGTTGAAGCAACAGGACCTGAACATCGCGCTGATGGTGACATCCAGAGAGGTCTACGGTGCATTATCTCAGCTGGTGCCATGCGTGGGCTGCAGAAGAAGCGTGGAGCGCCTCTTC", ">i11167\nATGGCACGTCTGGTAGCAGTTTGCAGGGAAGGGGAAGAGGAATACCCGTTTCTCGCCAGACAGATCCCCCTCTTCATCGATGACACTCTCACGATGGTGATGGAGTTTTCCGATAGCGTCATGGATGTTGACAGCCATGAAATAAACGCGTCTCATTGGAAACAATTTTCTGAGTACCACTCCAAGTTGAAGCAACAGGACCTGAACATCGCGCTGATGGTGACATCCAGAGAGGTCTACGGTGCATTATCTCAGCTGGTGCCATGCGTGGGCTGCAGAAGAAGCGTGGAGCGCCTCTTCTCACACTTAGTCGAATCAGGCAACCCGGCCCTGGAGCCGCTGACAGTGAAACCCACAGGA", "blastn","")
+  
+  COMPLETE_env$ESeqType <- list(eNucleotide=0, eProtein=1);
+  COMPLETE_env$EStrand <- list(ePlus=0, eMinus=1);
+  COMPLETE_env$EInputType <- list(eFile=0, eSequenceString=1);
+
   
   if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
     message("Warning: NCBI-BLAST path is empty")

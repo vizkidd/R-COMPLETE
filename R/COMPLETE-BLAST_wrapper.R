@@ -662,6 +662,111 @@ set.seed(seed)
   })
 }
 
+#' Perform Nucleotide BLAST between 2 FASTA files using the Custom Library
+#'
+#' BLAST between two FASTA files. BLAST output is saved in Arrow::Feather/Parquet format.
+#'
+#' @param query_path Path to Query FASTA File
+#' @param subject_path Path to Subject FASTA File
+#' @param blast_out Path to BLAST output file. Required for Files
+#' @param blast.sequence.limit Maximum number of sequences to be BLASTed at a time
+#' @param n_threads Number of threads. Default - 8
+#' @param blast_program BLAST Program to use
+#' @param blast_options BLAST Options to use
+#' @export
+run_QuickBLAST2Files <- function(query_path, subject_path, blast_out,blast.sequence.limit=1000, n_threads=8, blast_program, blast_options=""){ 
+  blast_ptr <- QuickBLAST::CreateNewBLASTInstance(0,0,F)
+  QuickBLAST::BLAST2Files(blast_ptr,blast.sequence.limit,query_path,subject_path,blast_out,blast_program,blast_options)
+}
+
+#' Perform Nucleotide BLAST between 2 FASTA Seqs using the Custom Library
+#'
+#' BLAST between two FASTA Sequences. BLAST output is printed to stdout.
+#'
+#' @param query Path to Query FASTA string
+#' @param subject Path to Subject FASTA string
+#' @param blast_program BLAST Program to use
+#' @param blast_options BLAST Options to use
+#' @export
+run_QuickBLAST2Seqs <- function(query, subject, blast_program, blast_options=""){ 
+  blast_ptr <- QuickBLAST::CreateNewBLASTInstance(0,0,F)
+  QuickBLAST::BLAST2Seqs(blast_ptr,query,subject,blast_program,blast_options)
+  }
+
+#' Perform Nucleotide BLAST using the Custom Library
+#'
+#' BLAST between two FASTA files or sequences. BLAST output is saved in Arrow::Feather/Parquet format (for files) or printed to stdout (for seqs).
+#'
+#' @param query Query FASTA (File or Seq)
+#' @param subject Subject FASTA (File or Seq)
+#' @param blast_out Path to BLAST output file. Required for Files, Not used for Seqs
+#' @param blast.sequence.limit Maximum number of sequences to be BLASTed at a time, not used for Seqs
+#' @param n_threads Number of threads. Default - 8
+#' @param blast_program BLAST Program to use
+#' @param blast_options BLAST Options to use
+#' @param input_type (integer) 0 for Files, 1 for Sequences
+#' @export
+run_QuickBLAST <- function(query, subject, blast_out, blast.sequence.limit, n_threads, blast_program, blast_options, input_type){
+   
+}
+
+#' Get an Instance of QuickBLAST class and its exposed methods
+#' @param seq_type (integer) 0 for Nucleotide and 1 for Protein
+#' @param strand (integer) 0 for Plus(+), 1 for Minus(-)
+#' @param save_sequences (bool) Save Sequences in the arrow::RecordBatch (Only for BLASTing Files)
+#' @return A QuickBLAST Object
+#' @export
+SetBLASTOptions <- function(program_name=character(), options=list()){
+  mod <- Module("blast_module", inline::getDynLib("QuickBLAST"));
+  return(new(mod$QuickBLAST, seq_type, strand, save_sequences));
+}
+
+#' Get an Instance of QuickBLAST class and its exposed methods
+#' @param seq_type (integer) 0 for Nucleotide and 1 for Protein
+#' @param strand (integer) 0 for Plus(+), 1 for Minus(-)
+#' @param save_sequences (bool) Save Sequences in the arrow::RecordBatch (Only for BLASTing Files)
+#' @return A QuickBLAST Object
+#' @export
+GetQuickBLASTInstance <- function(seq_type, strand, save_sequences){
+  mod <- Module("blast_module", inline::getDynLib("QuickBLAST"));
+  return(new(mod$QuickBLAST, seq_type, strand, save_sequences));
+}
+
+#' Get a list of Enums used by QuickBLAST
+#' 
+#' @return A List of Enums used by QuickBLAST
+#' @export
+GetQuickBLASTEnums <- function(){
+  return(list("EInputType"=COMPLETE_env$EInputType, "ESeqType"=COMPLETE_env$ESeqType, "EStrand"=COMPLETE_env$EStrand));
+}
+
+#' Get a List of Available BLAST options
+#' 
+#' @note CREATE a NEW LIST with ONLY the OPTIONS THAT YOU NEED
+#' @return A List of Available BLAST options
+#' @export
+GetAvailableBLASTOptions <- function(){
+  warning("CREATE a NEW LIST with ONLY the OPTIONS THAT YOU NEED")
+  blastOptions <- list(
+    "evalue"=double(),
+    "pident"=double(),
+    "gapped_mode"=logical(),
+    "filter_string"=character(),
+    "effective_search_space"= integer(),
+    "cutoff_score"= integer(),
+    "gap_trigger"= double(),
+    "gap_x_dropoff"=double(),
+    "gap_x_dropoff_final"=double(),
+    "hit_list_size"=integer(),
+    "low_score_percentage"=double(),
+    "max_hsp_per_subject"=integer(),
+    "max_hsp_per_sequence"=integer(),
+    "qcovhsp_perc"=double(),
+    "window_size"=integer()
+  )
+  return(blastOptions);
+}
+
 #@param return_f_callback Function to execute on returning data. Set NULL for discarding returning data - in run_BLAST()
 #@param ... Parameters for return_f_callback() - in run_BLAST()
 #' Execute one2one BLAST
