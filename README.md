@@ -7,7 +7,7 @@
     + [Parameters](#params)
     + [User Data](#user_data)
     + [COMPLETE.format.ids](#ids)
-    + [BLAST functions](#blast)
+    + [QuickBLAST](#blast)
     + [Flow](#flow)
         + [EXTRACT_DATA()](#fun1)
         + [FIND_TRANSCRIPT_ORTHOLOGS()](#fun2)      
@@ -149,10 +149,12 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 ```
 <a name="blast"/>
 
-### BLAST Functions :
-+ one2one
-+ all2all
-    
+### QuickBLAST :
++ one2one - one2one BLAST between a list of files
++ all2all - all2all BLAST between a list of files
++ run_QuickBLAST* - Run QuickBLAST - Multithreaded Streaming of FASTA files
++ run_BLAST - Call blast suite of programs from cmdline
+  
 <a name="flow"/>
 
 ### FLOW :
