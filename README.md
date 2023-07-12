@@ -24,6 +24,12 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 <a name="install"/>
 
+**Download and install [QuickBLAST](https://github.com/vizkidd/R-COMPLETE/releases/tag/QuickBLAST) binaries** 
+```diff
+BiocManager::install(c("remotes))
+remotes::install_local("QuickBLAST.tar.gz",build = F, quiet = T)
+```
+
 ```diff
 sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libparquet-dev
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
