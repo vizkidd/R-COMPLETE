@@ -67,7 +67,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 <a name="tools"/>
 
-### Tools - (Paths in parameters file) :
+### Tools - (Paths in parameters file) 
 + [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
 + [MAFFT](https://mafft.cbrc.jp/alignment/software/installation_without_root.html) (Compile from sources <b>with extensions</b> because <b>*mafft-qinsi*</b> is required)
 + [TRANSAT](https://e-rna.org/transat/help.cgi#data) (Download preferred tarball and check INSTALL file)
@@ -76,7 +76,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 
 <a name="files"/>
 
-### Files (Config) :
+### Files (Config) 
 + [Parameters](inst/pkg_data/parameters.txt)
 + [User Data](inst/pkg_data/user_data.txt) (Optional)
 + [Reference Organisms](inst/pkg_data/reference_ORGS.txt) (`COMPLETE_env$org.meta` has the list of organisms available)
@@ -100,7 +100,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 
 <span style="color: #ff0000">**NOTE : First run will take some time due to conversion of ODB file structure (if OrthoDB is used)**</span>
 
-## Documentation
+## Documentation :
 
 <a name="docs"/>
 
@@ -108,7 +108,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 ?COMPLETE_PIPELINE_DESIGN (in R docs)
 ```
 
-### PARAMETERS :
+### PARAMETERS 
 
 <a name="params"/>
 
@@ -135,7 +135,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 * A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
 ```
 
-### COMPLETE.format.ids :
+### COMPLETE.format.ids 
 
 <a name="ids"/>
 
@@ -150,7 +150,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 ```
 <a name="blast"/>
 
-### QuickBLAST :
+### QuickBLAST 
 + one2one - one2one BLAST between a list of files
 + all2all - all2all BLAST between a list of files
 + run_QuickBLAST* - Run QuickBLAST - Multithreaded Streaming of FASTA files
@@ -158,13 +158,13 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 
 <a name="blast_options"/>
 
-#### QuickBLAST Options :
-    Same as BLAST but only the BLAST options and not the INPUT, OUTPUT, Sequence specifications. List of available options can be checked with `COMPLETE::GetAvailableBLASTOptions()`. Inputs and Outputs are provided as parameters and sequence specification can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()`. Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
+#### QuickBLAST Options 
+    Same as BLAST but DB & OUTPUT Format are not available. List of available options can be checked with `COMPLETE::GetAvailableBLASTOptions()`. Inputs and Outputs are provided as parameters and sequence specification(strand, sequence type) can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()` (or use the BLAST2*() functions in R). Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
 
   
 <a name="flow"/>
 
-### FLOW :
+### FLOW 
 
 <a name="fun1"/>
 
