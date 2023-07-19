@@ -151,15 +151,16 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 <a name="blast"/>
 
 ### QuickBLAST 
-+ one2one - one2one BLAST between a list of files
-+ all2all - all2all BLAST between a list of files
-+ run_QuickBLAST* - Run QuickBLAST - Multithreaded Streaming of FASTA files
-+ run_BLAST - Call blast suite of programs from cmdline
++ one2one() - one2one BLAST between a list of files
++ all2all() - all2all BLAST between a list of files
++ run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files
++ run_BLAST() - Call blast suite of programs from cmdline
++ COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object
 
 <a name="blast_options"/>
 
 #### QuickBLAST Options 
-    Same as BLAST but DB & OUTPUT Format are not available. List of available options can be checked with `COMPLETE::GetAvailableBLASTOptions()`. Inputs and Outputs are provided as parameters and sequence specification(strand, sequence type) can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()` (or use the BLAST2*() functions in R). Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
+    Same as BLAST but DB & OUTPUT Format are not available. List of available options can be checked with `COMPLETE::GetAvailableBLASTOptions()` (Emplty elements from the list are removed and BLAST defaults are set on the c++ side). Inputs and Outputs are provided as parameters and sequence specification(strand, sequence type) can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()` (or use the BLAST2*() functions in R). Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
 
   
 <a name="flow"/>
