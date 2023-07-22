@@ -26,13 +26,15 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 <a name="install"/>
 
 **Download and install [QuickBLAST](https://github.com/vizkidd/R-COMPLETE/releases/tag/QuickBLAST) binaries** 
-```diff
+```R
 BiocManager::install(c("remotes))
 remotes::install_local("QuickBLAST.tar.gz",build = F, quiet = T)
 ```
 
-```diff
+```bash
 sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libparquet-dev
+```
+```R
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
 devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ```
@@ -90,7 +92,7 @@ To run the example, from the context of your current working directory,
 + Provide paths and options in the parameters file
     + **NOTE : Default parameters file ([parameters.txt](inst/pkg_data/parameters.txt)) is at** ``fs::path_package("COMPLETE","pkg_data","parameters.txt")``
 
-```{R}
+```R
 params_list <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt")
 user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt")
@@ -156,6 +158,14 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 + run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files
 + run_BLAST() - Call blast suite of programs from cmdline
 + COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object
+
+```R
+remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz", build=F)
+tblastx_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_type = 0 , strand = 0 , program = "tblastx", options = list("evalue"=1e-05, "pident"=0.75, "qcovhsp_perc"=0.75), save_sequences=F)
+blastn_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_type = 0 , strand = 0 , program = "blastn", options = "", save_sequences=T)
+QuickBLAST::BLAST2Files(ptr_=tblastx_ptr, query="ungrouped.cds", subject="ungrouped.cds", outFile_="out.tmp", seq_limit_=1000, show_progress_=T)
+QuickBLAST::BLAST2Seqs(ptr_=blastn_ptr, query="AAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTGGGGGGGGGGGGGGGGGGGGGGGGCCCCCCCCCCCCCCCCCCCC", subject="TTTTTTTTTTTTGGGGGGGGGGGGGGGG")
+```
 
 <a name="blast_options"/>
 
