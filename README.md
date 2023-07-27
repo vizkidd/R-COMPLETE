@@ -25,10 +25,10 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 <a name="install"/>
 
-**Download and install [QuickBLAST](https://github.com/vizkidd/R-COMPLETE/releases/tag/QuickBLAST) binaries** 
+**Download and install [QuickBLAST](https://github.com/vizkidd/QuickBLAST) binaries** 
 ```R
 BiocManager::install(c("remotes))
-remotes::install_local("QuickBLAST.tar.gz",build = F, quiet = T)
+remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz",build = F, quiet = T)
 ```
 
 ```bash
@@ -152,19 +152,20 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 ```
 <a name="blast"/>
 
-### QuickBLAST 
-+ one2one() - one2one BLAST between a list of files
-+ all2all() - all2all BLAST between a list of files
-+ run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files
-+ run_BLAST() - Call blast suite of programs from cmdline
+### BLAST Functions 
++ COMPLETE::one2one() - one2one BLAST between a list of files
++ COMPLETE::all2all() - all2all BLAST between a list of files
++ COMPLETE::run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files
++ COMPLETE::run_BLAST() - Call blast suite of programs from cmdline
 + COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object
++ [QuickBLAST](https://github.com/vizkidd/QuickBLAST)
 
 ```R
 remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz", build=F)
-tblastx_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_type = 0 , strand = 0 , program = "tblastx", options = list("evalue"=1e-05, "pident"=0.75, "qcovhsp_perc"=0.75), save_sequences=F)
-blastn_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_type = 0 , strand = 0 , program = "blastn", options = "", save_sequences=T)
-QuickBLAST::BLAST2Files(ptr_=tblastx_ptr, query="ungrouped.cds", subject="ungrouped.cds", outFile_="out.tmp", seq_limit_=1000, show_progress_=T)
-QuickBLAST::BLAST2Seqs(ptr_=blastn_ptr, query="AAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTGGGGGGGGGGGGGGGGGGGGGGGGCCCCCCCCCCCCCCCCCCCC", subject="TTTTTTTTTTTTGGGGGGGGGGGGGGGG")
+tblastx_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info = list(0,0,F), program = "tblastx", options = list("evalue"=1e-05, "pident"=0.75, "qcovhsp_perc"=0.75))
+blastn_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info = list(0,0,F), program = "blastn", options = "")
+ QuickBLAST::BLAST2Files(ptr=tblastx_ptr, query="ungrouped.cds", subject="ungrouped.cds", outFile="out.tmp", seq_limit=1000, show_progress=T,return_values=F, num_threads=8)
+QuickBLAST::BLAST2Seqs(ptr=blastn_ptr, query="AAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTGGGGGGGGGGGGGGGGGGGGGGGGCCCCCCCCCCCCCCCCCCCC", subject="TTTTTTTTTTTTGGGGGGGGGGGGGGGG")
 ```
 
 <a name="blast_options"/>
