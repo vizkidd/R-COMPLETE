@@ -2,13 +2,13 @@
 % Please edit documentation in R/COMPLETE-BLAST_wrapper.R
 \name{GetQuickBLASTEnums}
 \alias{GetQuickBLASTEnums}
-\title{Get an Instance of QuickBLASTEnums class and its exposed enumerations/properties}
+\title{Get a list of Enums used by QuickBLAST}
 \usage{
 GetQuickBLASTEnums()
 }
 \value{
-A QuickBLASTEnums Object
+A List of Enums used by QuickBLAST
 }
 \description{
-Get an Instance of QuickBLASTEnums class and its exposed enumerations/properties
+Get a list of Enums used by QuickBLAST
 }

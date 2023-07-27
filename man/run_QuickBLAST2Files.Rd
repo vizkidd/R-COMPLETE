@@ -7,17 +7,22 @@
 run_QuickBLAST2Files(
   query_path,
   subject_path,
+  seq_info,
   blast_out,
   blast.sequence.limit = 1000,
   n_threads = 8,
   blast_program,
-  blast_options = ""
+  blast_options = COMPLETE::GetAvailableBLASTOptions(),
+  show_progress = TRUE,
+  return_values = FALSE
 )
 }
 \arguments{
 \item{query_path}{Path to Query FASTA File}
 
 \item{subject_path}{Path to Subject FASTA File}
+
+\item{seq_info}{List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.}
 
 \item{blast_out}{Path to BLAST output file. Required for Files}
 
@@ -27,8 +32,20 @@ run_QuickBLAST2Files(
 
 \item{blast_program}{BLAST Program to use}
 
-\item{blast_options}{BLAST Options to use}
+\item{blast_options}{List of BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()}
+
+\item{show_progress}{(bool) TRUE - Show Progress, Set FALSE if multiple instances are running.}
+
+\item{return_values}{(bool) TRUE - Returns values as list, Default - FALSE - Does not return values (Return true on completion)}
+}
+\value{
+Nested List of BLASTHits
+
+if return_values == TRUE, Nested List of BLAST Hits, otherwise TRUE is returned on successful execution
 }
 \description{
-BLAST between two FASTA files. BLAST output is saved in Arrow::Feather/Parquet format.
+BLAST between two FASTA files. BLAST output is saved in Arrow::IPC File format.
+}
+\note{
+Keep return_values_ = FALSE for large files to avoid choking R.
 }

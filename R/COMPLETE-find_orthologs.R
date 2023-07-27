@@ -132,17 +132,17 @@ deindex_BLAST_table <- function(blast_table, index_col){
 
 #' Select highest scoring interval of non-overlapping HSPs from Bi-Directional BLAST Hits
 #'
-#' Select the highest scoring pairs (HSPs) which give the maximum coverage over the BLAST alignments of each transcript (without overlaps/minimal overlaps). These HSPs will then be used to find Transcript level orthologs across gene orthologs across organisms. This function only accepts bi-directional (Query <-> Subject) BLAST Hits formatted with GRObject_from_BLAST()
+#' Select the highest scoring pairs (HSPs) which give the maximum coverage over the BLAST alignments of each transcript (without overlaps/minimal overlaps). These HSPs will then be used to find Transcript level orthologs across gene orthologs across organisms. This function only accepts bi-directional (Query <-> Subject) BLAST Hits formatted with GRObject_from_BLASTHits()
 #'
 #' @note The BLAST Hits assumed to be on the same frame (1/1,2/2,3/3). Hits across frames are NOT supported (1/2,1/3,...)
 #'
 #' @examples
 #'
-#' blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+#' blast_GO <- GRObject_from_BLASTHits(blast_input = in_file, COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
 #' wis_GO <- run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",COMPLETE.format.ids = T,params_list=NULL) #score_col=16
 #' melt_wisard_list(wis_GO)
 #'
-#' @param blast_hits GRanges Object of BLAST Hits (Query -> Subject) (from GRObject_from_BLAST())
+#' @param blast_hits GRanges Object of BLAST Hits (Query -> Subject) (from GRObject_from_BLASTHits())
 #' @param score_col Column in the GRanges Object used for scoring intervals in WISARD, Default would be "Hsp_score" (qcovhsp (Query Coverage HSP))
 #' @param n_threads Number of Threads.
 #' @param verbose Print Output?
@@ -151,12 +151,12 @@ deindex_BLAST_table <- function(blast_table, index_col){
 run_WISARD <- function(blast_hits, score_col,n_threads=4, verbose=F){
 
   if(!all(grepl(pattern="GRanges",x = class(blast_hits),ignore.case = T))){
-    stop("This function only accepts formatted GRanges Object from GRObject_from_BLAST()")
+    stop("This function only accepts formatted GRanges Object from GRObject_from_BLASTHits()")
   }
 
   #gr <- blast_hits
   if(!any(grepl(pattern = "query_id",x = colnames(as.data.frame(blast_hits)),ignore.case = F))){
-    stop("Column Name : query_id is missing from the GRangesObject and is required. Use GRObject_from_BLAST()")
+    stop("Column Name : query_id is missing from the GRangesObject and is required. Use GRObject_from_BLASTHits()")
   }
   query_vector <- unique(blast_hits$query_id)
   #print(S4Vectors::runValue(GenomicRanges::seqnames(blast_hits)))
@@ -577,7 +577,7 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
         return(NULL)
       }
 
-      hits_GO <- GRObject_from_BLAST(blast_input = hit_split,COMPLETE.format.ids = T,col.indices=list(qseqid=12,sseqid=1,qstart=15,qend=16,sstart=2,send=3,sstrand=5),params_list = params_list, use.feather=F)
+      hits_GO <- GRObject_from_BLASTHits(blast_input = hit_split,COMPLETE.format.ids = T,col.indices=list(qseqid=12,sseqid=1,qstart=15,qend=16,sstart=2,send=3,sstrand=5),params_list = params_list, use.feather=F)
       hits_ovlps <- as.data.frame(GenomicRanges::findOverlaps(hits_GO,hits_GO,type = c("within")))
       hits_rle <- Rle(values = hits_ovlps[,1], lengths = hits_ovlps[,2])
       if(length(hits_rle) > 1 && try(any(duplicated(runLength(hits_rle))))){
@@ -688,7 +688,7 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
   #
   #     ##ABSORB hits overlapped by other hits
   #     hits_list <- lapply(list(fw_hits,bk_hits), function(hits_dir){
-  #       hits_GO <- GRObject_from_BLAST(blast_input = hits_dir,COMPLETE.format.ids = T,col.indices=list(qseqid=12,sseqid=1,qstart=15,qend=16,sstart=2,send=3,sstrand=5),params_list = params_list)
+  #       hits_GO <- GRObject_from_BLASTHits(blast_input = hits_dir,COMPLETE.format.ids = T,col.indices=list(qseqid=12,sseqid=1,qstart=15,qend=16,sstart=2,send=3,sstrand=5),params_list = params_list)
   #       hits_ovlps <- as.data.frame(findOverlaps(hits_GO,hits_GO,type = c("within")))
   #       hits_rle <- Rle(values = hits_ovlps[,1], lengths = hits_ovlps[,2])
   #       if(length(hits_rle) > 1){
@@ -831,7 +831,7 @@ calculate_HSP_coverage <- function(fw_blast_table,bk_blast_table,col.indices, gr
 #'  * Step 3 - Two way BLAST followed by HSP selection with WISARD and Two way RBH are performed. Only transcripts which are bi-directional best hits are kept for further analysis (RBH from both the directions, not RBH in itself is bi-directionaly from the point of the QUERY, We can also do an RBH from the context of the SUBJECT to verify if it did not pas RBH by chance (even though it is very unlikely))
 #'
 #' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program.
-#' @param blast_options BLAST options for the BLAST program
+#' @param blast_options BLAST options for the BLAST program - COMPLETE::GetAvailableBLASTOptions()
 #' @param transcript_region Transcript region (.cds, .3utr, .5utr, .exon, and other gtf regions(not tested)) (eg, ".cds" or ".fa"). Essentially this would be the file extensions of the input FASTA file(names)
 #' @param run.mode "both" or "coverage_distance" (Default) or "coverage_filter" or "no_filter". "coverage_distance" - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). "coverage_filter" - Filters Hits based on minimum coverage of HSPs from either direction. Use this option when the coverage values are high (and the BLAST Hits/sequences are closely related). "both" - Uses both "coverage_distance" and "coverage_filter" and is very strict. "no_filter" - Only calculates HSP coverages and does not filter any Hits (Argument used for calculate_HSP_coverage())
 #' @param params_list Output of load_params()
@@ -869,16 +869,9 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
   file.copy(paste(input_dir,"/",clusters_right,".",transcript_region,sep=""), paste(tempdir(),"/",clusters_right,".",transcript_region,sep=""), overwrite = F)
   make_BLAST_DB(fasta_file= paste(tempdir(),"/",clusters_right,".",transcript_region,sep=""), blast_bin=BLAST_BIN,clean_extract = params_list$CLEAN_EXTRACT, verbose= verbose)
 
-  all2all_BLAST(first_list = clusters_left, second_list = clusters_right, file_ext=transcript_region, blast_program = blast_program,output_dir =output_dir,blast_options = blast_options, blast.sequence.limit = 5000, input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose, seed=seed,return_data=FALSE, use.feather=TRUE, gzip.output = F) # return_f_callback = NULL #all2all_GRObjects <-  #blast_DB_dir = blast_DB_dir #second_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
-  #all2all_BLAST(first_list = clusters_right, second_list = clusters_left,blast_program = blast_program,output_dir = output_dir,blast_options = blast_options,input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, keep.output.files = T ) #blast_DB_dir = blast_DB_dir #first_list = grep(clusters_left,clusters_right,ignore.case = T,invert = T,value=T)
-  #save(all2all_GRObjects, file="all2all_GRObjects.RData") #DEBUG
-  # parallel::mclapply(list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T),function(in_file){
-  #   out_file <- paste(output_dir,tools::file_path_sans_ext(BiocGenerics::basename(in_file)),".out",sep="")
-  #   convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
-  # }, mc.cores = params_list$numWorkers )
-
-  ## parallel::mclapply(list.files(path = output_dir,pattern = "*.out", ignore.case = T,full.names = T),function(in_file){
-  #parallel::mclapply(list.files(path = output_dir,pattern = c(paste(clusters_left,clusters_right,"all2all",sep="."),paste(clusters_right,clusters_left,"all2all",sep=".")), ignore.case = T,full.names = T),function(in_file){ #c(paste(clusters_left,clusters_right,"all2all",sep="."),paste(clusters_right,clusters_left,"all2all",sep=".")) #list.files(path = output_dir,pattern = "*.all2all", ignore.case = T,full.names = T)
+  #all2all_BLAST(first_list = clusters_left, second_list = clusters_right, file_ext=transcript_region, blast_program = blast_program,output_dir =output_dir,blast_options = blast_options, blast.sequence.limit = 5000, input_prefix_path = input_dir, params_list = params_list, COMPLETE.format.ids = T, clean_extract=clean_extract, n_threads=params_list$numWorkers, verbose = verbose, seed=seed,return_data=FALSE, use.feather=TRUE, gzip.output = F) 
+  all2all_QuickBLAST(first_list = clusters_left, second_list = clusters_right, file_ext=transcript_region,blast_program = blast_program,output_dir =output_dir,blast_options=blast_options,blast.sequence.limit=200, input_prefix_path = input_dir, n_threads=params_list$numWorkers, verbose = verbose, seq_type= COMPLETE_env$ESeqType$eNucleotide, strand=COMPLETE_env$EStrand$ePlus, save_sequences=F)
+  
 
   group_combinations <- unique(tidyr::crossing(clusters_left,clusters_right))
   furrr::future_map2(.x=group_combinations$clusters_left,.y=group_combinations$clusters_right ,.f=function(c_left,c_right){
@@ -889,7 +882,7 @@ extract_transcript_orthologs <- function(blast_program, blast_options, transcrip
     furrr::future_map2(.x=c(in_file1,in_file2),.y=c(out_file1,out_file2),.f=function(in_file,out_file){
       #try(
       if(!file.exists(out_file) && file.exists(in_file) && file.info(in_file)$size >0 || clean_extract){
-        blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list = params_list, use.feather = T)
+        blast_GO <- GRObject_from_BLASTHits(blast_input = in_file, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list = params_list, use.feather = T)
 
         #SELECT ONLY FRAMES 1/1
         blast_GO <- blast_GO[blast_GO$query.frame==1]
@@ -1832,8 +1825,8 @@ FIND_TRANSCRIPT_ORTHOLOGS <- function(gene_list, params_list, blast_program=Sys.
 #' @examples
 #'    convert_BLAST_format(in_file1,outfile = out_file1,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
 #'    convert_BLAST_format(in_file2,outfile = out_file2,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive"))
-#'    blast_GO1 <- GRObject_from_BLAST(blast_input = out_file1, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
-#'    blast_GO2 <- GRObject_from_BLAST(blast_input = out_file2, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+#'    blast_GO1 <- GRObject_from_BLASTHits(blast_input = out_file1, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+#'    blast_GO2 <- GRObject_from_BLASTHits(blast_input = out_file2, COMPLETE.format.ids = T, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
 #'    wis1 <- run_WISARD(blast_hits = blast_GO1,score_col = "Hsp_score",COMPLETE.format.ids = T) #score_col=16
 #'    wis2 <- run_WISARD(blast_hits = blast_GO2,score_col = "Hsp_score",COMPLETE.format.ids = T) #score_col=16
 #'    wis1 <- melt_wisard_list(wis1)

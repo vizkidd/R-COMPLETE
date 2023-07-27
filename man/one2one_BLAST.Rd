@@ -8,7 +8,7 @@ one2one_BLAST(
   first_list,
   second_list,
   file_ext = "fa",
-  run_name = "BLAST.one2one",
+  run_name,
   blast_DB_dir = tempdir(),
   blast_program,
   output_dir = "./",
@@ -69,7 +69,7 @@ one2one_BLAST(
 A GRObject of BLAST Hits
 }
 \description{
-Executes One-to-One BLAST between two lists of organisms/genes/clusters. The BLAST Hits are
+Executes One-to-One BLAST between two lists of organisms/genes/clusters. The BLAST Hits are stored in Arrow::Feather/Parquet Format.
 }
 \note{
 ASSUMES Nucleotide sequences. Not checking/Not working for Protein/Peptide sequences.

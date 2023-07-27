@@ -4,17 +4,28 @@
 \alias{run_QuickBLAST2Seqs}
 \title{Perform Nucleotide BLAST between 2 FASTA Seqs using the Custom Library}
 \usage{
-run_QuickBLAST2Seqs(query, subject, blast_program, blast_options = "")
+run_QuickBLAST2Seqs(
+  query,
+  subject,
+  seq_info,
+  blast_program,
+  blast_options = COMPLETE::GetAvailableBLASTOptions()
+)
 }
 \arguments{
 \item{query}{Path to Query FASTA string}
 
 \item{subject}{Path to Subject FASTA string}
 
+\item{seq_info}{Ordered List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.}
+
 \item{blast_program}{BLAST Program to use}
 
-\item{blast_options}{BLAST Options to use}
+\item{blast_options}{List of BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()}
+}
+\value{
+Nested List of BLASTHits
 }
 \description{
-BLAST between two FASTA Sequences. BLAST output is printed to stdout.
+BLAST between two FASTA Sequences. BLAST output is returned as a nested List.
 }

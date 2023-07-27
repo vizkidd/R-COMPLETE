@@ -80,7 +80,7 @@ LoadBLASTHits <- function(infile, sep="\t", header = F,use.feather=F){ # transcr
 #' * Convert to compatible BLAST format with convert_BLAST_format(in_file,outfile = out_file,outformat=6,cols=c("qseqid","sseqid","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore","score","gaps","frames","qcovhsp","sstrand","qlen","slen","qseq","sseq","nident","positive")) (in_file must be of BLAST format 11)
 #'
 #' @examples
-#'     GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = F, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL)
+#'     GRObject_from_BLASTHits(blast_input = in_file, COMPLETE.format.ids = F, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL)
 #'
 #' @param blast_input Filename with BLAST hits or a BLAST table (not a connection) (Gzipped files supported)
 #' @param COMPLETE.format.ids Do BLAST Hit IDs of BLAST Hits (query and subject) have R-COMPLETE's long format IDs? (TRUE if using BLAST results from this package, FALSE otherwise) (Refer ?COMPLETE_PIPELINE_DESIGN)
@@ -91,7 +91,7 @@ LoadBLASTHits <- function(infile, sep="\t", header = F,use.feather=F){ # transcr
 #' @param use.feather Should feather API be used to read BLAST Hits? - Default - FALSE
 #' @return A GRanges object of BLAST hits
 #' @export
-GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL, sep="\t", header=F, use.feather=F){ #sep2=c("","|","")
+GRObject_from_BLASTHits <- function(blast_input, COMPLETE.format.ids=F, col.indices=list(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17), params_list=NULL, sep="\t", header=F, use.feather=F){ #sep2=c("","|","")
 
   # if(!is.null(blast_input) && is.character(blast_input) &&){
   #   blast_input <- LoadBLASTHits(blast_input,sep=sep,header=header)
@@ -153,7 +153,7 @@ GRObject_from_BLAST <- function(blast_input, COMPLETE.format.ids=F, col.indices=
     if(!is.null(col.indices[["evalue"]])) blast_input <- blast_input[which(blast_input[,col.indices[["evalue"]]] < params_list$E_VALUE_THRESH),]
 
     if(nrow(blast_input) == 0){
-      return(stop("GRObject_from_BLAST() - No hits passed the E-Value threshold!."))
+      return(stop("GRObject_from_BLASTHits() - No hits passed the E-Value threshold!."))
     }
 
   }else{
@@ -455,7 +455,7 @@ set.seed(seed)
       #   return(NULL)
       # }
       if(return_data){
-        blast_GR <- GRObject_from_BLAST(blast_input = blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
+        blast_GR <- GRObject_from_BLASTHits(blast_input = blast_out,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
         #blast_GR <- LoadBLASTHits(blast_out, , use.feather = use.feather)
         return(list(BLAST_hits=blast_GR,BLAST_file=blast_out,run_name=run_name))
         }else{
@@ -636,7 +636,7 @@ set.seed(seed)
     unlink(x = c(final_blast_out,blast_out, blast_DB_dir),recursive = T,force = T,expand = T)
 
     if(return_data){ 
-    blast_GR <- GRObject_from_BLAST(blast_input = blast_outfile,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
+    blast_GR <- GRObject_from_BLASTHits(blast_input = blast_outfile,COMPLETE.format.ids = COMPLETE.format.ids,col.indices = c(qseqid = 1, sseqid = 2, evalue = 11, qstart = 7, qend = 8, sstart = 9, send = 10, bitscore = 12, qcovhsp = 16, qlen = 18, slen = 19, frames = 15, pident = 3, gaps = 14, length = 4, sstrand = 17), params_list = params_list, use.feather = use.feather)
     #blast_GR <- LoadBLASTHits(blast_outfile, use.feather = use.feather)
     if(gzip.output){
          gzip_outfile <- sprintf("%s.%s", blast_outfile, "gz")
@@ -664,33 +664,42 @@ set.seed(seed)
 
 #' Perform Nucleotide BLAST between 2 FASTA files using the Custom Library
 #'
-#' BLAST between two FASTA files. BLAST output is saved in Arrow::Feather/Parquet format.
+#' BLAST between two FASTA files. BLAST output is saved in Arrow::IPC File format.
+#' 
+#' @note Keep return_values_ = FALSE for large files to avoid choking R.
 #'
 #' @param query_path Path to Query FASTA File
 #' @param subject_path Path to Subject FASTA File
+#' @param seq_info List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.
+#' @return Nested List of BLASTHits
 #' @param blast_out Path to BLAST output file. Required for Files
 #' @param blast.sequence.limit Maximum number of sequences to be BLASTed at a time
 #' @param n_threads Number of threads. Default - 8
 #' @param blast_program BLAST Program to use
-#' @param blast_options BLAST Options to use
+#' @param blast_options List of BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()
+#' @param show_progress (bool) TRUE - Show Progress, Set FALSE if multiple instances are running.
+#' @param return_values (bool) TRUE - Returns values as list, Default - FALSE - Does not return values (Return true on completion)
+#' @return if return_values == TRUE, Nested List of BLAST Hits, otherwise TRUE is returned on successful execution
 #' @export
-run_QuickBLAST2Files <- function(query_path, subject_path, blast_out,blast.sequence.limit=1000, n_threads=8, blast_program, blast_options=""){ 
-  blast_ptr <- QuickBLAST::CreateNewBLASTInstance(0,0,F)
-  QuickBLAST::BLAST2Files(blast_ptr,blast.sequence.limit,query_path,subject_path,blast_out,blast_program,blast_options)
+run_QuickBLAST2Files <- function(query_path, subject_path, seq_info, blast_out,blast.sequence.limit=1000, n_threads=8, blast_program, blast_options=COMPLETE::GetAvailableBLASTOptions(), show_progress=TRUE, return_values=FALSE){ 
+  blast_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info, blast_program, blast_options)
+  return(QuickBLAST::BLAST2Files(blast_ptr,blast.sequence.limit,query_path,subject_path,blast_out,blast_program,blast_options, n_threads, show_progress, return_values))
 }
 
 #' Perform Nucleotide BLAST between 2 FASTA Seqs using the Custom Library
 #'
-#' BLAST between two FASTA Sequences. BLAST output is printed to stdout.
+#' BLAST between two FASTA Sequences. BLAST output is returned as a nested List.
 #'
 #' @param query Path to Query FASTA string
 #' @param subject Path to Subject FASTA string
+#' @param seq_info Ordered List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.
 #' @param blast_program BLAST Program to use
-#' @param blast_options BLAST Options to use
+#' @param blast_options List of BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()
+#' @return Nested List of BLASTHits
 #' @export
-run_QuickBLAST2Seqs <- function(query, subject, blast_program, blast_options=""){ 
-  blast_ptr <- QuickBLAST::CreateNewBLASTInstance(0,0,F)
-  QuickBLAST::BLAST2Seqs(blast_ptr,query,subject,blast_program,blast_options)
+run_QuickBLAST2Seqs <- function(query, subject, seq_info, blast_program, blast_options=COMPLETE::GetAvailableBLASTOptions()){ 
+  blast_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info, blast_program, blast_options)
+  return(QuickBLAST::BLAST2Seqs(blast_ptr,query,subject,blast_program,blast_options))
   }
 
 #' Perform Nucleotide BLAST using the Custom Library
@@ -699,37 +708,37 @@ run_QuickBLAST2Seqs <- function(query, subject, blast_program, blast_options="")
 #'
 #' @param query Query FASTA (File or Seq)
 #' @param subject Subject FASTA (File or Seq)
+#' @param seq_info Ordered List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.
 #' @param blast_out Path to BLAST output file. Required for Files, Not used for Seqs
 #' @param blast.sequence.limit Maximum number of sequences to be BLASTed at a time, not used for Seqs
 #' @param n_threads Number of threads. Default - 8
 #' @param blast_program BLAST Program to use
-#' @param blast_options BLAST Options to use
-#' @param input_type (integer) 0 for Files, 1 for Sequences
+#' @param blast_options List of BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()
+#' @param input_type (integer) 0 for Files, 1 for Sequences - COMPLETE::GetQuickBLASTEnums()$EInputType
 #' @export
-run_QuickBLAST <- function(query, subject, blast_out, blast.sequence.limit, n_threads, blast_program, blast_options, input_type){
-   
+run_QuickBLAST <- function(query, subject, seq_info, blast_out, blast.sequence.limit, n_threads, blast_program, blast_options=COMPLETE::GetAvailableBLASTOptions(), input_type){
+  qb <- GetQuickBLASTInstance(seq_info, blast_program, blast_options)
+  return(qb$BLAST(query,subject,blast_out, blast_program, blast_options,input_type, blast.sequence.limit))
 }
 
 #' Get an Instance of QuickBLAST class and its exposed methods
-#' @param seq_type (integer) 0 for Nucleotide and 1 for Protein
-#' @param strand (integer) 0 for Plus(+), 1 for Minus(-)
-#' @param save_sequences (bool) Save Sequences in the arrow::RecordBatch (Only for BLASTing Files)
-#' @return A QuickBLAST Object
+#' @note Check BLAST C++ Call in Help for the list of parameters for the exposed BLAST function. Exposed C++ function only takes BLAST options as string.
+#' @seealso [COMPLETE::run_QuickBLAST()], [COMPLETE::run_QuickBLAST2Files()], [COMPLETE::run_QuickBLAST2Seqs()]
+#' @examples
+#' bw_obj <- COMPLETE::GetQuickBLASTInstance(0,0,"blastn","-evalue 1e-05",F)
+#' bw_obj$BLAST("ungrouped.cds", "ungrouped.cds", "out.tmp", 0, 1000, T)
+#' bw_obj$BLAST("AAAAAAAAAAAATTTTTTTTTTTTGGGGGGGGGGGCCCCCCCCC", "TTTTTTTTTTTGGGGGGGGGGGG", "", 0, 1000, F)
+#' 
+#' @param seq_info List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.
+#' @param program (string) Name of the BLAST program
+#' @param options (string) String of BLAST options - eg, "-evalue 1e-05 -pident 0.75" - check COMPLETE::GetAvailableBLASTOptions() for available options
+#' @return A new QuickBLAST Object
+#' @param return_values (Only used for BLAST2Files) (bool) TRUE - Returns values as list, Default - FALSE - Does not return values (Return true on completion)
+#' @md
 #' @export
-SetBLASTOptions <- function(program_name=character(), options=list()){
+GetQuickBLASTInstance <- function(seq_info, program, options){
   mod <- Module("blast_module", inline::getDynLib("QuickBLAST"));
-  return(new(mod$QuickBLAST, seq_type, strand, save_sequences));
-}
-
-#' Get an Instance of QuickBLAST class and its exposed methods
-#' @param seq_type (integer) 0 for Nucleotide and 1 for Protein
-#' @param strand (integer) 0 for Plus(+), 1 for Minus(-)
-#' @param save_sequences (bool) Save Sequences in the arrow::RecordBatch (Only for BLASTing Files)
-#' @return A QuickBLAST Object
-#' @export
-GetQuickBLASTInstance <- function(seq_type, strand, save_sequences){
-  mod <- Module("blast_module", inline::getDynLib("QuickBLAST"));
-  return(new(mod$QuickBLAST, seq_type, strand, save_sequences));
+  return(new(mod$QuickBLAST, seq_info[[1]], seq_info[[2]], program, options, seq_info[[3]]));
 }
 
 #' Get a list of Enums used by QuickBLAST
@@ -742,11 +751,13 @@ GetQuickBLASTEnums <- function(){
 
 #' Get a List of Available BLAST options
 #' 
+#'  Use this function in blast_options to set BLAST defaults for the chosen BLAST program.
+#' 
 #' @note CREATE a NEW LIST with ONLY the OPTIONS THAT YOU NEED
 #' @return A List of Available BLAST options
 #' @export
 GetAvailableBLASTOptions <- function(){
-  warning("CREATE a NEW LIST with ONLY the OPTIONS THAT YOU NEED")
+  warning("These are Defaults, CREATE a NEW LIST with ONLY the OPTIONS THAT YOU NEED (or) Use this function in blast_options to set BLAST defaults for the chosen BLAST program.")
   blastOptions <- list(
     "evalue"=double(),
     "pident"=double(),
@@ -767,11 +778,71 @@ GetAvailableBLASTOptions <- function(){
   return(blastOptions);
 }
 
-#@param return_f_callback Function to execute on returning data. Set NULL for discarding returning data - in run_BLAST()
-#@param ... Parameters for return_f_callback() - in run_BLAST()
+#' Execute one2one QuickBLAST
+#'
+#' Executes One-to-One QuickBLAST between two lists of organisms/genes/clusters. The BLAST Hits are stored in Arrow::Feather/Parquet format. 
+#'
+#' @examples one2one_QuickBLAST("ungrouped.cds","ungrouped.cds", file_ext="fa",blast_out="out.tmp",blast.sequence.limit=200, input_type=COMPLETE_env$EInputType$eFile, n_threads=8, blast_program="tblastx", output_dir="./", blast_options= COMPLETE::GetAvailableBLASTOptions(), seq_type=COMPLETE_env$ESeqType$eNucleotide, COMPLETE_env$EStrand$ePlus, save_sequences, verbose=T)
+#'
+#' @param first_set Vector of FASTA Filenames or Strings
+#' @param second_set Vector of FASTA Filenames or Strings
+#' @param file_ext File extension of input files. eg- "cds" or "fa", Unused if input_type is COMPLETE_env$EInputType$eSequencesString
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. Default is tempdir(). Can also be NULL
+#' @param output_dir Path to BLAST output
+#' @param blast_out Name of the BLAST run and name of the output file
+#' @param blast.sequence.limit Maximum number of sequences to be BLASTed at a time, not used for Seqs
+#' @param n_threads Number of threads. Default - 8
+#' @param blast_program BLAST Program to use
+#' @param blast_options BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()
+#' @param input_type (integer) 0 for Files, 1 for Sequences - COMPLETE::GetQuickBLASTEnums()
+#' @param input_prefix_path If input lists/vectors are filenames, then provide input folder to prefix path
+#' @param input_type (integer) 0 for Files, 1 for Sequences - COMPLETE::GetQuickBLASTEnums()$EInputType
+#' @param seq_type (integer) 0 for Nucleotide, 1 for Protein - COMPLETE::GetQuickBLASTEnums()$ESeqType
+#' @param strand (integer) 0 for Plus, 1 for Minus - COMPLETE::GetQuickBLASTEnums()$Estrand
+#' @param save_sequences (bool) TRUE - Save sequences in BLAST results, FALSE - Only save BLAST data
+#' @param verbose Print DEBUG Messages?
+#' @export
+one2one_QuickBLAST <- function(first_set,second_set, file_ext="fa",blast_out, input_prefix_path=NULL,blast.sequence.limit=1000, input_type, n_threads, blast_program, output_dir="./", blast_options, seq_type, strand, save_sequences, verbose=T){ 
+
+  
+  if(!is.null(input_prefix_path)){
+    first_list <- paste(input_prefix_path,"/",first_list,".",file_ext,sep="")
+    second_list <- paste(input_prefix_path,"/",second_list,".",file_ext,sep="")
+
+  }
+
+  list_combos <- unique(tidyr::crossing(first_list[order(first_list)], second_list[order(second_list)]))
+
+  #return_data <- furrr::future_map2(.x=first_list[order(first_list)], .y=second_list[order(second_list)], .f=function(x,y){
+  parallel::mclapply(seq_along(1:nrow(list_combos)), function(idx){
+    x <- toString(list_combos[idx,1])
+    y <- toString(list_combos[idx,2])
+    if(input_type == COMPLETE_env$EInputType$eFile){
+    if (!all(file.exists(x), file.exists(y), file.info(x)$size > 0, file.info(y)$size > 0)) {
+      warning(paste(x,"or",y,"missing/empty and input_type is EInputType$eFile, assuming input to be sequences!",sep=" "));
+      input_type = COMPLETE_env$EInputType$eSequenceString
+      }
+    }
+      if(verbose){
+        cat(paste(blast_out,"\n",sep = ""))
+        print(x)
+        print(y)
+      }
+      
+
+      run_QuickBLAST(query=x, subject=y, blast_out=blast_out, blast.sequence.limit=blast.sequence.limit, n_threads=n_threads, blast_program=blast_program, blast_options=blast_options, input_type=input_type, seq_type=seq_type, strand=strand, save_sequences=save_sequences);
+      
+
+    
+  }, mc.cores = n_threads, mc.silent = !verbose)
+
+  #return(return_data)
+
+}
+
 #' Execute one2one BLAST
 #'
-#' Executes One-to-One BLAST between two lists of organisms/genes/clusters. The BLAST Hits are
+#' Executes One-to-One BLAST between two lists of organisms/genes/clusters. The BLAST Hits are stored in Arrow::Feather/Parquet Format.
 #'
 #' @examples one2one_BLAST(first_set,second_set,blast_DB_dir=blast_DB_dir,blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, verbose=verbose, use.feather=use.feather)
 #'
@@ -798,10 +869,10 @@ GetAvailableBLASTOptions <- function(){
 #' @param use.feather Should feather API be used to read BLAST Hits? - Default - FALSE
 #' @return A GRObject of BLAST Hits
 #' @export
-one2one_BLAST <- function(first_list,second_list, file_ext="fa", run_name="BLAST.one2one" ,blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, gzip.output=F,blast.sequence.limit=0, clean_extract=F, n_threads=8, verbose=F, seed=123,return_data=TRUE, use.feather=FALSE){ #return_f_callback=return,...
-set.seed(seed)
+one2one_BLAST <- function(first_list,second_list, file_ext="fa", run_name ,blast_DB_dir=tempdir(),blast_program,output_dir="./", blast_options="", input_prefix_path=NULL, params_list=NULL,COMPLETE.format.ids=F, gzip.output=F,blast.sequence.limit=0, clean_extract=F, n_threads=8, verbose=F, seed=123,return_data=TRUE, use.feather=FALSE){ #return_f_callback=return,...
+  set.seed(seed)
   #tictoc::tic(msg = "one2one_BLAST :")
-
+  
   if(use.feather && gzip.output){
     warning("one2one_BLAST: Both use.feather && gzip.output cannot be TRUE. Setting use.feather=FALSE")
     use.feather=F
@@ -813,9 +884,9 @@ set.seed(seed)
     second_list <- paste(input_prefix_path,"/",second_list,".",file_ext,sep="")
     #second_list <- grep(pattern = second_list, x= grep(pattern = file_ext_pattern, x = processx::process$new(command = Sys.which("find"), args = c(input_prefix_path,"-type","f"), stderr = NULL, stdout = "|")$read_all_output_lines() , ignore.case = T,value = T), ignore.case = T,value = T)  #list.files(path = input_prefix_path,pattern = second_list, full.names = T,recursive = T,include.dirs = F,ignore.case = T)
   }
-
+  
   list_combos <- unique(tidyr::crossing(first_list[order(first_list)], second_list[order(second_list)]))
-
+  
   #return_data <- furrr::future_map2(.x=first_list[order(first_list)], .y=second_list[order(second_list)], .f=function(x,y){
   return_data <- parallel::mclapply(seq_along(1:nrow(list_combos)), function(idx){
     x <- toString(list_combos[idx,1])
@@ -830,7 +901,7 @@ set.seed(seed)
         print(y)
       }
       out_file <- paste( output_dir, "/",run_name,sep="")
-
+      
       #if(file.exists(out_file) && file.info(out_file)$size > 0){
       #  if(clean_extract){
       #    unlink(x = out_file,recursive = F,force = T,expand = T)
@@ -838,7 +909,7 @@ set.seed(seed)
       #  #  stop(paste("Output file :",out_file,"exists!"))
       #  #}
       #}
-
+      
       # return(tryCatch({
       #   return_BLAST <- run_BLAST(query_path = x,subject_path = y,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list, clean_extract=clean_extract,blast.sequence.limit = blast.sequence.limit, n_threads=n_threads, verbose = verbose, gzip.output=gzip.output)
       #   return(return_BLAST)
@@ -847,24 +918,22 @@ set.seed(seed)
       #   return(NULL)
       # }))
       return_BLAST <- NULL
-      try(return_BLAST <- run_BLAST(query_path = x,subject_path = y,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list, clean_extract=clean_extract,blast.sequence.limit = blast.sequence.limit, n_threads=n_threads, verbose = verbose, gzip.output=gzip.output, seed=seed,return_data=return_data, use.feather=use.feather)) #, return_f_callback=return_f_callback,...=...
+      try({return_BLAST <- run_BLAST(query_path = x,subject_path = y,blast_DB_dir = blast_DB_dir, blast_program=blast_program, blast_out = out_file, run_name = run_name,blast_options = blast_options,COMPLETE.format.ids = COMPLETE.format.ids,params_list = params_list, clean_extract=clean_extract,blast.sequence.limit = blast.sequence.limit, n_threads=n_threads, verbose = verbose, gzip.output=gzip.output, seed=seed,return_data=return_data, use.feather=use.feather)}) #, return_f_callback=return_f_callback,...=...
       if(return_data){
         return(return_BLAST)
       }else{
         return(NULL)
       }
-
+      
     }
   }, mc.cores = n_threads, mc.silent = !verbose) #, .options = furrr::furrr_options(seed = seed, scheduling=F)) # #params_list$numWorkers
-
+  
   #cat(print_toc(tictoc::toc(quiet = T, log = T)))
-
+  
   return(return_data)
-
+  
 }
 
-#@param return_f_callback Function to execute on returning data. Set NULL for discarding returning data - in run_BLAST()
-#@param ... Parameters for return_f_callback() - in run_BLAST()
 #' Execute all2all BLAST
 #'
 #' Executes All-to-All BLAST between two lists of organisms/genes/clusters. Output BLAST files are bi-directional and are stored in the format filename1.filename2.all2all under output_dir. (All-to-All is simply Many-to-Many association)
@@ -931,9 +1000,9 @@ set.seed(seed)
     second_set <- list_combinations[idx,2]
     fw_dir <- NULL
     bk_dir <- NULL
-    tryCatch(fw_dir <- unlist(one2one_BLAST(first_list = first_set,second_list = second_set, file_ext=file_ext,run_name = paste(first_set,second_set,"fw.all2all",f_ext,sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, gzip.output=gzip.output, clean_extract=clean_extract, n_threads=1, verbose=verbose, seed=seed,return_data=return_data, use.feather=use.feather)),
+    tryCatch({fw_dir <- unlist(one2one_BLAST(first_list = first_set,second_list = second_set, file_ext=file_ext,run_name = paste(first_set,second_set,"fw.all2all",f_ext,sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, gzip.output=gzip.output, clean_extract=clean_extract, n_threads=1, verbose=verbose, seed=seed,return_data=return_data, use.feather=use.feather))},
              error=function(cond){ if(verbose){message(cond)}}) #return_f_callback=return_f_callback,...=...
-    tryCatch(bk_dir <- unlist(one2one_BLAST(first_list = second_set,second_list = first_set,file_ext=file_ext, run_name = paste(first_set,second_set,"bk.all2all",f_ext,sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, gzip.output=gzip.output, clean_extract=clean_extract, n_threads=1, verbose=verbose, seed=seed,return_data=return_data, use.feather=use.feather)),
+    tryCatch({bk_dir <- unlist(one2one_BLAST(first_list = second_set,second_list = first_set,file_ext=file_ext, run_name = paste(first_set,second_set,"bk.all2all",f_ext,sep="."),blast_DB_dir=blast_DB_dir,blast_program = blast_program,output_dir=output_dir, blast_options=blast_options, input_prefix_path=input_prefix_path, params_list=params_list,COMPLETE.format.ids=COMPLETE.format.ids, gzip.output=gzip.output, clean_extract=clean_extract, n_threads=1, verbose=verbose, seed=seed,return_data=return_data, use.feather=use.feather))},
              error=function(cond){ if(verbose){message(cond)}}) #,return_f_callback=return_f_callback,...=...
     if(return_data){
       return(list(fw_dir=fw_dir,bk_dir=bk_dir))
@@ -951,3 +1020,51 @@ set.seed(seed)
   return(return_data)
 }
 
+#' Execute all2all QuickBLAST
+#'
+#' Executes All-to-All QuickBLAST between two lists of organisms/genes/clusters. Output BLAST files are bi-directional and are stored in the filename filename1.filename2.all2all under output_dir. (All-to-All is simply Many-to-Many association)
+#'
+#' @examples
+#'  all2all_QuickBLAST(first_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F), second_list = list.files(path="fasta",pattern = "\*.fa",all.files = T,full.names = T,include.dirs = F,recursive = F),,blast_program = "tblastx", blast_options=GetAvailableBLASTOptions(),output_dir = "files/all2all",file_ext="cds",seq_type=COMPLETE_env$ESeqType$eFile,strand=COMPLETE_env$EStrand$ePlus,save_sequences=F)
+#'
+#'
+#' @param first_list Vector of FASTA Filenames or Strings
+#' @param second_list Vector of FASTA Filenames or Strings
+#' @param file_ext (Optional) File extension of input files. eg- "cds" or "fa", Unused if input_type is COMPLETE_env$EInputType$eSequencesString
+#' @param blast_program Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program. Default is tempdir(). Can also be NULL
+#' @param output_dir Path to BLAST output
+#' @param blast_options Extra Options to be passed to the BLAST program
+#' @param input_type (integer) 0 for Files, 1 for Sequences - COMPLETE::GetQuickBLASTEnums()$EInputType
+#' @param seq_type (integer) 0 for Nucleotide, 1 for Protein - COMPLETE::GetQuickBLASTEnums()$ESeqType
+#' @param strand (integer) 0 for Plus, 1 for Minus - COMPLETE::GetQuickBLASTEnums()$Estrand
+#' @param save_sequences (bool) TRUE - Save sequences in BLAST results, FALSE - Only save BLAST data
+#' @param input_prefix_path If input lists/vectors are filenames, then provide input folder to prefix path
+#' @param blast.sequence.limit Maximum number of sequences allowed in each BLAST file. Default - 0. If the query FASTA sequences > blast.sequence.limit, the sequences are split into multiple files and BLASTed. Use 0 to not split & copy the files into temporary files
+#' @param n_threads Number of Threads
+#' @param verbose Print Debug Messages? 
+#' @export
+all2all_QuickBLAST <- function(first_list,second_list,blast_program, file_ext="fa", blast_options="", seq_type, strand,  output_dir="./", save_sequences, input_prefix_path=NULL, blast.sequence.limit=1000, n_threads=8, verbose=T){
+
+    if(verbose){
+    cat(paste("All2All QuickBLAST Started...","\n",sep = ""))
+    print(paste(first_list,collapse = ","))
+    print(paste(second_list,collapse = ","))
+  }
+  
+  dir.create(path = output_dir,recursive = T,showWarnings = F)
+  
+  list_combinations <- unique(tidyr::crossing(first_list,second_list))
+  #furrr::future_map2(.x=list_combinations$first_list, .y=list_combinations$second_list, .f=function(first_set,second_set){
+  parallel::mclapply(seq_along(1:nrow(list_combinations)), function(idx){
+    first_set <- list_combinations[idx,1]
+    second_set <- list_combinations[idx,2]
+    fw_dir <- NULL
+    bk_dir <- NULL
+    tryCatch(one2one_QuickBLAST(first_set,second_set, file_ext=file_ext,blast_out=paste(first_set,second_set,"fst","."), input_prefix_path=input_prefix_path,blast.sequence.limit=blast.sequence.limit, input_type=input_type, n_threads=n_threads, blast_program=blast_program, output_dir=output_dir, blast_options=blast_options, seq_type=seq_type, strand=strand, save_sequences=save_sequences, verbose=verbose),
+             error=function(cond){ if(verbose){message(cond)}}) 
+    tryCatch(one2one_QuickBLAST(first_set,second_set, file_ext=file_ext,blast_out=paste(second_set,first_set,"fst","."), input_prefix_path=input_prefix_path,blast.sequence.limit=blast.sequence.limit, input_type=input_type, n_threads=n_threads, blast_program=blast_program, output_dir=output_dir, blast_options=blast_options, seq_type=seq_type, strand=strand, save_sequences=save_sequences, verbose=verbose),
+             error=function(cond){ if(verbose){message(cond)}}) 
+
+    
+  }, mc.cores = n_threads, mc.preschedule=T ) 
+}

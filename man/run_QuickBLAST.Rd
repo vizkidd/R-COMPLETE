@@ -7,11 +7,12 @@
 run_QuickBLAST(
   query,
   subject,
+  seq_info,
   blast_out,
   blast.sequence.limit,
   n_threads,
   blast_program,
-  blast_options,
+  blast_options = COMPLETE::GetAvailableBLASTOptions(),
   input_type
 )
 }
@@ -19,6 +20,8 @@ run_QuickBLAST(
 \item{query}{Query FASTA (File or Seq)}
 
 \item{subject}{Subject FASTA (File or Seq)}
+
+\item{seq_info}{Ordered List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.}
 
 \item{blast_out}{Path to BLAST output file. Required for Files, Not used for Seqs}
 
@@ -28,9 +31,9 @@ run_QuickBLAST(
 
 \item{blast_program}{BLAST Program to use}
 
-\item{blast_options}{BLAST Options to use}
+\item{blast_options}{List of BLAST Options to use - COMPLETE::GetAvailableBLASTOptions()}
 
-\item{input_type}{(integer) 0 for Files, 1 for Sequences}
+\item{input_type}{(integer) 0 for Files, 1 for Sequences - COMPLETE::GetQuickBLASTEnums()$EInputType}
 }
 \description{
 BLAST between two FASTA files or sequences. BLAST output is saved in Arrow::Feather/Parquet format (for files) or printed to stdout (for seqs).

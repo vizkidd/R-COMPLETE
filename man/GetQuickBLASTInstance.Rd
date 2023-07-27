@@ -4,18 +4,32 @@
 \alias{GetQuickBLASTInstance}
 \title{Get an Instance of QuickBLAST class and its exposed methods}
 \usage{
-GetQuickBLASTInstance(seq_type, strand, save_sequences)
+GetQuickBLASTInstance(seq_info, program, options)
 }
 \arguments{
-\item{seq_type}{(integer) 0 for Nucleotide and 1 for Protein}
+\item{seq_info}{List of 1) (int) Sequence Type : 0 - eNucleotide, 1 - eProtein, 2) (int) Strand : 0 - ePlus, 1 - eMinus, 3) (bool) Save Sequences in BLAST Hits? : TRUE - BLAST Hits have sequences, FALSE - FASTA sequences are not stored in BLAST Hits.}
 
-\item{strand}{(integer) 0 for Plus(+), 1 for Minus(-)}
+\item{program}{(string) Name of the BLAST program}
 
-\item{save_sequences}{(bool) Save Sequences in the arrow::RecordBatch (Only for BLASTing Files)}
+\item{options}{(string) String of BLAST options - eg, "-evalue 1e-05 -pident 0.75" - check COMPLETE::GetAvailableBLASTOptions() for available options}
+
+\item{return_values}{(Only used for BLAST2Files) (bool) TRUE - Returns values as list, Default - FALSE - Does not return values (Return true on completion)}
 }
 \value{
-A QuickBLAST Object
+A new QuickBLAST Object
 }
 \description{
 Get an Instance of QuickBLAST class and its exposed methods
+}
+\note{
+Check BLAST C++ Call in Help for the list of parameters for the exposed BLAST function. Exposed C++ function only takes BLAST options as string.
+}
+\examples{
+bw_obj <- COMPLETE::GetQuickBLASTInstance(0,0,"blastn","-evalue 1e-05",F)
+bw_obj$BLAST("ungrouped.cds", "ungrouped.cds", "out.tmp", 0, 1000, T)
+bw_obj$BLAST("AAAAAAAAAAAATTTTTTTTTTTTGGGGGGGGGGGCCCCCCCCC", "TTTTTTTTTTTGGGGGGGGGGGG", "", 0, 1000, F)
+
+}
+\seealso{
+\code{\link[=run_QuickBLAST]{run_QuickBLAST()}}, \code{\link[=run_QuickBLAST2Files]{run_QuickBLAST2Files()}}, \code{\link[=run_QuickBLAST2Seqs]{run_QuickBLAST2Seqs()}}
 }

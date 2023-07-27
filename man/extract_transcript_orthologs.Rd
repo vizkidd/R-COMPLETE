@@ -22,7 +22,7 @@ extract_transcript_orthologs(
 \arguments{
 \item{blast_program}{Give the name of the BLAST program to use (if in $PATH) or give the absolute path to the BLAST program.}
 
-\item{blast_options}{BLAST options for the BLAST program}
+\item{blast_options}{BLAST options for the BLAST program - COMPLETE::GetAvailableBLASTOptions()}
 
 \item{transcript_region}{Transcript region (.cds, .3utr, .5utr, .exon, and other gtf regions(not tested)) (eg, ".cds" or ".fa"). Essentially this would be the file extensions of the input FASTA file(names)}
 

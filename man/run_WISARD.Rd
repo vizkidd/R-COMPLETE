@@ -7,7 +7,7 @@
 run_WISARD(blast_hits, score_col, n_threads = 4, verbose = F)
 }
 \arguments{
-\item{blast_hits}{GRanges Object of BLAST Hits (Query -> Subject) (from GRObject_from_BLAST())}
+\item{blast_hits}{GRanges Object of BLAST Hits (Query -> Subject) (from GRObject_from_BLASTHits())}
 
 \item{score_col}{Column in the GRanges Object used for scoring intervals in WISARD, Default would be "Hsp_score" (qcovhsp (Query Coverage HSP))}
 
@@ -19,14 +19,14 @@ run_WISARD(blast_hits, score_col, n_threads = 4, verbose = F)
 A GRanges object of BLAST hits
 }
 \description{
-Select the highest scoring pairs (HSPs) which give the maximum coverage over the BLAST alignments of each transcript (without overlaps/minimal overlaps). These HSPs will then be used to find Transcript level orthologs across gene orthologs across organisms. This function only accepts bi-directional (Query <-> Subject) BLAST Hits formatted with GRObject_from_BLAST()
+Select the highest scoring pairs (HSPs) which give the maximum coverage over the BLAST alignments of each transcript (without overlaps/minimal overlaps). These HSPs will then be used to find Transcript level orthologs across gene orthologs across organisms. This function only accepts bi-directional (Query <-> Subject) BLAST Hits formatted with GRObject_from_BLASTHits()
 }
 \note{
 The BLAST Hits assumed to be on the same frame (1/1,2/2,3/3). Hits across frames are NOT supported (1/2,1/3,...)
 }
 \examples{
 
-blast_GO <- GRObject_from_BLAST(blast_input = in_file, COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
+blast_GO <- GRObject_from_BLASTHits(blast_input = in_file, COMPLETE.format.ids = T, col.indices=c(qseqid=1,sseqid=2,evalue=11,qstart=7,qend=8,sstart=9,send=10,bitscore=12,qcovhsp=16,qlen=18,slen=19,frames=15,pident=3,gaps=14,length=4,sstrand=17))
 wis_GO <- run_WISARD(blast_hits = blast_GO,score_col = "Hsp_score",COMPLETE.format.ids = T,params_list=NULL) #score_col=16
 melt_wisard_list(wis_GO)
 
