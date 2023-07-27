@@ -25,10 +25,10 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 <a name="install"/>
 
-**Download and install [QuickBLAST](https://github.com/vizkidd/R-COMPLETE/releases/tag/QuickBLAST) binaries** 
+**Download and install [QuickBLAST](https://github.com/vizkidd/QuickBLAST) binaries** 
 ```R
 BiocManager::install(c("remotes))
-remotes::install_local("QuickBLAST.tar.gz",build = F, quiet = T)
+remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz",build = F, quiet = T)
 ```
 
 ```bash
@@ -158,7 +158,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 + COMPLETE::run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files
 + COMPLETE::run_BLAST() - Call blast suite of programs from cmdline
 + COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object
-+ 
++ [QuickBLAST](https://github.com/vizkidd/QuickBLAST)
 
 ```R
 remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz", build=F)
