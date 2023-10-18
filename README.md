@@ -13,6 +13,8 @@
         + [EXTRACT_DATA()](#fun1)
         + [FIND_TRANSCRIPT_ORTHOLOGS()](#fun2)      
 
+(TODO : Add Omit list which negates from the total gene list of all organisms)
+
 # R - COMPLETE
 
 <a name="about"/>
