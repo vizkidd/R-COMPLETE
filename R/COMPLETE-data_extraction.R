@@ -1418,7 +1418,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
     }
 
   }else{
-    messsage(paste("User Data not provided or is empty!"))
+    message(paste("User Data not provided or is empty!"))
   }
 
   if (length(gene_list) == 1 && file.exists(gene_list)) {
