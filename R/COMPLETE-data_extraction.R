@@ -229,6 +229,8 @@ calculate_stats <- function(gtf_data, allow_strand="", n_threads=tryCatch(parall
 #' @return Process ID from processx::new() which can be used for further monitoring of the process
 #' @export
 add_to_process <- function(p_cmd,p_args=list(),verbose=F, logfile=NULL, params_list){
+  # print(c("add_to_process(): ", p_cmd, p_args)) #DEBUG
+
   if (is.null(logfile)) {
     logfile=""
   }
@@ -331,6 +333,8 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
   # }
 
   #if (!is.vector(genes)) {
+  # print(c("check_files(): ", fasta_path,org)) #DEBUG
+
   if(length(genes) == 1 && file.exists(genes)){
     genes <- gsub('[[:punct:]]+','_', factor(scan(genes, character(), quiet = T)))#factor(scan(genes, character(),quiet = T)) #gsub('[[:punct:] ]+','_', factor(scan(gene_list, character())))
     genes <- tolower(genes[grep("gene",tolower(genes), invert = T, fixed = T)])
@@ -422,6 +426,8 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
 #' @return GTF Data
 #' @export
 get_gtf_mart <- function(org, gene_list){
+  # print(c("get_gtf_mart(): ", org)) #DEBUG
+
   ##Credits to https://nbisweden.github.io/workshop-RNAseq/2011/lab_download.html for GTF download through biomart with biomaRt
   gtf_attributes <- c("chromosome_name",
                       "strand",
@@ -446,10 +452,23 @@ get_gtf_mart <- function(org, gene_list){
   # mart.dataset <-tryCatch(check_mart_dataset(org),error=function(cond){
   #   stop(cond)
   # })
+  # print("Checking mart dataset...") #DEBUG
+
   mart.dataset <- check_mart_dataset(org)
+
+  # print("Checking mart dataset...COMPLETE") #DEBUG
+
+  # print("Connecting to mart...") #DEBUG
+
   using.mart.data <- mart_connect(biomaRt::useMart,args = list(COMPLETE_env$ENSEMBL_MART, mart.dataset))
 
+  # print("Connecting to mart...COMPLETE") #DEBUG
+
+# print(list("Listing mart attributes...", list(COMPLETE_env$ENSEMBL_MART, mart.dataset))) #DEBUG
+
   mart.attributes <- biomaRt::listAttributes(using.mart.data)
+
+# print("Listing mart attributes...COMPLETE") #DEBUG
 
   if( !all(!is.na(match(gtf_attributes,mart.attributes$name))) ){
     stop(paste("GTF Attributes were not available for :",org,"\n"))
@@ -466,7 +485,13 @@ get_gtf_mart <- function(org, gene_list){
   #bm_gtf <- dplyr::bind_rows(lapply(split(genes, ceiling(seq_along(genes)/500)), function(split_genes){
   #  return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = split_genes, curl=COMPLETE_env$curl_handle)))
   #}))
-  bm_gtf <- mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = genes, curl=COMPLETE_env$curl_handle))
+
+# print("Connecting to mart 2...") #DEBUG
+
+  bm_gtf <- mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=gtf_attributes,uniqueRows=T, useCache=F, filters = c("external_gene_name"), values = genes)) #curl=COMPLETE_env$curl_handle
+
+# print("Connecting to mart 2...COMPLETE") #DEBUG
+
   bm_gtf <- dplyr::arrange(bm_gtf,chromosome_name,start_position)
 
   bm_gtf$strand[bm_gtf$strand==1] <- "+"
@@ -499,6 +524,7 @@ get_gtf_mart <- function(org, gene_list){
 #' @return Data Frame with transcripts for which FASTA was obtained
 #' @export
 fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
+  # print(c("fetch_FASTA_mart(): ", org,gtf_stats, fasta_path)) #DEBUG
 
   req_columns <- c("gene_name","gene_id","transcript_id","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand")
 
@@ -544,7 +570,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   bm_df <- c()
 
   if(length(valid_transcripts) > 0){
-    bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts, curl=COMPLETE_env$curl_handle)))},mc.cores = params_list$numWorkers)
+    bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts )))},mc.cores = params_list$numWorkers) #,curl=COMPLETE_env$curl_handle
 
     #print(bm_seq) #DEBUG
     bm_df <- purrr::reduce(bm_seq, dplyr::full_join, by = "ensembl_transcript_id")
@@ -713,6 +739,8 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' @param params_list Parameter list from load_params()
 #' @export
 extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_name, params_list, verbose) {
+  # print(c("extract_transcript_regions(): ",genome_path, gtf_path, gene_list, org_name)) #DEBUG
+
   do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file, COMPLETE_env$parallel), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
 }
 
@@ -731,6 +759,8 @@ extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_nam
 #' @param verbose Print Messages?
 #' @return Named Vector of the organism details
 fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
+  # print(c("fetch_FASTA_biomartr(): ", org_row, params_list, gene_list)) #DEBUG
+
   org <- org_row["name"]
 
   # if (is.null(COMPLETE_env$org.meta)) {
@@ -816,6 +846,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list,verbose=T){
 #' @return Named Vector of the organism details
 #' @export
 fetch_FASTA <- function(org_row, params_list, gene_list, verbose=T) {
+  # print(c("fetch_data(): ", org_row)) #DEBUG
 
   org <- org_row["name"]
   tictoc::tic(msg=paste("Processed:",org))

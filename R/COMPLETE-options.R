@@ -30,11 +30,14 @@ install_parallel <- function(){
 #' @param args Named list of arguments to be used by the function
 #' @return Name of the dataset in biomaRt
 mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
+  # print(c("mart_connect():", args)) #DEBUG
+
   if (!is.null(MART_FUN)) {
     #print(args)
     time_out <- 0
     while (time_out < 600) { #max time out is 10mins, code will fibonacci to it stepping up 5 seconds
       time_out <- time_out+5
+      
       catch_value <- tryCatch(do.call(MART_FUN,args),
                               error=function(cond){
                                 if(verbose){
@@ -44,6 +47,7 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
                                 }
                                 Sys.sleep(time_out)
                               })
+      # print(c("mart_connect():", catch_value, time_out))
       if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
         #print("Done!")
         return(catch_value)
