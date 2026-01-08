@@ -741,37 +741,56 @@ function twoway_RBH() {
 }
 
 function merge_OG2genes_OrthoDB(){
+	# set -eo pipefail
 	local script_args=($(echo $@))
-	local ORTHODB_PATH_PREFIX=${script_args[0]} #$1 #$(grep -i -w "orthodb_path_prefix" $1 | check_param) 
+	local ORTHODB_PATH_PREFIX=$(realpath ${script_args[0]}) #$1 #$(grep -i -w "orthodb_path_prefix" $1 | check_param) 
+	local ORTHODB_PATH=$(dirname "$ORTHODB_PATH_PREFIX")
 	local CLEAN_EXTRACT=${script_args[1]} #$2 #$(grep -i -w "clean_extract" $1 | check_param) 
 	local n_threads=${script_args[2]} #$3 #$(grep -i -w "max_concurrent_jobs" $1 | check_param)
 	local gene_list=${script_args[3]} #$4
-
+	
+	# echo "pwd:"$(pwd)
 	if [[ $(ls -1 "$ORTHODB_PATH_PREFIX"*.gz | awk "END{print NR}") == 0 ]] ; then
 		>&2 echo $(color_FG_BG_Bold $Red $BG_White "Error : ODB Path not found!") #| tee >(cat >&2)
 	  exit 1
 	fi
 
-	if [[ $CLEAN_EXTRACT == "TRUE" ]]; then
-	#	rm -f "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
-		rm -f "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
-	fi
+	# if [[ $CLEAN_EXTRACT == "TRUE" ]]; then
+	# #	rm -f "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
+	# 	>&1  echo $(color_FG_BG_Bold $Yellow $BG_White "Removing "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz! due to CLEAN_EXTRACT option in parameters")
+	# 	rm -f "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+	# fi
 
 	if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz &> /dev/null ; then
 		time join -t $'\t' -1 2 -2 1 <(zcat "$ORTHODB_PATH_PREFIX"_OG2genes.tab.gz | sort --parallel=$n_threads -k 2) <(zcat "$ORTHODB_PATH_PREFIX"_genes.tab.gz | sort --parallel=$n_threads -k 1) | awk -F "\t" '{if($2 in a)a[$2]=a[$2]","$1"||"$5;else a[$2]=$1"||"$5 ;}END{for(key in a)print key"\t"a[key];}' |  awk '{split($2,a,","); delete c; for(key in a){split(a[key],b,/\|\|/); if(b[2] in c==0){c[b[2]]=0;} } e=""; for(gene in c){ if(length(e)==0){e=gene;}else{e=gene","e;} } print $1"\t"$2"\t"e }' | gzip -c > "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz 
 	else
-		>&1 color_FG $Green "File exists!"	
+		>&1 echo $(color_FG $Green "File exists!")	
 	fi
 	>&1 echo $(color_FG $Green "Fixed ODB file stored in : ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz)
 
-	if [ ${#script_args[@]} -eq 4 ]
-	  then
-	    if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz &> /dev/null ; then
-			time zgrep -f <(zcat -f $gene_list | sort | uniq | grep -v -w -i "gene") "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+	if [ ${#script_args[@]} -eq 4 ]; then
+		#   echo "here 2"
+		if [[ -s "$ORTHODB_PATH"/odb.gene_list ]]; then
+			#if old list is different from new list, recreate "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+			if [[ ! -z $(diff -q files/genelist.txt ./files/reference_ORGS.txt) ]]; then
+				>&1 echo $(color_FG $Green "New gene list detected: Recreating ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz)
+				#gene lists are different, recalculate
+				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list
+				cp "$ORTHODB_PATH"/odb.gene_list $gene_list
+				time zgrep -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+			fi
+			>&1 echo $(color_FG $Green "(User gene list) Fixed ODB file found in : ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz)
 		else
-			>&1 color_FG $Green "File exists!"	
+			if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz &> /dev/null ; then
+				# echo "here 2.1"
+				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list	
+				cp "$ORTHODB_PATH"/odb.gene_list $gene_list
+				time zgrep -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+			else
+				>&1  echo $(color_FG $Green "File exists!")
+			fi
+			>&1 echo $(color_FG $Green "(User gene list) Fixed ODB file stored in : ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz)
 		fi
-	    >&1 echo $(color_FG $Green "(User gene list) Fixed ODB file stored in : ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz)
 	fi
 }
 
@@ -848,11 +867,23 @@ function extract_transcript_regions(){
 	  local ANNO_FILE=$ANNOS_PATH/"$f_org_name".gtf.gz
 	fi
 
-	while [[ $(lsof -R -p $$ | wc -l) -gt $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200 
-	do
-	  printf %s"\t"%s"\n" "Waiting for file handles to close.." $(lsof -R -p $$ | wc -l)
-	  sleep 5
-	done
+	# while [[ $(lsof -R -p $$ | wc -l) -gt $(($(ulimit -Sn)-200)) ]]; #limit file descriptors for child & parent process to 1024-200 
+	# do
+	#   printf %s"\t"%s"\n" "Waiting for file handles to close.." $(lsof -R -p $$ | wc -l)
+	#   sleep 5
+	# done
+
+  # Get the soft limit once to avoid repeating the subshell
+  limit=$(ulimit -Sn)
+  threshold=$((limit - 200))
+  
+  # Use /proc/$$/fd to count open handles
+  while [[ $(ls /proc/$$/fd | wc -l) -gt $threshold ]]; 
+  do
+      current_count=$(ls /proc/$$/fd | wc -l)
+      printf "Waiting for file handles to close... Current: %s / Max: %s\n" "$current_count" "$limit"
+      sleep 5
+  done
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "Extracting Genome & Building Index (Samtools faidx)..."
 
@@ -874,7 +905,7 @@ function extract_transcript_regions(){
 
 	###################################################################################################
 
-	local gene_list=($(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene"))
+	local gene_list=($(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene" | grep -v '^$'))
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "1. Checking Gene Names & Splitting GTFs for parallel processing..."
 
@@ -912,7 +943,7 @@ function extract_transcript_regions(){
 	fi
 
 	if [[ $(awk 'END{print NR;}' "$OUT_PATH/genes/$f_org_name/odb.list" | awk '{print $1}') !=  0 ]] ; then
-	    local odb_gene_list=($(cat "$OUT_PATH/genes/$f_org_name/odb.list" | grep -v -w -i "gene" | awk '{print tolower($0)}'))
+	    local odb_gene_list=($(cat "$OUT_PATH/genes/$f_org_name/odb.list" | grep -v -w -i "gene" | grep -v '^$' | awk '{print tolower($0)}'))
 	    local existing_list=($(cat $OUT_PATH/genes/$f_org_name/1.list | sort | uniq | awk '{print tolower($0)}')) 
 	    local short_list=($(echo ${odb_gene_list[@]/${existing_list[@]}}))
 
@@ -1031,21 +1062,23 @@ function check_OrthoDB(){
 	# $6 - TRUE/FALSE. Select all genes from each cluster for the organism? (otherwise only the user specified genes are selected)
 
 	##ENTRYPOINT
-
+	# set -xeo pipefail
 	local script_args=($(echo $@))
 	local f_org_name=${script_args[0]}  #$1
 	#readarray gene_list < $2
-	local gene_list=($(cat ${script_args[1]} | grep -v -w -i "gene")) #$2
+	local gene_list=($(cat ${script_args[1]} | grep -v -w -i "gene" | grep -v '^$')) #$2
 	local out_gene_list=${script_args[2]} #$3
 	local out_gene_clusters=${script_args[3]} #$4 #$5 - is parameters.txt
 	local param_file=${script_args[4]}
 	local select_all_genes=${script_args[5]}
 
 	local TEMP_PATH=$(grep -i -w "temp_path" $param_file | check_param)
-	local ORTHODB_PATH_PREFIX=$(grep -i -w "orthodb_path_prefix" $param_file | check_param)
+	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
 	local REF_ORGS=$(grep -i -w "ref_orgs" $param_file | check_param)
 	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}' ) #| check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
+	
+	# echo $ORTHODB_PATH_PREFIX
 
 	if [[ -z $ORTHODB_PATH_PREFIX ]]; then
 		>&2 color_FG_Bold $Yellow "Not using OrthoDB!"
@@ -1070,20 +1103,30 @@ function check_OrthoDB(){
 	  exit -1
 	fi
 
-	if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz ; then
-	  if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz ; then
-	    exit -1
-	  else
-	    local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
-	    >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
-	  fi
-	  >&2 color_FG_Bold $Red "2. Error in ODB files! Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
-	  exit -1
-	else
-	  local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
-	  >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
-	fi
+	# if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz ; then
+	#   if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz ; then
+	#     >&2 color_FG_Bold $Red "2. Error in ODB files! Missing "$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz : Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
+	# 	## merge_OG2genes_OrthoDB $ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]}
+	# # 	exit -1
+	# #   else
+	# #     local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
+	# #     >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	#   fi
+	#   >&2 color_FG_Bold $Red "2. Error in ODB files! Corrupt "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz : Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
+	#   exit -1
+	# else
+	#   local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+	#   >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	# fi
 
+	if [ -s "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz ]; then
+		local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
+		>&1 echo $(color_FG $Yellow "2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	else
+		local ODB_FILE="$ORTHODB_PATH_PREFIX"_OGgenes_fixed.tab.gz
+		>&1 echo $(color_FG $Yellow "2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	fi
+	
 	readarray refs < $REF_ORGS
 
 	local s_names=($(awk  -v s_var='_' '{ gsub(/[[:punct:]]/,s_var);}1' <(echo "${gene_list[@]}") | awk '{print tolower($0)}'))
@@ -1096,6 +1139,8 @@ function check_OrthoDB(){
 	if [[ -z $org_ID ]] ; then
 	  local org_ID=$(zgrep -i -P "($org_name)" "$ORTHODB_PATH_PREFIX"_species.tab.gz | awk '{print $2}')
 	fi
+
+	# echo "ODB_FILE:"$ODB_FILE "out file:"$out_gene_list "GENES:" ${gene_list[@]}
 
 	if [[ ! -z $org_ID ]] ; then
 
@@ -1131,7 +1176,7 @@ function check_OrthoDB(){
 	fi
 
 	#Save selected clusters and the participating genes(delimiter=",") in odb.final_map
-	zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat ${script_args[1]} $out_gene_list | grep -v -w -i "gene") | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $out_gene_clusters #> $OUT_PATH/genes/$f_org_name/odb.final_map
+	zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat ${script_args[1]} $out_gene_list | grep -v -w -i "gene" | grep -v '^$') | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $out_gene_clusters #> $OUT_PATH/genes/$f_org_name/odb.final_map
 
 	if [[ -s $out_gene_clusters ]]; then #$OUT_PATH/genes/$f_org_name/odb.final_map
 	  >&1 echo $(color_FG $Green "2. DONE: Mapped gene names to clusters : ")$(color_FG_BG_Bold $White $BG_Purple "$out_gene_clusters")

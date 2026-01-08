@@ -29,7 +29,7 @@ install_parallel <- function(){
 #' @param MART_FUN Fuction to be called
 #' @param args Named list of arguments to be used by the function
 #' @return Name of the dataset in biomaRt
-mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
+mart_connect <- function(MART_FUN=NULL,args=c(),verbose=T){
   # print(c("mart_connect():", args)) #DEBUG
 
   if (!is.null(MART_FUN)) {
@@ -48,6 +48,7 @@ mart_connect <- function(MART_FUN=NULL,args=c(),verbose=F){
                                 Sys.sleep(time_out)
                               })
       # print(c("mart_connect():", catch_value, time_out))
+      # print(paste("mart_connect() timeout:", time_out))
       if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
         #print("Done!")
         return(catch_value)
@@ -187,7 +188,14 @@ load_params <- function(param_file){
   BED_PATH <- tools::file_path_as_absolute(check_param(param_table,"bed_path",optional=F,CAST_FUN=as.character,create_dir=T))
   PLOT_PATH <- tools::file_path_as_absolute(check_param(param_table,"plot_path",optional=F,CAST_FUN=as.character,create_dir=T))
   GENE_DROP_THRESHOLD <- check_param(param_table,"gene_drop_thresh",optional=F,CAST_FUN=as.double)
-  ORTHODB_PREFIX <- check_param(param_table,"orthodb_path_prefix",optional=T,CAST_FUN=as.character)
+  ORTHODB_PREFIX <- ""
+  ORTHODB_PREFIX_path <- check_param(param_table,"orthodb_path_prefix",optional=T,CAST_FUN=as.character)
+  if(length(which(grepl(x=list.files(dirname(ORTHODB_PREFIX_path)), pattern = "genes.tab.gz|OG2genes.tab.gz|species.tab.gz"))) == 3)
+  {
+    ORTHODB_PREFIX <- file.path(tools::file_path_as_absolute(dirname(ORTHODB_PREFIX_path)), basename(ORTHODB_PREFIX_path))
+  }else{
+    stop(paste(ORTHODB_PREFIX_path, "does not seem to have *_genes.tab.gz|*_OG2genes.tab.gz|*_species.tab.gz"))
+  }
   MACSE_PATH <- tools::file_path_as_absolute(check_param(param_table,"macse_path",optional=F,CAST_FUN=as.character))
   MAFFT_PATH <- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
   TRANSAT_PATH <- tools::file_path_as_absolute(check_param(param_table,"transat_path",optional=F,CAST_FUN=as.character))
@@ -339,6 +347,10 @@ INITIALIZE <- function() {
 
 .onUnload <- function(libname, pkgname){
   ##rm(COMPLETE_env)
+  sapply(COMPLETE_env$process_list, function(x) {
+    if(x$is_alive())
+      x$kill()
+    })
   if(exists("COMPLETE_env", mode="environment")){
     COMPLETE_env <<- new.env(parent=emptyenv())
   }
