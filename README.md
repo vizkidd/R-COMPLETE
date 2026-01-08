@@ -27,11 +27,11 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 <a name="install"/>
 
-**Download and install [QuickBLAST](https://github.com/vizkidd/QuickBLAST) binaries** 
+<!-- **Download and install [QuickBLAST](https://github.com/vizkidd/QuickBLAST) binaries** 
 ```R
 BiocManager::install(c("remotes))
 remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz",build = F, quiet = T)
-```
+``` -->
 
 ```bash
 sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libparquet-dev
@@ -60,10 +60,10 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 <a name="odb"/>
 
 ### OrthoDB : (Optional)
-+ [OrthoDB (ODB) Flat Files (>= v10.1)](https://www.orthodb.org/?page=filelist) (Pipeline is tested with ODB v10.1) 
-     + [odb10v1_species.tab.gz](https://v101.orthodb.org/download/odb10v1_species.tab.gz) - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
-     + [odb10v1_genes.tab.gz](https://v101.orthodb.org/download/odb10v1_genes.tab.gz)  -Ortho DB genes with some info 
-     + [odb10v1_OG2genes.tab.gz](https://v101.orthodb.org/download/odb10v1_OG2genes.tab.gz) - OGs to genes correspondence <br> **(OR)**
++ [OrthoDB (ODB) Flat Files (>= v10.1)](https://data.orthodb.org/current/download/odb_data_dump/) (Pipeline is tested with ODB v12.2) 
+     + [odb12v2_species.tab.gz](https://data.orthodb.org/current/download/odb_data_dump/odb12v2_species.tab.gz) - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
+     + [odb12v2_genes.tab.gz](https://data.orthodb.org/current/download/odb_data_dump/odb12v2_genes.tab.gz)  -Ortho DB genes with some info 
+     + [odb12v2_OG2genes.tab.gz](https://data.orthodb.org/current/download/odb_data_dump/odb12v2_OG2genes.tab.gz) - OGs to genes correspondence <br> **(OR)**
      + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline - Only once)
      + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline - For different gene sets)
 
@@ -81,7 +81,7 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 <a name="files"/>
 
 ### Files (Config) 
-+ [Parameters](inst/pkg_data/parameters.txt)
++ **[Parameters](inst/pkg_data/parameters.txt)**
 + [User Data](inst/pkg_data/user_data.txt) (Optional)
 + [Reference Organisms](inst/pkg_data/reference_ORGS.txt) (`COMPLETE_env$org.meta` has the list of organisms available)
 
@@ -98,7 +98,7 @@ To run the example, from the context of your current working directory,
 params_list <- COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
 gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt")
 user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt")
-COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = gene_list, user_data = user_data, only.user.data = F )
+COMPLETE::EXTRACT_DATA(params_list = params_list, gene_list = gene_list, user_data = user_data, keep_data=F, only.user.data = F )
 COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_list, blast_program = "tblastx", group.mode=COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS, run.mode="both", verbose=F, seed=123)
 ```
 
@@ -116,7 +116,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 
 <a name="params"/>
 
-   The pipeline takes a single parameter file. This design was chosen,
+   The pipeline takes a single **[parameter](inst/pkg_data/parameters.txt)** file. This design was chosen,
    + To expose as many options as possible to the end-user
    + The pipeline uses BASH to BLAST and handle files (significantly faster than R) and the parameter file is shared between R and BASH.    
    + Parameters tagged as output in comment column are outputs from COMPLETE
@@ -136,7 +136,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 ```diff
 * Columns Org, genome, gtf
 * Can accept empty or '-' in genome and/or gtf column. If empty or '-', the genome/gtf is looked up in ENSEMBL or NCBI DBs 
-* A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
+* A **[default/example](inst/pkg_data/user_data.txt)** file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
 ```
 
 ### COMPLETE.format.ids 
@@ -155,25 +155,25 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 <a name="blast"/>
 
 ### BLAST Functions 
-+ COMPLETE::one2one() - one2one BLAST between a list of files
-+ COMPLETE::all2all() - all2all BLAST between a list of files
-+ COMPLETE::run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files
-+ COMPLETE::run_BLAST() - Call blast suite of programs from cmdline
-+ COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object
+~~+ COMPLETE::one2one() - one2one BLAST between a list of files~~
+~~+ COMPLETE::all2all() - all2all BLAST between a list of files~~
+~~+ COMPLETE::run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files~~
+~~+ COMPLETE::run_BLAST() - Call blast suite of programs from cmdline~~
+~~+ COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object~~
 + [QuickBLAST](https://github.com/vizkidd/QuickBLAST)
-
+<!-- 
 ```R
 remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz", build=F)
 tblastx_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info = list(0,0,F), program = "tblastx", options = list("evalue"=1e-05, "pident"=0.75, "qcovhsp_perc"=0.75))
 blastn_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info = list(0,0,F), program = "blastn", options = "")
  QuickBLAST::BLAST2Files(ptr=tblastx_ptr, query="ungrouped.cds", subject="ungrouped.cds", outFile="out.tmp", seq_limit=1000, show_progress=T,return_values=F, num_threads=8)
 QuickBLAST::BLAST2Seqs(ptr=blastn_ptr, query="AAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTGGGGGGGGGGGGGGGGGGGGGGGGCCCCCCCCCCCCCCCCCCCC", subject="TTTTTTTTTTTTGGGGGGGGGGGGGGGG")
-```
+``` -->
 
 <a name="blast_options"/>
 
 #### QuickBLAST Options 
-    Same as BLAST but DB & OUTPUT Format are not available. List of available options can be checked with `COMPLETE::GetAvailableBLASTOptions()` (Emplty elements from the list are removed and BLAST defaults are set on the c++ side). Inputs and Outputs are provided as parameters and sequence specification(strand, sequence type) can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()` (or use the BLAST2*() functions in R). Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
+    Same as BLAST but OUTPUT Format is not available. List of available options can be checked with `QuickBLAST::GetAvailableBLASTOptions()` (Empty elements from the list are removed and BLAST defaults are set on the c++ side). <del></del>Inputs and Outputs are provided as parameters and sequence specification(strand, sequence type) can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()` (or use the BLAST2*() functions in R)</del>. Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
 
   
 <a name="flow"/>
@@ -201,6 +201,6 @@ QuickBLAST::BLAST2Seqs(ptr=blastn_ptr, query="AAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTG
 
       **NOTE : ONLY USE THIS FUNCTION WHEN RUNNING THE PIPELINE OF R-COMPLETE. Use other helper function to work with custom BLAST files not generated by this R package.**
 
-<a name="fun3"/>
+<!-- <a name="fun3"/>
 
-  3)
+  3) -->

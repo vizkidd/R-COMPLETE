@@ -2,3 +2,5 @@
 files/*
 tools/*
 .gitignore
+.RData
+.Rhistory
