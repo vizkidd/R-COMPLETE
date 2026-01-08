@@ -150,7 +150,7 @@ calculate_stats <- function(org, gtf_data, allow_strand="", n_threads=tryCatch(p
                    "transcript_end")
 
   if (any(is.na(match(req_columns, names(gtf_data))))) {
-    stop(paste("Missing columns for", org, ", Require :",paste(req_columns,collapse = ","),"\n\n"))
+    stop(paste("Missing columns for", org,"\nHave:", paste(names(gtf_data), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
   }
 
   gtf_split <- base::split(gtf_data, as.factor(gtf_data$external_gene_name))
@@ -427,7 +427,12 @@ check_files <-function(fasta_path,org,genes, verbose=T, params_list){
 
       if(all(!is.na(match(intersect(available_genes,genes),files_in_dir))) && all(is.na(match(intersect(available_genes,genes),missing_genes))) ){ #all(!is.na(match(final_genes,files_in_dir))) && #&& all(is.na(match(missing_genes, files_in_dir)))  #all(which(!is.na(match(files_in_dir,available_genes)))) && all(which(!is.na(match(available_genes,files_in_dir))))) #all(!is.na(match(files_in_dir[which(!is.na(match(files_in_dir,available_genes)))],available_genes[which(!is.na(match(available_genes,files_in_dir)))]))) #all(!is.na(match(missing_genes, files_in_dir))))
         if(verbose){
-          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir[!is.na(match(files_in_dir,genes))]),"+",length(files_in_dir[!is.na(match(files_in_dir,setdiff(odb_genes,genes)))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(genes[is.na(match(genes,files_in_dir))]),", User Genes:",length(genes)," : Check PASSED!\n")) #", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))])
+          # print(files_in_dir)
+          # print(odb_genes)
+          # print(genes)
+          # print(length(files_in_dir) - length(intersect(odb_genes,files_in_dir)))
+          cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(files_in_dir) - length(intersect(odb_genes,files_in_dir)),"+",length(odb_genes) - length(setdiff(odb_genes,files_in_dir)),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(genes[is.na(match(genes,files_in_dir))]),", User Genes:",length(genes)," : Check PASSED!\n"))
+          # cat(paste("Org:",org,", Genes in Dir(Matching + ODB):","(",length(setdiff(odb_genes,files_in_dir[!is.na(match(files_in_dir,genes))])),"+",length(files_in_dir[!is.na(match(files_in_dir,setdiff(odb_genes,genes)))]),")",", Genes in Dir:",length(files_in_dir),", Unavailable:",length(genes[is.na(match(genes,files_in_dir))]),", User Genes:",length(genes)," : Check PASSED!\n")) #", Unavailable:",length(files_in_dir[is.na(match(files_in_dir,c(genes,odb_genes)))])
         }
 
         # data.table::fwrite(x= list(unique(files_in_dir[match(files_in_dir,final_genes)])) ,file=paste(params_list$OUT_PATH,"/genes/",org ,"/AVAILABLE_GENES",sep=""),quote=F,row.names=F,col.names=F,na = "-", nThread = params_list$numWorkers )
@@ -582,7 +587,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   }
 
   if (any(is.na(match(req_columns, names(gtf_stats))))) {
-    stop(paste("Missing columns for", org,", Require :",paste(req_columns,collapse = ","),"\n\n"))
+    stop(paste("Missing columns for", org, "\nHave:", paste(names(gtf_stats), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
   }
 
   if (!any(grepl(pattern="safe_gene_name",names(gtf_stats)))) {
@@ -789,10 +794,14 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 #' @param org_name Name of the organism
 #' @param params_list Parameter list from load_params()
 #' @export
-extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_name, params_list, verbose) {
+extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_name, params_list, keep_data, verbose) {
   # print(c("extract_transcript_regions(): ",genome_path, gtf_path, gene_list, org_name)) #DEBUG
+  
+  if(!file.exists(genome_path) || !file.exists(gtf_path)){
+    stop(paste("MISSING:",genome_path,gtf_path))
+  }
 
-  do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file, COMPLETE_env$parallel), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose ))
+  do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file, COMPLETE_env$parallel, if_else(keep_data,"TRUE","FALSE")), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose))
 }
 
 #' Internal Function - Get FASTA data from BIOMART (using biomartr)
@@ -810,7 +819,7 @@ extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_nam
 #' @param keep_data Keep downloaded genomes and GTF data?
 #' @param verbose Print Messages?
 #' @return Named Vector of the organism details
-fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=T,verbose=T){
+fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,verbose=T){
   # print(c("fetch_FASTA_biomartr(): ", org_row, params_list, gene_list)) #DEBUG
 
   org <- org_row["name"]
@@ -839,6 +848,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=T,ve
       if(any(!file.exists(genome_path), file.info(genome_path)$size <= 20, params_list$CLEAN_EXTRACT)){
         genome_ori <- biomartr::getGenome(organism = org_name, db="ensembl",path = params_list$GENOMES_PATH,reference = T,gunzip = F) #,release=org$release-1)
         if(!is.logical(genome_ori)){
+          # print(paste("Renaming:",genome_ori, genome_path))
           file.rename(tools::file_path_as_absolute(genome_ori),genome_path)
         }
       }
@@ -862,14 +872,15 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=T,ve
         ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
         #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
         cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org_name,".log\n",sep=""))
-        extract_transcript_regions(genome_path, gtf_path, gene_list, org_name, params_list, verbose)
+        extract_transcript_regions(genome_path, gtf_path, gene_list, org_name, params_list, keep_data, verbose)
         ##return(do.call(add_to_process,list(p_cmd = c("./extract_transcript_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
         
-        if(!keep_data){
-          unlink(genome_path)
-          unlink(gtf_path)
-        }
-        unlink(tmp_gene_list)   
+        # if(!keep_data){
+        #   print(paste("DELETING DATA FOR",org_name))
+        #   unlink(genome_path)
+        #   unlink(gtf_path)
+        # }
+        # unlink(tmp_gene_list)   
         cat(print_toc(tictoc::toc(quiet = T, log = T)))
         return(c(org_row, source="r-biomartr"))
       }else{
@@ -915,7 +926,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=T,ve
 #' @param verbose Print Messages?
 #' @return Named Vector of the organism details
 #' @export
-fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=T, verbose=T) {
+fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T) {
   # print(c("fetch_data(): ", org_row)) #DEBUG
 
   org <- org_row["name"]
@@ -1100,7 +1111,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=T, verbose=T)
 #' @param keep_data Keep downloaded Genomes and GTF data?
 #' @param verbose Print Messages?
 #' @return Named Vector of the organism details
-fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=T, verbose=T){
+fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=T){
 
   genome_path <- c()
   gtf_path <- c()
@@ -1239,13 +1250,14 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=T, verbose=
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,param_file)))
       cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org,".log\n",sep=""))
-      do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,params_list$param_file), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
+      # do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,params_list$param_file, if_else(keep_data,"TRUE","FALSE")), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
+      extract_transcript_regions(genome_path, gtf_path, gene_list, org_name, params_list, keep_data, verbose)
       ##return(do.call(add_to_process,list(p_cmd = c("./extract_transcript_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
 
-      if(!keep_data){
-          unlink(genome_path)
-          unlink(gtf_path)
-        }
+      # if(!keep_data){
+      #     unlink(genome_path)
+      #     unlink(gtf_path)
+      #   }
 
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       return(c(data, source="user-provided"))
@@ -1455,9 +1467,10 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
 #' @param gene_list Vector or File with a list of genes to extract data for(check the github repo for an example)
 #' @param user_data File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.
 #' @param only.user.data ONLY Process user data and not all available organisms? (TRUE/FALSE). Default FALSE
-#' @param keep_data Keep downloaded Genomes and GTF data? (TRUE/FALSE). Default TRUE
+#' @param keep_data Keep downloaded Genomes and GTF data? (TRUE/FALSE). Default FALSE
+#' @param rerun_count Number of times to rerun the function to account for extraction/network failures and other errors. Default 3
 #' @export
-EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=F, keep_data=T){
+EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=F, keep_data=F, rerun_count=3){
   set.seed(123)
 
   if (!curl::has_internet()) {
@@ -1709,12 +1722,15 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   # Rscript gene_stats.R >> files/stats.txt
 
   unlink(tmp_gene_list)   
-  
+
   cat(print_toc(tictoc::toc(quiet = T, log = T)))
 
   #tictoc::tic.clearlog()
   cat(paste("Extraction Time Log:\n"))
   cat(paste(tictoc::tic.log(),collapse = "\n"))
+
+  if(rerun_count > 0)
+    EXTRACT_DATA(params_list, gene_list, user_data=user_data, only.user.data=only.user.data, keep_data=keep_data, rerun_count=rerun_count - 1)
 
   #sessionInfo()
 }

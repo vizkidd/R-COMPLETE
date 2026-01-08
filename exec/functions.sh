@@ -808,10 +808,16 @@ function extract_transcript_regions(){
 	local f_org_name=${script_args[3]} #$4
 	local param_file=${script_args[4]} #$5
 	local PARALLEL_PATH=${script_args[5]} #$5
+	local KEEP_DATA=${script_args[6]} #$6
 	local org_name=$(echo $f_org_name | awk '{ gsub(/[[:punct:]]/, " ", $0); print $1" "$2; } ;')
 
 	#chmod a+x $GENOME_FILE
 	#chmod a+x $ANNO_FILE
+	# echo "script args:" $script_args
+	# echo "GENOME:" $GENOME_FILE " ANNO:" $ANNO_FILE
+	# echo "lsG:" $(ls -ltrh $GENOME_FILE)
+	# echo "lsA:" $(ls -ltrh $ANNO_FILE)
+
 	if [[ ! -s $GENOME_FILE || ! -s $ANNO_FILE ]]; then
 		echo $(color_FG_BG_Bold $Red $BG_White "Error : Genome or Annotation missing!.") #| tee >(cat >&2)
 		exit 1
@@ -822,7 +828,7 @@ function extract_transcript_regions(){
 	local ANNOS_PATH=$(grep -i -w "annos_path" $param_file | check_param)
 	local BED_PATH=$(grep -i -w "bed_path" $param_file | check_param)
 	local FASTA_PATH=$(grep -i -w "fasta_path" $param_file | check_param)
-	local OUT_PATH=$(grep -i -w "out_path" $param_file | check_param)
+	local OUT_PATH=$(realpath $(grep -i -w "out_path" $param_file | check_param))
 	local TEMP_PATH=$(grep -i -w "temp_path" $param_file | check_param)
 	local CLEAN_EXTRACT=$(grep -i -w "clean_extract" $param_file | check_param) 
 	local TRANSCRIPT_REGIONS=($(grep -i -w "transcript_regions" $param_file | check_param | sed "s/,/\n/g" ))
@@ -1048,6 +1054,10 @@ function extract_transcript_regions(){
 	rm -f $bed_prefix/"$f_org_name"_*
 
 	>&1 color_FG_BG_Bold $Purple $BG_White "Extraction DONE for organism : $f_org_name"
+
+	if [[ $KEEP_DATA == "FALSE" ]]; then
+		rm -f $GENOME_FILE $ANNO_FILE
+	fi
 
 	exit 0
 }
