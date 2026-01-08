@@ -25,23 +25,18 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 ## Installation (on R - Linux or RStudio Docker with WSL in Windows) :
 
-<a name="install"/>
-
-<!-- **Download and install [QuickBLAST](https://github.com/vizkidd/QuickBLAST) binaries** 
-```R
-BiocManager::install(c("remotes))
-remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz",build = F, quiet = T)
-``` -->
+<a name="install"></a>
 
 ```bash
 sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libparquet-dev
 ```
+
 ```R
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics"))
 devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 ```
 
-<a name="requires"/>
+<a name="requires"></a>
 
 ## REQUIRES :
 + Linux with BASH ($SHELL must be set or /bin/bash must exist) (export SHELL="/bin/bash")
@@ -57,19 +52,19 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 + LZMA SDK - (sudo apt-get install liblzma-dev or yum install xz-devel)
 + BZLIB - (sudo apt-get install libbz2-dev libclang-dev or yum install bzip2-devel.x86_64)
 
-<a name="odb"/>
+<a name="odb"></a>
 
 ### OrthoDB : (Optional)
 + [OrthoDB (ODB) Flat Files (>= v10.1)](https://data.orthodb.org/current/download/odb_data_dump/) (Pipeline is tested with ODB v12.2) 
      + [odb12v2_species.tab.gz](https://data.orthodb.org/current/download/odb_data_dump/odb12v2_species.tab.gz) - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
      + [odb12v2_genes.tab.gz](https://data.orthodb.org/current/download/odb_data_dump/odb12v2_genes.tab.gz)  -Ortho DB genes with some info 
      + [odb12v2_OG2genes.tab.gz](https://data.orthodb.org/current/download/odb_data_dump/odb12v2_OG2genes.tab.gz) - OGs to genes correspondence <br> **(OR)**
-     + odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline - Only once)
-     + odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline - For different gene sets)
+     + odb12v2_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline - Only once)
+     + odb12v2_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline - For different gene sets)
 
 **NOTE : Set ``orthodb_path_prefix`` in parameters file if you use OrthoDB files**
 
-<a name="tools"/>
+<a name="tools"></a>
 
 ### Tools - (Paths in parameters file) 
 + [MACSE](https://bioweb.supagro.inra.fr/macse/) (Path to the .jar)
@@ -78,14 +73,14 @@ devtools::install_github("https://github.com/vizkidd/R-COMPLETE/")
 + [RNADECODER](https://github.com/jujubix/rnadecoder) (Compiled program is in the bin/ of the repo) <b>(Give path to the folder containing the binary)</b>
 + [FastTree](www.microbesonline.org/fasttree)
 
-<a name="files"/>
+<a name="files"></a>
 
 ### Files (Config) 
 + **[Parameters](inst/pkg_data/parameters.txt)**
 + [User Data](inst/pkg_data/user_data.txt) (Optional)
 + [Reference Organisms](inst/pkg_data/reference_ORGS.txt) (`COMPLETE_env$org.meta` has the list of organisms available)
 
-<a name="examples"/>
+<a name="examples"></a>
 
 ## Run Example :
 To run the example, from the context of your current working directory, 
@@ -106,7 +101,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 
 ## Documentation :
 
-<a name="docs"/>
+<a name="docs"></a>
 
 ```{R}
 ?COMPLETE_PIPELINE_DESIGN (in R docs)
@@ -127,21 +122,21 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 * The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (hard to check and convert param types in BASH). 
 * A default/example file is in fs::path_package("COMPLETE","pkg_data","parameters.txt")
 ```
-[EXTRACT_DATA()](#fun1) - `genomes_path`, `annos_path`, 
+<!--[EXTRACT_DATA()](#fun1) - `genomes_path`, `annos_path`, !-->
 
 ### USER DATA : (Optional)
 
-<a name="user_data"/>
+<a name="user_data"></a>
 
 ```diff
 * Columns Org, genome, gtf
 * Can accept empty or '-' in genome and/or gtf column. If empty or '-', the genome/gtf is looked up in ENSEMBL or NCBI DBs 
-* A **[default/example](inst/pkg_data/user_data.txt)** file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
+* A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
 ```
 
 ### COMPLETE.format.ids 
 
-<a name="ids"/>
+<a name="ids"></a>
 
   + Order of FASTA ID labels are stored in ``COMPLETE_env$FORMAT_ID_INDEX``
   + Sequences are labelled with the following long ID format of R-COMPLETE (specific to this pipeline and referred to as COMPLETE.format.ids) <i>(seqID_delimiter & transcripID_delimiter set in parameters, `::` & `||` respectively in this context)</i>
@@ -152,46 +147,33 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
 >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
 ```
-<a name="blast"/>
+<a name="blast"></a>
 
 ### BLAST Functions 
-~~+ COMPLETE::one2one() - one2one BLAST between a list of files~~
-~~+ COMPLETE::all2all() - all2all BLAST between a list of files~~
-~~+ COMPLETE::run_QuickBLAST*() - Run QuickBLAST - Multithreaded Streaming of FASTA files~~
-~~+ COMPLETE::run_BLAST() - Call blast suite of programs from cmdline~~
-~~+ COMPLETE::GetQuickBLASTInstance() - Exposed QuickBLAST Object~~
 + [QuickBLAST](https://github.com/vizkidd/QuickBLAST)
-<!-- 
-```R
-remotes::install_local("QuickBLAST_1.0_R_x86_64-pc-linux-gnu.tar.gz", build=F)
-tblastx_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info = list(0,0,F), program = "tblastx", options = list("evalue"=1e-05, "pident"=0.75, "qcovhsp_perc"=0.75))
-blastn_ptr <- QuickBLAST::CreateNewBLASTInstance(seq_info = list(0,0,F), program = "blastn", options = "")
- QuickBLAST::BLAST2Files(ptr=tblastx_ptr, query="ungrouped.cds", subject="ungrouped.cds", outFile="out.tmp", seq_limit=1000, show_progress=T,return_values=F, num_threads=8)
-QuickBLAST::BLAST2Seqs(ptr=blastn_ptr, query="AAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTGGGGGGGGGGGGGGGGGGGGGGGGCCCCCCCCCCCCCCCCCCCC", subject="TTTTTTTTTTTTGGGGGGGGGGGGGGGG")
-``` -->
 
-<a name="blast_options"/>
+<a name="blast_options"></a>
 
 #### QuickBLAST Options 
-    Same as BLAST but OUTPUT Format is not available. List of available options can be checked with `QuickBLAST::GetAvailableBLASTOptions()` (Empty elements from the list are removed and BLAST defaults are set on the c++ side). <del></del>Inputs and Outputs are provided as parameters and sequence specification(strand, sequence type) can be provided during QuickBLAST object creation with `COMPLETE::GetQuickBLASTInstance()` (or use the BLAST2*() functions in R)</del>. Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
 
-  
-<a name="flow"/>
+Same as BLAST but OUTPUT Format is not available. List of available options can be checked with `QuickBLAST::GetAvailableBLASTOptions()` (Empty elements from the list are removed and BLAST defaults are set on the c++ side). Enums used by QuickBLAST in C++ are not exposed in R and only integers are used, check `COMPLETE::GetQuickBLASTEnums()`.
+
+<a name="flow"></a>
 
 ### FLOW 
 
-<a name="fun1"/>
+<a name="fun1"></a>
 
-   1) <b>EXTRACT_DATA()</b> - Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
+1) **EXTRACT_DATA():** Extracts the transcript regions for Protein Coding Transcripts `(provided in parameters, pipeline requires cds,5utr,3utr)`
      from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
-     and BASH function *extract_transcript_regions()* for user provided data.
-     Extraction priority/flow : User Data > biomaRt > biomartr
-        + ODB Files are merged and transformed with BASH function *merge_OG2genes_OrthoDB()*
-        + Orthologous genes are found for genes which are not present in the organism with BASH function *check_OrthoDB()*
-        + Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check ?*calculate_gtf_stats*)
-        + FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
+     and BASH function *`extract_transcript_regions()`* for user provided data.
+     <br>Extraction priority/flow : `User Data > biomaRt > biomartr`<br>
+   + ODB Files are merged and transformed with BASH function *`merge_OG2genes_OrthoDB()`*
+   + Orthologous genes are found for genes which are not present in the organism with BASH function *`check_OrthoDB()`*
+   + Flank lengths are calculated from GTF data for missing UTRs (with variance correction, check *`?calculate_gtf_stats`*)
+   + FASTA Nucleotide Sequences for given TRANSCRIPT_REGIONS are fetched from BIOMART/Genome
 
-<a name="fun2"/>
+<a name="fun2"></a>
 
    2) <b>FIND_TRANSCRIPT_ORTHOLOGS()</b> - Finds transcript-level orthologs based on minimum coverage and/or maximum sequence identity (check `?extract_transcript_orthologs`). Has a grouping mode(`group.mode`) and run mode(`run.mode`), to group transcript orthologs at the level of <i>organisms, genes or Ortholog Clusters</i>, sequences are grouped into any level of `COMPLETE_env$FORMAT_ID_INDEX` (Default - `COMPLETE_env$FORMAT_ID_INDEX$CLUSTERS`) and select transcript orthologs. Gene level grouping has more tight orthology and fewer transcript orthologs. Ortholog Cluster level grouping is a level higher than Genes (Because an Ortholog Cluster can have more than one gene) and have highest number of transcript orthologs with a lot of dissimilarity. Different run modes determine how transcript-level orthologs are selected by their HSP coverages after grouping. After grouping, non-overlapping BLAST hits which maximize coverage for each transcript are chosen with [WISARD](https://github.com/robbueck/wisard/). Transcripts which do not have bi-directional hits are discarded with `COMPLETE::RBH()`. Finally, HSP coverage is calculated with `COMPLETE::calculate_HSP_coverage()` and transcripts are processed according to `run.mode` option which can be one of, 
         + <i>"coverage_distance"</i> - Hits are filtered based on distance between bi-directional minimum HSP coverages (coverage_distance <= min_coverage_filter). This option selects more BLAST hits and should be used when the coverage values are very low (and the BLAST Hits/sequences are distant). `coverage_distance = 1 - (2 * aligned_length) / (query_length + subject_length)`. `(coverage_distance >= min_coverage_filter)`
