@@ -99,8 +99,7 @@ check_mart_dataset <- function(org){
   if(length(mart.dataset)==0){
     
     warning(paste("Dataset not found in BIOMART for :",org,"\nYou can provide the organism in user data\n\n"))
-    return("")
-    #return(NULL)
+    return(NULL)
   }else if (length(unique(mart.dataset))==1) {
     return(unique(mart.dataset))
   }else{
@@ -578,6 +577,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
 
   req_columns <- c("gene_name","gene_id","transcript_id","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand")
 
+  
   if(any(grepl(x = class(gtf_stats), pattern = "list",ignore.case = T))){
     gtf_stats <- dplyr::bind_rows(gtf_stats)
   }
@@ -607,21 +607,25 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   if(!all(!is.na(match(seq_attributes, biomaRt::listAttributes(using.mart.data)[,c("name")])))){
     stop(paste("Atrributes :",paste(seq_attributes,collapse = ","), ": not availabe for :", org,"\n"))
   }
-
   check_rows_idx <- unlist(sapply(seq_along(1:nrow(gtf_stats)), FUN=function(x){
     #print(gtf_stats[x,]<=3)
     if(any(na.omit(gtf_stats[x,c("five_len","three_len","five_flank","three_flank")]<=3))){ #any(is.na(gtf_stats[x,])) , not checking for CDS==NA because I was able to obtain coding sequences even when cds_len==NA
       return(x)
     }
   }))
-  invalid_stats <- gtf_stats[check_rows_idx,]
-  valid_transcripts <- unique(gtf_stats[-check_rows_idx,]$transcript_id)
-
+  # invalid_stats <- gtf_stats[check_rows_idx,]
+  # valid_transcripts <- unique(gtf_stats[-check_rows_idx,]$transcript_id)
+  if (length(check_rows_idx) > 0) {
+    invalid_stats <- gtf_stats[check_rows_idx,]
+    valid_transcripts <- unique(gtf_stats[-check_rows_idx,]$transcript_id)
+  } else {
+    invalid_stats <- gtf_stats[0,] # Empty dataframe with same columns
+    valid_transcripts <- unique(gtf_stats$transcript_id)
+  }
   bm_df <- c()
 
   if(length(valid_transcripts) > 0){
     bm_seq <- parallel::mclapply(seq_attributes, function(x){return(mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("ensembl_transcript_id",x),uniqueRows=T, useCache=F, filters = c("ensembl_transcript_id"), values = valid_transcripts )))},mc.cores = params_list$numWorkers) #,curl=COMPLETE_env$curl_handle
-
     #print(bm_seq) #DEBUG
     bm_df <- purrr::reduce(bm_seq, dplyr::full_join, by = "ensembl_transcript_id")
     unavailable_transcripts <- unique( unlist(apply(bm_df,MARGIN = 1, FUN = function(x){
@@ -634,18 +638,16 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
       bm_df <- bm_df[is.na(match(bm_df$ensembl_transcript_id,unavailable_transcripts)),]
       invalid_stats <- invalid_stats[is.na(match(invalid_stats$transcript_id,unavailable_transcripts)),]
     }
-
     bm_df <- bm_df %>% mutate(flanking_5utr=F)
     bm_df <- bm_df %>% mutate(flanking_3utr=F)
   }
 
+  # bm_seqs <- data.frame()
   flank_stats <- invalid_stats #invalid_stats[is.na(match(invalid_stats$transcript_id,missing_any_flank_info)),]
   if (nrow(flank_stats) > 0) {
-
     missing_any_flank_info <- unique(c(flank_stats$transcript_id[flank_stats$five_flank==0],flank_stats$transcript_id[flank_stats$three_flank==0]))
 
     if (length(missing_any_flank_info) > 0) { ##All these transcripts have neither UTR Lengths nor Flank lengths info (possibly because the gene does not have isoforms or info is missing), so I set the utr flanks to transcript lengths and correct for variance
-
       arbitrary_flanks <- flank_stats[which(!is.na(match(flank_stats$transcript_id,missing_any_flank_info))),]
       arbitrary_flanks <- arbitrary_flanks[order(arbitrary_flanks$gene_name),]
       arb_flank_values <- dplyr::bind_rows(parallel::mclapply(base::split(arbitrary_flanks,as.factor(arbitrary_flanks$gene_name)), function(x){
@@ -654,11 +656,11 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
         #Do variance correction
         return( data.frame(gene_name=x$gene_name,transcript_id=x$transcript_id,five_flank= x$five_flank + ceiling(mean(unique(abs(x$five_len-x$five_flank)))), three_flank=x$three_flank + ceiling(mean(unique(abs(x$three_len-x$three_flank)))) ) )
       }, mc.cores = params_list$numWorkers))
+     
       arbitrary_flanks <- arbitrary_flanks %>% dplyr::select(-c("five_flank","three_flank")) %>% full_join(arb_flank_values, by = c("gene_name","transcript_id"))
       flank_stats <- flank_stats[which(is.na(match(flank_stats$transcript_id,missing_any_flank_info))),]
       flank_stats <- unique(full_join(flank_stats, arbitrary_flanks, by = c("gene_name", "gene_id", "transcript_id", "total_exon_len", "total_cds_len", "five_len", "three_len", "exon_count", "cds_count", "g.exon_start", "g.exon_end", "transcript_length", "five_flank", "three_flank", "g.transcript_start", "g.transcript_end", "chromosome_name", "strand", "safe_gene_name")))
     }
-
     ##Calculate genomic coordinates for flanks
     flank_stats <- flank_stats %>% mutate(g.five_flank_start= abs(flank_stats$g.transcript_start-flank_stats$five_flank)-1 )
     flank_stats <- flank_stats %>% mutate(g.five_flank_end= abs(flank_stats$g.transcript_start-1) )
@@ -708,26 +710,48 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
         invalid_stats <- flank_stats
       }
     }
+  }else {
+    # If flank_stats is empty, we simply log it and let the function proceed to process valid_transcripts
+    message(paste("No short UTRs/Flanks detected for", org, ". Skipping flank sequence retrieval."))
+    bm_seqs <- data.frame() 
   }
+  
   #print("here1") #DEBUG
   #tmp1 <<- bm_df #DEBUG
   #tmp2 <<- bm_seqs #DEBUG
   #tmp3 <<- gtf_stats #DEBUG
-  if(!is.null(bm_df)){
-    if(nrow(bm_seqs)>0 && nrow(bm_df)>0){
-      bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join,by = c("5utr", "ensembl_transcript_id", "coding", "3utr","flanking_5utr","flanking_3utr"))
-    }else if(nrow(bm_seqs)>0){
+  # if(!is.null(bm_df)){
+  #   if(nrow(bm_seqs)>0 && nrow(bm_df)>0){
+  #     bm_df <- purrr::reduce(list(bm_seqs,bm_df), dplyr::full_join,by = c("5utr", "ensembl_transcript_id", "coding", "3utr","flanking_5utr","flanking_3utr"))
+  #   }else if(nrow(bm_seqs)>0){
+  #     bm_df <- bm_seqs
+  #   }else{
+  #     stop(paste("Error fetching FASTA for :",org,"\n"))
+  #   }
+  # }else{
+  #   if(nrow(bm_seqs)>0){
+  #     bm_df <- bm_seqs
+  #   }else{
+  #     stop(paste("Error fetching FASTA for :",org,"\n"))
+  #   }
+  # }
+
+  if (!is.null(bm_df) && nrow(bm_df) > 0) {
+    # If we have both standard and flanking sequences, join them
+    if (nrow(bm_seqs) > 0) {
+      bm_df <- purrr::reduce(list(bm_seqs, bm_df), dplyr::full_join, 
+                            by = c("5utr", "ensembl_transcript_id", "coding", "3utr", "flanking_5utr", "flanking_3utr"))
+    } 
+    # If bm_seqs is empty, we just keep bm_df as is and proceed
+  } else {
+    # Only if BOTH are empty do we stop with an error
+    if (nrow(bm_seqs) > 0) {
       bm_df <- bm_seqs
-    }else{
-      stop(paste("Error fetching FASTA for :",org,"\n"))
-    }
-  }else{
-    if(nrow(bm_seqs)>0){
-      bm_df <- bm_seqs
-    }else{
-      stop(paste("Error fetching FASTA for :",org,"\n"))
+    } else {
+      stop(paste("Error fetching FASTA for :", org, "\n"))
     }
   }
+
   names(bm_df)[grep(pattern="ensembl_transcript_id",names(bm_df))] <- "transcript_id"
   names(bm_df)[grep(pattern="coding",names(bm_df))] <- "cds"
   #print("here2") #DEBUG
@@ -821,7 +845,7 @@ extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_nam
 #' @return Named Vector of the organism details
 fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,verbose=T){
   # print(c("fetch_FASTA_biomartr(): ", org_row, params_list, gene_list)) #DEBUG
-
+  # print(org_row)
   org <- org_row["name"]
 
   # if (is.null(COMPLETE_env$org.meta)) {
@@ -845,6 +869,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
           file.rename(tools::file_path_as_absolute(gtf_ori),gtf_path)
         }
       }
+      
       if(any(!file.exists(genome_path), file.info(genome_path)$size <= 20, params_list$CLEAN_EXTRACT)){
         genome_ori <- biomartr::getGenome(organism = org_name, db="ensembl",path = params_list$GENOMES_PATH,reference = T,gunzip = F) #,release=org$release-1)
         if(!is.logical(genome_ori)){
@@ -865,9 +890,9 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
       data.table::fwrite(x = list(gene_list),file = tmp_gene_list ,quote = F,row.names = F,col.names = F, nThread = params_list$numWorkers)
       gene_list <- tmp_gene_list
     }
-
+    
     if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list)){
-      if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && !COMPLETE_env$SKIP_USER_DATA) {
+      if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && isTRUE(!COMPLETE_env$SKIP_USER_DATA)) {
         dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
         ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
         #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
@@ -1033,10 +1058,12 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T)
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond2)
     })
+
     stop(cond1)
   }) )
 
-  if(nrow(gtf_stats)==0){
+if(nrow(gtf_stats)==0){
+
     unlink(tmp_gene_list)   
     message(paste("Error fetching FASTA for : ",org))
     message(print_toc(tictoc::toc(quiet = T, log = T)))
@@ -1245,7 +1272,7 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
   #print(paste(genome_path,gtf_path,org))
 
   if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
-    if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !COMPLETE_env$SKIP_USER_DATA) {
+    if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !isTRUE(COMPLETE_env$SKIP_USER_DATA)) {
       dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,param_file)))
@@ -1586,7 +1613,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   tictoc::tic(msg = "Total Extraction Time :")
 
-  if(!COMPLETE_env$SKIP_USER_DATA && !is.null(user_data)){ #(loaded_PARAMS$DATA_SOURCE=="both" || loaded_PARAMS$DATA_SOURCE=="user") ){
+  if(!isTRUE(COMPLETE_env$SKIP_USER_DATA) && !is.null(user_data)){ #(loaded_PARAMS$DATA_SOURCE=="both" || loaded_PARAMS$DATA_SOURCE=="user") ){
     if(nrow(user_data)!=0 && !is.null(user_data)){
       #print(user_data) #DEBUG
       user_saved_meta <- apply(user_data, MARGIN = 1, function(x){
@@ -1638,7 +1665,7 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 
   #write.table(x = bind_rows(saved_meta[[2]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,na = "-")
   #write.table(x = t(saved_meta[[1]]),file = paste(loaded_PARAMS$OUT_PATH,"/org_meta.txt",sep=""), quote = F,sep=",", row.names = F,col.names = F,append = T,na = "-")
-  if(!COMPLETE_env$SKIP_USER_DATA && !is.null(user_saved_meta)){
+  if(!isTRUE(COMPLETE_env$SKIP_USER_DATA) && !is.null(user_saved_meta)){
     user_saved_meta[sapply(user_saved_meta, is.null)] <- NULL
     user_saved_meta <- data.frame(t(user_saved_meta))
     colnames(user_saved_meta) <- c("org","genome","gtf")
