@@ -913,6 +913,8 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
           unlink(genome_path)
           unlink(gtf_path)
         }
+        unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa")))
+        unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa.fai")))
         unlink(tmp_gene_list)   
         message(print_toc(tictoc::toc(quiet = T, log = T)))
         return(NULL)
@@ -922,6 +924,8 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
           unlink(genome_path)
           unlink(gtf_path)
         }
+        unlink(file.path(params_list$GENOMES_PATH,paste0(org,"fa")))
+        unlink(file.path(params_list$GENOMES_PATH,paste0(org,"fa.fai")))
         unlink(tmp_gene_list)   
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       return(c(org_row, source="r-biomartr"))
@@ -1293,6 +1297,8 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
           unlink(genome_path)
           unlink(gtf_path)
       }
+      unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa")))
+      unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa.fai")))
       message(print_toc(tictoc::toc(quiet = T, log = T)))
       return(NULL)
     }
@@ -1301,6 +1307,8 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
           unlink(genome_path)
           unlink(gtf_path)
       }
+      unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa")))
+      unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa.fai")))
     cat(print_toc(tictoc::toc(quiet = T, log = T)))
     return(c(data, source="user-provided"))
   }
