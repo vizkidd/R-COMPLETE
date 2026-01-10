@@ -1042,6 +1042,23 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T)
       stop(cond1)
     }) )
 
+  req_columns <- c("external_gene_name",
+                   "ensembl_gene_id",
+                   "ensembl_transcript_id",
+                   "strand",
+                   "transcript_start",
+                   "transcript_end")
+
+  # if (any(is.na(match(req_columns, names(gtf_data))))) {
+  #   # if(!keep_data){
+  #   #     unlink(genome_path)
+  #   #     unlink(gtf_path)
+  #   # }
+  #   # unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa")))
+  #   # unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa.fai")))
+  #   stop(paste("Missing columns for", org,"\nHave:", paste(names(gtf_data), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
+  # }
+
   gtf_stats <- calculate_stats(org, gtf_data,allow_strand = params_list$STRAND, n_threads = params_list$numWorkers)
   gtf_stats <- dplyr::bind_rows(gtf_stats)
   names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
@@ -1476,6 +1493,7 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
   if( (file.exists(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep=""))$size > 0) && (file.exists(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))$size > 0) && (file.exists(file.path(dirname(odb_prefix),"odb.gene_list")) && file.info(file.path(dirname(odb_prefix),"odb.gene_list"))$size > 0)){
     if(!all(tools::md5sum(file.path(dirname(odb_prefix),"odb.gene_list")) == tools::md5sum(gene_list))){
       cat(paste("New gene list detected:",print_toc(tictoc::toc(quiet = T))))
+      # unlink(file.path(dirname(odb_prefix),"notInODB.orgs"))
       return(FALSE)
     }
     cat("Success:",paste(print_toc(tictoc::toc(quiet = T))))

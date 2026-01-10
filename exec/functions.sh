@@ -773,6 +773,7 @@ function merge_OG2genes_OrthoDB(){
 		if [[ -s "$ORTHODB_PATH"/odb.gene_list ]]; then
 			#if old list is different from new list, recreate "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz
 			if [[ ! -z $(diff -q files/genelist.txt ./files/reference_ORGS.txt) ]]; then
+				# rm -f $ORTHODB_PATH/notInODB.orgs
 				>&1 echo $(color_FG $Green "New gene list detected: Recreating ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OGgenes_fixed_user.tab.gz)
 				#gene lists are different, recalculate
 				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list
@@ -905,6 +906,11 @@ function extract_transcript_regions(){
 	>&1 color_FG $Yellow "Genome : $gfile_name\nAnnotation : $ANNO_FILE"
 
 	if [[ $(zgrep -m 1 -hPo 'gene_name "\K[^"]+' $ANNO_FILE | awk '{print NR}') == 0 ]] ; then
+		kill $genome_index_proc
+		if [[ $KEEP_DATA == "FALSE" ]]; then
+			rm -f $GENOME_FILE $ANNO_FILE 
+		fi
+		rm -f $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fa.fai
 		echo $(color_FG_BG_Bold $Red $BG_White "Error : GTF does not contain gene_name attribute") #| tee >(cat >&2)
 		exit 1
 	fi
@@ -936,6 +942,11 @@ function extract_transcript_regions(){
 	if [[ -s $OUT_PATH/genes/$f_org_name/1.list || -s $OUT_PATH/genes/$f_org_name/2.list ]]; then
 	  >&1 echo $(color_FG $Green "1. DONE : Available Genes : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/1.list")$(color_FG $Green ", Genes not found in annotation: ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/2.list ")
 	else
+	  kill $genome_index_proc
+	  if [[ $KEEP_DATA == "FALSE" ]]; then
+		rm -f $GENOME_FILE $ANNO_FILE 
+	  fi
+	  rm -f $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fa.fai
 	  echo $(color_FG_BG_Bold $Red $BG_White "1. Error : Step 1 Failed (Check if the GTF file exists and if the size is right)") #| tee >(cat >&2)
 	  exit 1
 	fi
@@ -945,7 +956,13 @@ function extract_transcript_regions(){
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "2. Checking OrthoDB for missing & orthologous genes..."
 
 	if [[ ! -s $OUT_PATH/genes/$f_org_name/odb.list || ! -s $OUT_PATH/genes/$f_org_name/final.list || ! -s $OUT_PATH/genes/$f_org_name/odb.final_map ]] ; then
-	  time check_OrthoDB $f_org_name $GENE_LIST $OUT_PATH/genes/$f_org_name/odb.list $OUT_PATH/genes/$f_org_name/odb.final_map $param_file
+	  time check_OrthoDB $f_org_name $GENE_LIST $OUT_PATH/genes/$f_org_name/odb.list $OUT_PATH/genes/$f_org_name/odb.final_map $param_file 
+	  if [[ ! -z $? ]]; then
+	  	if [[ $KEEP_DATA == "FALSE" ]]; then
+			rm -f $GENOME_FILE $ANNO_FILE 
+		fi
+		rm -f $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fa.fai
+	  fi
 	fi
 
 	if [[ $(awk 'END{print NR;}' "$OUT_PATH/genes/$f_org_name/odb.list" | awk '{print $1}') !=  0 ]] ; then
@@ -977,9 +994,11 @@ function extract_transcript_regions(){
 	r_exit_code="$?"
 
 	if [[ ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || $r_exit_code != 0 ]] ; then #|| ! -s $OUT_PATH/genes/$f_org_name/final.list
+	  kill $genome_index_proc
 	  if [[ $KEEP_DATA == "FALSE" ]]; then
-		rm -f $GENOME_FILE $ANNO_FILE $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fai
+		rm -f $GENOME_FILE $ANNO_FILE 
 	  fi
+	  rm -f $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fa.fai
 	  >&2 color_FG_Bold $Red "3. ERROR: Extraction of transcript stats failed... Possibly no genes were found. Check if GTF file has gene_name attribute"
 	  #>&2 color_FG_Bold $Red "3. Check $TEMP_PATH/$f_org_name/get_GTF_info.[o/e]"
 	  >&2 color_FG_Bold $Red "3. (Possible Fix) : Remove $TEMP_PATH/$f_org_name/ & $OUT_PATH/genes/$f_org_name/gtf_stats.csv and re-run the pipeline"
@@ -991,9 +1010,11 @@ function extract_transcript_regions(){
 	if [[ -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv && -s $OUT_PATH/genes/$f_org_name/final.list && $r_exit_code == 0 ]] ; then
 	>&1 echo $(color_FG $Green "3. DONE : Final List : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/final.list")$(color_FG $Green ", GTF stats : ")$(color_FG_BG_Bold $White $BG_Purple "$OUT_PATH/genes/$f_org_name/gtf_stats.csv")
 	else
+	  kill $genome_index_proc
 	  if [[ $KEEP_DATA == "FALSE" ]]; then
-		rm -f $GENOME_FILE $ANNO_FILE $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fai
+		rm -f $GENOME_FILE $ANNO_FILE 
 	  fi
+	  rm -f $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fa.fai
 	  echo $(color_FG_BG_Bold $Red $BG_White "3. Error : Step 3 Failed") #| tee >(cat >&2)
 	  exit 1
 	fi
@@ -1062,8 +1083,9 @@ function extract_transcript_regions(){
 	>&1 color_FG_BG_Bold $Purple $BG_White "Extraction DONE for organism : $f_org_name"
 
 	if [[ $KEEP_DATA == "FALSE" ]]; then
-		rm -f $GENOME_FILE $ANNO_FILE $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fai
+		rm -f $GENOME_FILE $ANNO_FILE 
 	fi
+	rm $GENOMES_PATH/$f_org_name.fa $GENOMES_PATH/$f_org_name.fa.fai
 
 	exit 0
 }
@@ -1088,13 +1110,21 @@ function check_OrthoDB(){
 	local param_file=${script_args[4]}
 	local select_all_genes=${script_args[5]}
 
-	local TEMP_PATH=$(grep -i -w "temp_path" $param_file | check_param)
+	local TEMP_PATH=$(realpath $(grep -i -w "temp_path" $param_file | check_param))
+	local OUT_PATH=$(realpath $(grep -i -w "out_path" $param_file | check_param))
 	local ORTHODB_PATH_PREFIX=$(realpath $(grep -i -w "orthodb_path_prefix" $param_file | check_param))
+	local ORTHODB_PATH=$(dirname $ORTHODB_PATH_PREFIX)
 	local REF_ORGS=$(grep -i -w "ref_orgs" $param_file | check_param)
 	local GENE_SEARCH_MODE=$(grep -i -w "gene_search_mode" $param_file | awk -F"==" '{print $2}' ) #| check_param)
 	local n_threads=$(grep -i -w "max_concurrent_jobs" $param_file | check_param)
 	
 	# echo $ORTHODB_PATH_PREFIX
+	
+	# touch $ORTHODB_PATH/notInODB.orgs
+	# if [[ $(grep -w "$f_org_name" $ORTHODB_PATH/notInODB.orgs | awk "END{print NR}") > 0 ]]; then
+	# 	>&2 color_FG_Bold $Yellow "$f_org_name - No data could be extracted from OrthoDB!"
+	# 	return 0
+	# fi
 
 	if [[ -z $ORTHODB_PATH_PREFIX ]]; then
 		>&2 color_FG_Bold $Yellow "Not using OrthoDB!"
@@ -1173,42 +1203,52 @@ function check_OrthoDB(){
 	    fi
 	  done
 
-	#Get only the ODB GENE IDs, genes and ODB clusters of the reference organisms from the reduced ODB FILE which is generated by merge_OG2genes_OrthoDB.sh
-	zgrep -f <(printf -- '%s\n' "${ref_org_IDs[@]}") $ODB_FILE | gzip -c > $TEMP_PATH/$f_org_name/odb.clusters.gz
+		#Get only the ODB GENE IDs, genes and ODB clusters of the reference organisms from the reduced ODB FILE which is generated by merge_OG2genes_OrthoDB.sh
+		zgrep -f <(printf -- '%s\n' "${ref_org_IDs[@]}") $ODB_FILE | gzip -c > $TEMP_PATH/$f_org_name/odb.clusters.gz
 
-	if [[ $select_all_genes == "TRUE" ]]; then
-		#ODB GENE IDs and GENE NAMES are delimited with || which I am splitting with awk regexp \|/|, and selecting the elements which match the organisms and genes
-		zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u > $out_gene_list
+		if [[ $select_all_genes == "TRUE" ]]; then
+			#ODB GENE IDs and GENE NAMES are delimited with || which I am splitting with awk regexp \|/|, and selecting the elements which match the organisms and genes
+			zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u > $out_gene_list
+		else
+			#ODB GENE IDs and GENE NAMES are delimited with || which I am splitting with awk regexp \|/|, and selecting the elements which match the organisms and genes
+			zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | grep -i $MODE -f <(printf -- '%s\n' "${lookup_genes[@]}") - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u | awk '{print tolower($0)}' > $out_gene_list
+		fi
+
+		if [[ -s $out_gene_list ]]; then
+		>&1 echo $(color_FG $Green "2. DONE: Found Orthologous genes : ")$(color_FG_BG_Bold $White $BG_Purple "$out_gene_list")
+		else
+			# touch $ORTHODB_PATH/notInODB.orgs
+			# if [[ $(grep -w "$f_org_name" $ORTHODB_PATH/notInODB.orgs | awk "END{print NR}") == 0 ]]; then
+			# 	echo "$f_org_name" >> $ORTHODB_PATH/notInODB.orgs
+			# fi
+			>&2 echo $(color_FG $Red "2. Error: Orthologous genes couldn't be found/saved to $out_gene_list")
+			# exit 1
+			return 1
+		fi
+
+		#Save selected clusters and the participating genes(delimiter=",") in odb.final_map
+		zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat ${script_args[1]} $out_gene_list | grep -v -w -i "gene" | grep -v '^$') | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $out_gene_clusters #> $OUT_PATH/genes/$f_org_name/odb.final_map
+
+		if [[ -s $out_gene_clusters ]]; then #$OUT_PATH/genes/$f_org_name/odb.final_map
+		>&1 echo $(color_FG $Green "2. DONE: Mapped gene names to clusters : ")$(color_FG_BG_Bold $White $BG_Purple "$out_gene_clusters")
+		else
+		>&2 echo $(color_FG $Red "2. Error: OG Cluster to gene mappings couldn't be saved to $out_gene_clusters")
+		# exit 1
+		return 1
+		fi
+
+		rm -f $TEMP_PATH/$f_org_name/odb.clusters.gz
+
 	else
-		#ODB GENE IDs and GENE NAMES are delimited with || which I am splitting with awk regexp \|/|, and selecting the elements which match the organisms and genes
-		zcat -f $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{print $2}' | sed 's/,/\n/g' | grep -w "$org_ID" - | grep -i $MODE -f <(printf -- '%s\n' "${lookup_genes[@]}") - | awk '{split($0,a,/\|\|/); print a[2]}' | sort -u | awk '{print tolower($0)}' > $out_gene_list
-	fi
-
-	if [[ -s $out_gene_list ]]; then
-	  >&1 echo $(color_FG $Green "2. DONE: Found Orthologous genes : ")$(color_FG_BG_Bold $White $BG_Purple "$out_gene_list")
-	else
-	  >&2 echo $(color_FG $Red "2. Error: Orthologous genes couldn't be found/saved to $out_gene_list")
-	  exit 1
-	fi
-
-	#Save selected clusters and the participating genes(delimiter=",") in odb.final_map
-	zgrep "$org_ID" $TEMP_PATH/$f_org_name/odb.clusters.gz | awk '{split($3,a,","); for(key in a){print $1"\t"a[key]}}' | grep -i $MODE -f <(cat ${script_args[1]} $out_gene_list | grep -v -w -i "gene" | grep -v '^$') | sort -u | awk '{if($1 in a){a[$1]=a[$1]","$2}else{a[$1]=$2;} } END{for(key in a){print key"\t"a[key]}}' > $out_gene_clusters #> $OUT_PATH/genes/$f_org_name/odb.final_map
-
-	if [[ -s $out_gene_clusters ]]; then #$OUT_PATH/genes/$f_org_name/odb.final_map
-	  >&1 echo $(color_FG $Green "2. DONE: Mapped gene names to clusters : ")$(color_FG_BG_Bold $White $BG_Purple "$out_gene_clusters")
-	else
-	  >&2 echo $(color_FG $Red "2. Error: OG Cluster to gene mappings couldn't be saved to $out_gene_clusters")
-	  exit 1
-	fi
-
-
-	rm -f $TEMP_PATH/$f_org_name/odb.clusters.gz
-
-	else
+	#   touch $ORTHODB_PATH/notInODB.orgs
+	#   if [[ $(grep -w "$f_org_name" $ORTHODB_PATH/notInODB.orgs | awk "END{print NR}") == 0 ]]; then
+	# 	echo "$f_org_name" >> $ORTHODB_PATH/notInODB.orgs
+	#   fi
 	  >&2 color_FG_Bold $Red "2. $org_name not found in OrthoDB files"
 	fi
 
 	#exit 0
+	return 0
 }
 
 function cat_files(){

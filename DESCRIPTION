@@ -65,6 +65,7 @@ Imports:
     showtext
 Remotes:
     github::robbueck/wisard
+    github::vizkidd/QuickBLAST
 LinkingTo: Rcpp
 RoxygenNote: 7.2.3
 Collate:
