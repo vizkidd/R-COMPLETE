@@ -591,6 +591,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   }
 
   if (!any(grepl(pattern="safe_gene_name",names(gtf_stats)))) {
+    # print(paste("fetch_FASTA_mart():",paste(colnames(gtf_stats),collapse=",")))
     gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
   }
 
@@ -672,19 +673,26 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
       flank_values <- unique(flank_stats[,c("transcript_id","five_flank","three_flank")])
       
       tryCatch({
-      bm_flanks_cds <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding", mart=using.mart.data, useCache = F) )
-      bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_stats$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, params_list$STRAND), curl=COMPLETE_env$curl_handle))
-      bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_values$three_flank , mart=using.mart.data, useCache = F))
-      }, error=function(e){
-        stop(paste(e,"\n\n"))
-      }
-      )
-      
-      names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
-      names(bm_flanks_three)[grep(pattern="coding_transcript_flank",names(bm_flanks_three))] <- "3utr"
-
-      bm_flanks_five <- bm_flanks_five %>% mutate(flanking_5utr=T)
-      bm_flanks_three <- bm_flanks_three %>% mutate(flanking_3utr=T)
+          bm_flanks_cds <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding", mart=using.mart.data, useCache = F) )
+        }, error=function(e){
+          stop(paste("CDS Error:", e,"\n\n"))
+      })
+      tryCatch({
+          bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, params_list$STRAND), curl=COMPLETE_env$curl_handle))
+          names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
+          bm_flanks_five <- bm_flanks_five %>% mutate(flanking_5utr=T)
+        }, error=function(e){
+          warning(paste("Upstream Flank Warning:", e,"\n\n"))
+          bm_flanks_five <- data.frame(ensembl_transcript_id=flank_values$transcript_id)
+      })
+      tryCatch({
+          bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_values$three_flank , mart=using.mart.data, useCache = F))
+          names(bm_flanks_three)[grep(pattern="coding_transcript_flank",names(bm_flanks_three))] <- "3utr"
+          bm_flanks_three <- bm_flanks_three %>% mutate(flanking_3utr=T)
+        }, error=function(e){
+          warning(paste("Downstream Flank Warning:", e,"\n\n"))
+          bm_flanks_three <- data.frame(ensembl_transcript_id=flank_values$transcript_id)
+      })
 
       transcripts_with_data <- intersect(flank_values$transcript_id,unique(c(bm_flanks_five$ensembl_transcript_id,bm_flanks_three$ensembl_transcript_id, bm_flanks_cds$ensembl_transcript_id)))
 
@@ -1063,6 +1071,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T)
   gtf_stats <- dplyr::bind_rows(gtf_stats)
   names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
   #print(head(gtf_stats))
+  # print(paste("fetch_FASTA():",paste(colnames(gtf_stats),collapse=",")))
   gtf_stats$safe_gene_name <- gsub(pattern="[[:punct:]]", replacement = "_",tolower(gtf_stats$gene_name))
   gtf_stats <- gtf_stats[gtf_stats$gene_name!=0 | gtf_stats$gene_id!=0,] # cleaning up
 
@@ -1201,6 +1210,14 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
   }
   org_fasta_path <- file.path(params_list$FASTA_OUT_PATH ,org)
 
+  if(isTRUE(COMPLETE_env$SKIP_USER_DATA)){
+    return()
+  }
+
+  if(!params_list$CLEAN_EXTRACT && check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose) && !keep_data){
+    return()
+  }
+
   if(grepl("://|http|ftp|www",genome)){
     if(any(!file.exists(genome_path), !file.info(genome_path)$size > 20, params_list$CLEAN_EXTRACT)){
       ret_code <- curl::curl_fetch_disk(genome, paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""))
@@ -1292,14 +1309,15 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
 
   #print(paste(genome_path,gtf_path,org))
 
-  if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
+  # if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = verbose)){
+  if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org,genes = genes, params_list = params_list, verbose = F)){
     if ( (!is.logical(gtf_path) && !is.logical(genome_path)) && !isTRUE(COMPLETE_env$SKIP_USER_DATA)) {
       dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
       ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org,param_file)))
       #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,param_file)))
       cat(paste("Logfile : ",params_list$TEMP_PATH,"/",org,".log\n",sep=""))
       # do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org,params_list$param_file, if_else(keep_data,"TRUE","FALSE")), logfile=paste(params_list$TEMP_PATH,"/",org,".log",sep=""), params_list=params_list, verbose=verbose))
-      extract_transcript_regions(genome_path, gtf_path, gene_list, org_name, params_list, keep_data, verbose)
+      extract_transcript_regions(genome_path, gtf_path, gene_list, org, params_list, keep_data, verbose)
       ##return(do.call(add_to_process,list(p_cmd = c("./extract_transcript_regions.sh"), p_args = c(genome_path, gtf_path, gene_list, org))))
 
       # if(!keep_data){
@@ -1475,7 +1493,7 @@ label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
 #'
 #' This step is essential for speeding up the extraction process. The gene information (Gene IDs and Gene Names) are merged with Ortholog Groups (Cluster IDs and Gene IDs) and the format is converted into a Tab Delimited file wrapped over a CSV of Gene IDs and Gene Names. This is performed because one Ortholog Group/Cluster can encompass multiple genes (across organisms). The final format looks like this [cluster1][tab][geneID1,geneID2..geneIDN][tab][gene_name1,gene_name2..gene_nameN].
 #'
-#' @note Required Flat files from OrthoDB are \*_OG2genes.tab.gz,\*_genes.tab.gz and \*_species.tab.gz. Output files are stored in paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="") and paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep="")
+#' @note Required Flat files from OrthoDB are \*_OG2genes.tab.gz,\*_genes.tab.gz and \*_species.tab.gz. Output files are stored in paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""), paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="") and paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")
 #'
 #' @param odb_prefix Prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz)
 #' @param quick.check Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes
@@ -1490,7 +1508,7 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
     processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "1",stderr = "2>&1")
   }
   
-  if( (file.exists(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep=""))$size > 0) && (file.exists(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep=""))$size > 0) && (file.exists(file.path(dirname(odb_prefix),"odb.gene_list")) && file.info(file.path(dirname(odb_prefix),"odb.gene_list"))$size > 0)){
+  if( (file.exists(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(file.path(dirname(odb_prefix),"odb.gene_list")) && file.info(file.path(dirname(odb_prefix),"odb.gene_list"))$size > 0)){
     if(!all(tools::md5sum(file.path(dirname(odb_prefix),"odb.gene_list")) == tools::md5sum(gene_list))){
       cat(paste("New gene list detected:",print_toc(tictoc::toc(quiet = T))))
       # unlink(file.path(dirname(odb_prefix),"notInODB.orgs"))
@@ -1803,12 +1821,13 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
 #'      - Samtools (in $PATH - BASH functions)
 #'      - Bedtools (in $PATH - BASH functions)
 #'      - OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1) 
-#'          - odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
-#'          - odb10v1_genes.tab.gz  -Ortho DB genes with some info 
-#'          - odb10v1_OG2genes.tab.gz - OGs to genes correspondence 
+#'          - odb12v2_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level) 
+#'          - odb12v2_genes.tab.gz  -Ortho DB genes with some info 
+#'          - odb12v2_OG2genes.tab.gz - OGs to genes correspondence 
 #'          (OR)
-#'          - odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
-#'          - odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
+#'          - odb12v2_OG2genes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
+#'          - odb12v2_genes_fixed_user.tab.gz - Subset of ODB genelist BASED on user gene list (Done within pipeline)
+#'          - odb12v2_OG2genes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 #'
 #' + PARAMETERS : 
 #' 

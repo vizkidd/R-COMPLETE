@@ -28,7 +28,7 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 <a name="install"></a>
 
 ```bash
-sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libparquet-dev
+sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev
 ```
 
 ```R
