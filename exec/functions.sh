@@ -918,7 +918,7 @@ function extract_transcript_regions(){
 	mkdir -p $OUT_PATH/genes/$f_org_name/
 	mkdir -p $TEMP_PATH/$f_org_name
 	mkdir -p $bed_prefix
-
+	
 	#if [[ $(echo $ANNO_FILE | grep -q -i "gtf") != 0 ]] ; then
 	if ! basename $ANNO_FILE | grep -q -i "gtf" ; then 
 	  local file_name=${ANNO_FILE%.*}
@@ -981,6 +981,8 @@ function extract_transcript_regions(){
 	  wait $anno_proc_id
 	fi
 
+	set -xou pipefail
+
 	if [[ ! -s $OUT_PATH/genes/$f_org_name/1.list || ! -s $OUT_PATH/genes/$f_org_name/2.list || ! -s $OUT_PATH/genes/$f_org_name/gtf_stats.csv || ! -s $BED_PATH/$f_org_name/$f_org_name.bed ]] ; then
 	  local eexp_gene=$(printf -- '%s\n' "${gene_list[@]}")
 	  
@@ -990,7 +992,7 @@ function extract_transcript_regions(){
 	  fi
 	  
 	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/*.gtf_slice | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/1.list
-	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/genes/$f_org_name/1.list)))} | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/2.list
+	  printf -- "%s\n" ${gene_list[@]/($(cat $OUT_PATH/genes/$f_org_name/1.list))} | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/2.list
 	fi
 
 	if [[ -s $OUT_PATH/genes/$f_org_name/1.list || -s $OUT_PATH/genes/$f_org_name/2.list ]]; then

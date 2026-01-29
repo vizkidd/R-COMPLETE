@@ -149,7 +149,9 @@ calculate_stats <- function(org, gtf_data, allow_strand="", n_threads=tryCatch(p
                    "transcript_end")
 
   if (any(is.na(match(req_columns, names(gtf_data))))) {
-    stop(paste("Missing columns for", org,"\nHave:", paste(names(gtf_data), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
+    print(str(gtf_data)) #DEBUG
+    print(head(gtf_data)) #DEBUG
+    stop(paste("calculate_stats(): Missing columns for", org,"\nHave:", paste(names(gtf_data), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
   }
 
   gtf_split <- base::split(gtf_data, as.factor(gtf_data$external_gene_name))
@@ -587,7 +589,7 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
   }
 
   if (any(is.na(match(req_columns, names(gtf_stats))))) {
-    stop(paste("Missing columns for", org, "\nHave:", paste(names(gtf_stats), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
+    stop(paste("fetch_FASTA_mart(): Missing columns for", org, "\nHave:", paste(names(gtf_stats), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
   }
 
   if (!any(grepl(pattern="safe_gene_name",names(gtf_stats)))) {
@@ -675,23 +677,34 @@ fetch_FASTA_mart <- function(org,gtf_stats, fasta_path, params_list){
       tryCatch({
           bm_flanks_cds <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding", mart=using.mart.data, useCache = F) )
         }, error=function(e){
-          stop(paste("CDS Error:", e,"\n\n"))
+          stop(paste("CDS Error:",org,":", e,"\n\n"))
       })
+      bm_flanks_five <- data.frame(ensembl_transcript_id=flank_values$transcript_id)
       tryCatch({
           bm_flanks_five <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", upstream=flank_values$five_flank , mart=using.mart.data, useCache = F) )#mart_connect(biomaRt::getBM,args=list(mart=using.mart.data,attributes=c("start_position","end_position","cdna"),uniqueRows=T, useCache=F, filters = c("chromosome_name","start","end","strand"), values = list(as.character(flank_stats$chromosome_name), flank_stats$g.five_flank_start, flank_stats$g.five_flank_end, params_list$STRAND), curl=COMPLETE_env$curl_handle))
           names(bm_flanks_five)[grep(pattern="coding_transcript_flank",names(bm_flanks_five))] <- "5utr"
           bm_flanks_five <- bm_flanks_five %>% mutate(flanking_5utr=T)
         }, error=function(e){
-          warning(paste("Upstream Flank Warning:", e,"\n\n"))
-          bm_flanks_five <- data.frame(ensembl_transcript_id=flank_values$transcript_id)
+          print(paste("Upstream Flank Warning:", org,":", e))          
+          print(str(bm_flanks_cds)) #DEBUG
+          print(names(bm_flanks_cds)) #DEBUG
+          print(bm_flanks_cds[1,]) #DEBUG
+          bm_flanks_five <- data.frame(ensembl_transcript_id=flank_values$transcript_id, `5utr`="Sequence unavailable", flanking_5utr=F)
+          print(bm_flanks_five) #DEBUG
       })
+      
+      bm_flanks_three <- data.frame(ensembl_transcript_id=flank_values$transcript_id)
       tryCatch({
           bm_flanks_three <- mart_connect(biomaRt::getSequence,args = list(id=flank_values$transcript_id,type="ensembl_transcript_id",seqType="coding_transcript_flank", downstream = flank_values$three_flank , mart=using.mart.data, useCache = F))
           names(bm_flanks_three)[grep(pattern="coding_transcript_flank",names(bm_flanks_three))] <- "3utr"
           bm_flanks_three <- bm_flanks_three %>% mutate(flanking_3utr=T)
         }, error=function(e){
-          warning(paste("Downstream Flank Warning:", e,"\n\n"))
-          bm_flanks_three <- data.frame(ensembl_transcript_id=flank_values$transcript_id)
+          print(paste("Downstream Flank Warning:", org,":", e))
+          print(str(bm_flanks_cds)) #DEBUG
+          print(names(bm_flanks_cds)) #DEBUG
+          print(bm_flanks_cds[1,]) #DEBUG
+          bm_flanks_three <- data.frame(ensembl_transcript_id=flank_values$transcript_id, `3utr`="Sequence unavailable", flanking_3utr=F)
+          print(bm_flanks_three) #DEBUG
       })
 
       transcripts_with_data <- intersect(flank_values$transcript_id,unique(c(bm_flanks_five$ensembl_transcript_id,bm_flanks_three$ensembl_transcript_id, bm_flanks_cds$ensembl_transcript_id)))
@@ -836,6 +849,102 @@ extract_transcript_regions <- function(genome_path, gtf_path, gene_list, org_nam
   do.call(add_to_process,list(p_cmd = COMPLETE_env$SHELL, p_args = c(fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, params_list$param_file, COMPLETE_env$parallel, if_else(keep_data,"TRUE","FALSE")), logfile=paste(params_list$TEMP_PATH,"/",org_name,".log",sep=""), params_list = params_list,verbose = verbose))
 }
 
+#' Rgb - read.gtf implementation
+#'
+#' Sourcing and using read.gtf script from the deprecated R-Genome Browser (Rgb) package. Credits to the original author(s), Sylvain Mareschal <maressyl@gmail.com>
+#'
+#' @author Sylvain Mareschal <maressyl@gmail.com>
+#' @param verbose Print Messages?
+#' @return Named Vector of the organism details
+#' @export
+read.gtf <- function(file, attr=c("split", "intact", "skip"), features=NULL, quiet=FALSE) {
+  # Checks
+  attr <- match.arg(attr)
+  
+  if(!isTRUE(quiet)) message("File parsing ... ", appendLF=FALSE)
+  
+  # Parsing
+  columns <- list("seqname"=character(0), "source"=character(0), "feature"=character(0), "start"=integer(0), "end"=integer(0), "score"=double(0), "strand"=character(0), "frame"=integer(0), "attributes"=character(0))
+  content <- scan(file=file, what=columns, sep="\t", dec=".", comment.char="#", na.strings=".", quote="\"", quiet=TRUE)
+  names(content) <- names(columns)
+  
+  # Strand
+  content$strand[ is.na(content$strand) ] <- "."
+  content$strand[ content$strand == "?" ] <- NA
+  content$strand <- factor(content$strand, levels=c("-","+","."))
+  
+  # As data.frame
+  class(content) <- "data.frame"
+  rownames(content) <- 1:length(content$seqname)
+  
+  # Feature filtering
+  if(!is.null(features)) content <- content[ content$feature %in% features , , drop=FALSE ]
+  
+  if(!isTRUE(quiet)) message(nrow(content), " rows processed")
+  
+  # Attributes
+  if(attr == "skip") {
+    # No attribute
+    content$attributes <- NULL
+  } else if(attr == "split") {
+    
+    if(!isTRUE(quiet)) message("Attribute splitting ... ", appendLF=FALSE)
+    
+    # Split attributes of each row
+    att <- strsplit(content$attributes, split=" *; *")
+    
+    # Vectorize all attributes, keeping a parallel row index for each
+    attRows <- rep.int(1:length(att), times=unlist(lapply(att, length)))
+    att <- unlist(att)
+    
+    # Split all name-value pairs
+    regex <- regexpr(pattern="^(?<id>[A-Za-z][A-Za-z0-9_]*).(?<value>.+)$", text=att, perl=TRUE)
+    attNames <- substr(att, 1, attr(regex, "capture.length")[,"id"])
+    attValues <- substr(att, attr(regex, "capture.start")[,"value"], nchar(att))
+    
+    if(!isTRUE(quiet)) message(length(attValues), " pairs processed")
+    
+    if(!isTRUE(quiet)) message("Attribute sorting ... ", appendLF=FALSE)
+    
+    # Initialize a storage matrix (character)
+    allNames <- unique(attNames)
+    attMtx <- matrix(as.character(NA), nrow=nrow(content), ncol=length(allNames), dimnames=list(NULL, allNames))
+    
+    # Fill the storage matrix
+    attMtx[ cbind(attRows, match(attNames, allNames)) ] <- attValues
+    
+    if(!isTRUE(quiet)) message(ncol(attMtx), " tags found")
+    
+    if(!isTRUE(quiet)) message("Attribute binding ...")
+    
+    # Convert character matrix to typed data.frame
+    attDf <- as.data.frame(attMtx, stringsAsFactors=FALSE)
+    for(i in 1:ncol(attDf)) attDf[[i]] <- utils::type.convert(attDf[[i]], as.is=TRUE)
+    
+    # Append to content
+    content$attributes <- NULL
+    content <- cbind(content, attDf, stringsAsFactors=FALSE)
+  }
+  
+  if(!isTRUE(quiet)) message("done")
+  
+  # Return
+  return(content)
+}
+
+#Split GTF attributes into induvidual columns
+get_gtf_attributes <- function(gtf_data,attribute){
+  return(unlist(lapply(strsplit(gtf_data$attributes, split="; "), function(x){
+    attr_present <- grepl(x=x,pattern = attribute,ignore.case = T)
+    if(any(attr_present)){
+      #return(unlist(strsplit(x = x[which(attr_present)], split=" "))[2])
+      return(sub(x=unlist(strsplit(x = x[which(attr_present)], split=" "))[2],replacement = "",pattern = "[[:punct:]]$"))
+    }else{
+      return("")
+    }
+  })))
+}
+
 #' Internal Function - Get FASTA data from BIOMART (using biomartr)
 #'
 #' This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
@@ -872,17 +981,19 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
 
     if( suppressMessages( biomartr::is.genome.available(db="ensembl", organism = org_name) ) ){
       if(any(!file.exists(gtf_path), file.info(gtf_path)$size <= 20, params_list$CLEAN_EXTRACT)){
-        gtf_ori <- biomartr::getGTF(organism = org_name, db="ensembl",path = params_list$ANNOS_PATH) #,release=org$release-1)
+        gtf_ori <- biomartr::getGTF(organism = org_name, db="ensembl",path = params_list$ANNOS_PATH, mute_citation=T) #,release=org$release-1)
         if(!is.logical(gtf_ori)){
-          file.rename(tools::file_path_as_absolute(gtf_ori),gtf_path)
+          # file.rename(tools::file_path_as_absolute(gtf_ori),gtf_path)
+          fs::file_move(tools::file_path_as_absolute(gtf_ori),gtf_path)
         }
       }
       
       if(any(!file.exists(genome_path), file.info(genome_path)$size <= 20, params_list$CLEAN_EXTRACT)){
-        genome_ori <- biomartr::getGenome(organism = org_name, db="ensembl",path = params_list$GENOMES_PATH,reference = T,gunzip = F) #,release=org$release-1)
+        genome_ori <- biomartr::getGenome(organism = org_name, db="ensembl",path = params_list$GENOMES_PATH,reference = T,gunzip = F, mute_citation=T) #,release=org$release-1)
         if(!is.logical(genome_ori)){
           # print(paste("Renaming:",genome_ori, genome_path))
-          file.rename(tools::file_path_as_absolute(genome_ori),genome_path)
+          # file.rename(tools::file_path_as_absolute(genome_ori),genome_path)
+          fs::file_move(tools::file_path_as_absolute(genome_ori),genome_path)
         }
       }
     }else{
@@ -900,7 +1011,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
     }
     
     if(params_list$CLEAN_EXTRACT || !check_files(fasta_path = org_fasta_path,org = org_name,genes = genes, verbose = verbose, params_list = params_list)){
-      if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)  && isTRUE(!COMPLETE_env$SKIP_USER_DATA)) {
+      if ( (!is.logical(gtf_path) && !is.logical(genome_path) && file.exists(gtf_path) && file.exists(genome_path) && file.info(gtf_path)$size > 20 && file.info(genome_path)$size > 20)) { #&& isTRUE(!COMPLETE_env$SKIP_USER_DATA)
         dir.create(path = org_fasta_path,showWarnings = F,recursive = T)
         ##do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), system.file("exec", "extract_transcript_regions.sh", mustWork = T ,package = "COMPLETE"),genome_path, gtf_path, gene_list, org_name, param_file)))
         #do.call(add_to_process,list(p_cmd = c(system.file("exec", "jobhold.sh", mustWork = T ,package = "COMPLETE")), p_args = c(param_file,paste("extract",org_name,sep="_"), fs::path_package("COMPLETE","exec","functions.sh"),"extract_transcript_regions",genome_path, gtf_path, gene_list, org_name, param_file)))
@@ -915,7 +1026,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
         # }
         # unlink(tmp_gene_list)   
         cat(print_toc(tictoc::toc(quiet = T, log = T)))
-        return(c(org_row, source="r-biomartr"))
+        return(c(org_row, source="r-biomartr", genome_path=genome_path, gtf_path=gtf_path))
       }else{
         if(!keep_data){
           unlink(genome_path)
@@ -936,7 +1047,7 @@ fetch_FASTA_biomartr <- function(org_row, params_list, gene_list, keep_data=F,ve
         unlink(file.path(params_list$GENOMES_PATH,paste0(org,"fa.fai")))
         unlink(tmp_gene_list)   
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
-      return(c(org_row, source="r-biomartr"))
+      return(c(org_row, source="r-biomartr", genome_path=genome_path, gtf_path=gtf_path))
     }
 
   }else{
@@ -1041,7 +1152,18 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T)
       #message(cond)
       #message(print_toc(tictoc::toc(quiet = T, log = T)))
       return(tryCatch(
-        fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, keep_data=keep_data, verbose = F)
+        {
+          gtf_details <- fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, keep_data=keep_data, verbose = F)
+          if(nrow(gtf_details) == 0){
+            stop(paste("Error downloading Genome || GTF : ",org))
+          }
+          gtf <- read.gtf(gtf_details$gtf_path,attr = c("intact"),quiet=T)
+          gtf$ensembl_gene_id <- get_gtf_attributes(gtf,"gene_id")
+          gtf$ensembl_transcript_id <- get_gtf_attributes(gtf,"transcript_id")
+          gtf$external_gene_name <- tolower(get_gtf_attributes(gtf,"gene_name"))
+          gtf <- gtf %>% rename(transcript_start = start) %>% rename(transcript_end = end)
+          return(gtf) #invisible
+        }
         , error=function(cond2){
           message(print_toc(tictoc::toc(quiet = T, log = T)))
           stop(cond2)
@@ -1066,7 +1188,7 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T)
   #   # unlink(file.path(params_list$GENOMES_PATH,paste0(org,".fa.fai")))
   #   stop(paste("Missing columns for", org,"\nHave:", paste(names(gtf_data), collapse=","), "\nRequire :",paste(req_columns,collapse = ","),"\n\n"))
   # }
-
+  
   gtf_stats <- calculate_stats(org, gtf_data,allow_strand = params_list$STRAND, n_threads = params_list$numWorkers)
   gtf_stats <- dplyr::bind_rows(gtf_stats)
   names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
@@ -1084,7 +1206,20 @@ fetch_FASTA <- function(org_row, params_list, gene_list, keep_data=F, verbose=T)
   gtf_stats <- invisible( tryCatch(fetch_FASTA_mart(org = org,gtf_stats = gtf_stats,fasta_path = org_fasta_path, params_list = params_list),error=function(cond1){
     message(cond1)
     ##message(print_toc(tictoc::toc(quiet = T, log = T)))
-    tryCatch(fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, keep_data=keep_data, verbose = F), error=function(cond2){
+    tryCatch(
+      {
+        gtf_details <- fetch_FASTA_biomartr(org_row = org_row, params_list = params_list, gene_list = genes, keep_data=keep_data, verbose = F)
+        if(nrow(gtf_details) == 0){
+            stop(paste("Error downloading Genome || GTF : ",org))
+        }
+        gtf <- read.gtf(gtf_details$gtf_path,attr = c("intact"),quiet=T)
+        gtf$ensembl_gene_id <- get_gtf_attributes(gtf,"gene_id")
+        gtf$ensembl_transcript_id <- get_gtf_attributes(gtf,"transcript_id")
+        gtf$external_gene_name <- tolower(get_gtf_attributes(gtf,"gene_name"))
+        gtf <- gtf %>% rename(transcript_start = start) %>% rename(transcript_end = end)
+        return(gtf) #invisible
+      }
+      , error=function(cond2){
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       stop(cond2)
     })
@@ -1227,7 +1362,8 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
         return(NULL)
       }
       #genome_path <- paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep="")
-      file.rename(paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""),genome_path)
+      # file.rename(paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""),genome_path)
+      fs::file_move(paste(params_list$GENOMES_PATH, "/",basename(URLdecode(genome)),sep=""),genome_path)
     } # else{
     #   if(system2("gzip",args = c("-t", genome_path), wait = T,stdout = NULL, stderr = NULL) == 0){
     #     genome_path<-genome_path
@@ -1265,7 +1401,8 @@ fetch_FASTA_user <- function(data, params_list, gene_list, keep_data=F, verbose=
       if(!grepl(pattern = "gtf",x = basename(URLdecode(gtf)),ignore.case = T)){
 
       }
-      file.rename(paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""),gtf_path)
+      # file.rename(paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""),gtf_path)
+      fs::file_move(paste(params_list$ANNOS_PATH, "/",basename(URLdecode(gtf)),sep=""),gtf_path)
     }# else{
     #   if(system2("gzip",args = c("-t", gtf_path), wait = T,stdout = NULL, stderr = NULL) == 0){
     #     gtf_path<-gtf_path
@@ -1495,13 +1632,14 @@ label_FASTA_files <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
 #'
 #' @note Required Flat files from OrthoDB are \*_OG2genes.tab.gz,\*_genes.tab.gz and \*_species.tab.gz. Output files are stored in paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""), paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="") and paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")
 #'
-#' @param odb_prefix Prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz)
+#' @param params_list Output of load_params() that contains prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz) in ORTHODB_PREFIX parameter
 #' @param quick.check Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes
 #' @param n_threads Number of threads
 #' @param gene_list File name of gene list
 #' @return TRUE if output files exist, FALSE otherwise
-merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
+merge_OG2genes_OrthoDB <- function(params_list,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
   tictoc::tic(msg = paste("Checking and Transforming ODB Files..."))
+  odb_prefix <- params_list$ORTHODB_PREFIX
   # print(c(gene_list, odb_prefix))
   if(!quick.check){
     # print("HERE1.2")
@@ -1512,6 +1650,11 @@ merge_OG2genes_OrthoDB <- function(odb_prefix,quick.check=T,n_threads=tryCatch(p
     if(!all(tools::md5sum(file.path(dirname(odb_prefix),"odb.gene_list")) == tools::md5sum(gene_list))){
       cat(paste("New gene list detected:",print_toc(tictoc::toc(quiet = T))))
       # unlink(file.path(dirname(odb_prefix),"notInODB.orgs"))
+      unlink(x = c(paste(params_list$OUT_PATH,"/available_orgs.txt",sep=""),
+                 paste(params_list$OUT_PATH,"/unavailable_orgs.txt",sep=""),
+                 paste(params_list$OUT_PATH,"/selected_ORGS.txt",sep=""),
+                 paste(params_list$OUT_PATH,"/ALL_GROUPS.txt",sep=""),
+                 paste(params_list$OUT_PATH,"/all_gtf_stats.csv",sep="")),force = T,expand = T)
       return(FALSE)
     }
     cat("Success:",paste(print_toc(tictoc::toc(quiet = T))))
@@ -1642,8 +1785,8 @@ EXTRACT_DATA <- function(params_list, gene_list, user_data=NULL, only.user.data=
   }
 
   if(COMPLETE_env$USE_ORTHODB){
-    if(!merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
-      merge_OG2genes_OrthoDB(odb_prefix = loaded_PARAMS$ORTHODB_PREFIX,quick.check = F,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
+    if(!merge_OG2genes_OrthoDB(params_list = loaded_PARAMS,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
+      merge_OG2genes_OrthoDB(params_list = loaded_PARAMS,quick.check = F,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
       }
   }
 
