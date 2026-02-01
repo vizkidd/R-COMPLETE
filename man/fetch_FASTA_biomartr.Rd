@@ -8,6 +8,8 @@ fetch_FASTA_biomartr(
   org_row,
   params_list,
   gene_list,
+  data_types = c("gtf", "genome"),
+  only_fetch = F,
   keep_data = F,
   verbose = T
 )
@@ -18,6 +20,10 @@ fetch_FASTA_biomartr(
 \item{params_list}{Output of load_params()}
 
 \item{gene_list}{Vector or File containing list of genes}
+
+\item{data_types}{Data types to fetch, one or all of "gtf", "genome" (Default: c("gtf","genome"))}
+
+\item{only_fetch}{Only fetch data without extraction?}
 
 \item{keep_data}{Keep downloaded genomes and GTF data?}
 
