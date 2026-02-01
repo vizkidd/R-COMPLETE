@@ -5,6 +5,7 @@
 \title{Calculate Flank Values and other statistics from GTF Data}
 \usage{
 calculate_stats(
+  org,
   gtf_data,
   allow_strand = "",
   n_threads = tryCatch(parallel::detectCores(all.tests = T, logical = T), error =
@@ -14,6 +15,8 @@ calculate_stats(
 )
 }
 \arguments{
+\item{org}{Name of the organism (Only for DEBUG)}
+
 \item{gtf_data}{GTF data obtained from biomaRt for an organism}
 
 \item{allow_strand}{Only allow the specified strand. ("+","-",Default - "" (or) " " (or) "*")}
@@ -35,7 +38,7 @@ For calculating stats of actual GTF file, refer to exec/extract_gtf_info.R in th
 }
 \examples{
     gtf_data <- get_gtf_mart(org, genes)
-    gtf_stats <- calculate_stats(gtf_data)
+    gtf_stats <- calculate_stats(org, gtf_data)
     gtf_stats <- dplyr::bind_rows(gtf_stats)
     names(gtf_stats)[grep(pattern="seqnames",names(gtf_stats))] <- "transcript_id"
 

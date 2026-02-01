@@ -4,7 +4,7 @@
 \alias{fetch_FASTA}
 \title{Internal Function - Get FASTA data}
 \usage{
-fetch_FASTA(org_row, params_list, gene_list, verbose = T)
+fetch_FASTA(org_row, params_list, gene_list, keep_data = F, verbose = T)
 }
 \arguments{
 \item{org_row}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")}
@@ -12,6 +12,8 @@ fetch_FASTA(org_row, params_list, gene_list, verbose = T)
 \item{params_list}{Output of load_params()}
 
 \item{gene_list}{Vector or File containing list of genes}
+
+\item{keep_data}{Keep the downloaded genomes and GTF data?}
 
 \item{verbose}{Print Messages?}
 }

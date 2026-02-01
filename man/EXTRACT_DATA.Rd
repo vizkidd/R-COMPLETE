@@ -4,7 +4,14 @@
 \alias{EXTRACT_DATA}
 \title{(1) - Extracts Sequences for Protein Coding Transcripts from Organisms}
 \usage{
-EXTRACT_DATA(params_list, gene_list, user_data = NULL, only.user.data = F)
+EXTRACT_DATA(
+  params_list,
+  gene_list,
+  user_data = NULL,
+  only.user.data = F,
+  keep_data = F,
+  rerun_count = 2
+)
 }
 \arguments{
 \item{params_list}{Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().}
@@ -14,6 +21,10 @@ EXTRACT_DATA(params_list, gene_list, user_data = NULL, only.user.data = F)
 \item{user_data}{File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. Check system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.}
 
 \item{only.user.data}{ONLY Process user data and not all available organisms? (TRUE/FALSE). Default FALSE}
+
+\item{keep_data}{Keep downloaded Genomes and GTF data? (TRUE/FALSE). Default FALSE}
+
+\item{rerun_count}{Number of times to rerun the function to account for extraction/network failures and other errors. Default 3}
 }
 \description{
 This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","pkg_data","parameters.txt").

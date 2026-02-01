@@ -5,7 +5,7 @@
 \title{Internal Function - Merge and Format OrthoDB Flat Files}
 \usage{
 merge_OG2genes_OrthoDB(
-  odb_prefix,
+  params_list,
   quick.check = T,
   n_threads = tryCatch(parallel::detectCores(all.tests = T, logical = T), error =
     function(cond) {
@@ -15,7 +15,7 @@ merge_OG2genes_OrthoDB(
 )
 }
 \arguments{
-\item{odb_prefix}{Prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz)}
+\item{params_list}{Output of load_params() that contains prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz) in ORTHODB_PREFIX parameter}
 
 \item{quick.check}{Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes}
 
@@ -30,5 +30,5 @@ TRUE if output files exist, FALSE otherwise
 This step is essential for speeding up the extraction process. The gene information (Gene IDs and Gene Names) are merged with Ortholog Groups (Cluster IDs and Gene IDs) and the format is converted into a Tab Delimited file wrapped over a CSV of Gene IDs and Gene Names. This is performed because one Ortholog Group/Cluster can encompass multiple genes (across organisms). The final format looks like this [cluster1][tab][geneID1,geneID2..geneIDN][tab][gene_name1,gene_name2..gene_nameN].
 }
 \note{
-Required Flat files from OrthoDB are \*_OG2genes.tab.gz,\*_genes.tab.gz and \*_species.tab.gz. Output files are stored in paste(odb_prefix,"_OGgenes_fixed.tab.gz",sep="") and paste(odb_prefix,"_OGgenes_fixed_user.tab.gz",sep="")
+Required Flat files from OrthoDB are \*_OG2genes.tab.gz,\*_genes.tab.gz and \*_species.tab.gz. Output files are stored in paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""), paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="") and paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")
 }

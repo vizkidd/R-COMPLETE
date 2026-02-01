@@ -4,7 +4,13 @@
 \alias{fetch_FASTA_biomartr}
 \title{Internal Function - Get FASTA data from BIOMART (using biomartr)}
 \usage{
-fetch_FASTA_biomartr(org_row, params_list, gene_list, verbose = T)
+fetch_FASTA_biomartr(
+  org_row,
+  params_list,
+  gene_list,
+  keep_data = F,
+  verbose = T
+)
 }
 \arguments{
 \item{org_row}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")}
@@ -12,6 +18,8 @@ fetch_FASTA_biomartr(org_row, params_list, gene_list, verbose = T)
 \item{params_list}{Output of load_params()}
 
 \item{gene_list}{Vector or File containing list of genes}
+
+\item{keep_data}{Keep downloaded genomes and GTF data?}
 
 \item{verbose}{Print Messages?}
 }

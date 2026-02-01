@@ -10,6 +10,7 @@ extract_transcript_regions(
   gene_list,
   org_name,
   params_list,
+  keep_data,
   verbose
 )
 }

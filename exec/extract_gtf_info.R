@@ -51,10 +51,10 @@ read.gtf <- function(file, attr=c("split", "intact", "skip"), features=NULL, qui
   if(!isTRUE(quiet)) message(nrow(content), " rows processed")
   
   # Attributes
-  if(attr == "skip") {
+  if(isTRUE(attr == "skip")) {
     # No attribute
     content$attributes <- NULL
-  } else if(attr == "split") {
+  } else if(isTRUE(attr == "split")) {
     
     if(!isTRUE(quiet)) message("Attribute splitting ... ", appendLF=FALSE)
     
@@ -213,8 +213,8 @@ extract_info <- function(gtf, strandedness="+") {
         exon_cnt <- feature_count(gtf_data = gtf_rna,transcript_id = r_id, feature = "exon")
         cds_cnt <- feature_count(gtf_data = gtf_rna,transcript_id = r_id, feature = "CDS")
 
-        if(five_len==0){ five_len <- sum(width(unique(gtf_rna[grep(gtf_rna$feature, pattern = "five")]))) }
-        if(three_len <= 3){ three_len <- sum(width(unique(gtf_rna[grep(gtf_rna$feature, pattern = "three")]))) }
+        if(isTRUE(five_len==0)){ five_len <- sum(width(unique(gtf_rna[grep(gtf_rna$feature, pattern = "five")]))) }
+        if(isTRUE(three_len <= 3)){ three_len <- sum(width(unique(gtf_rna[grep(gtf_rna$feature, pattern = "three")]))) }
 
         return(bind_rows(list(gene_name=unique(gene[[i]]$gene_name),gene_id=unique(gene[[i]]$gene_id),transcript_id=unique(gene[[i]]$transcript_id),total_cds_len= sum(rna_boundry[unique(sort(gene[[i]]$transcript_id))]) , five_len=five_len, three_len=three_len, exon_count=exon_cnt,cds_count=cds_cnt )) ) #,g.exon_start=start(unique(exon_range)),g.exon_end=end(unique(exon_range)),total_exon_len=sum(gene_boundry[unique(gene[[i]]$transcript_id)])
       }
@@ -251,7 +251,9 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
   #mcmapply has some issues and R doesnt not work with GNU parallel (Rscript)
   # https://stat.ethz.ch/pipermail/r-help/2021-March/470501.html
   ##CAREFUL with mcmapply return value (do not return(NULL) or return(0) etc, unless you are returning  data (return(data)) just do a plain return())
+
   gtf_data <- mcmapply(FUN=function(slice_file){
+    # print(slice_file) #DEBUG
     if(!file.exists(slice_file) || file.info(slice_file)$size==0){
       message(paste("GTF Slice is empty, most likely gene not found",slice_file))
       return()
@@ -267,9 +269,11 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
     #g_name <- unique(gtf$gene_name)
     return(gtf)
   }, list.files(path=slice_file_path, pattern = "*.gtf_slice",full.names = T), USE.NAMES = F, mc.cores = n_cores, SIMPLIFY = F)
+  
   gtf_data <- bind_rows(gtf_data)
 
   if(nrow(gtf_data) == 0){
+    traceback()
     stop(paste("GTF data is empty : ",org_name, " - Possibly no genes were found. (or gene_name attribute is missing from GTF)"))
   }
 
@@ -283,9 +287,11 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
   #utr_len_list  <- lapply(utr_len_list, function(x){
   #  return(unlist(x,use.names = F,recursive = F))
   #})
+
   utr_len_list[sapply(utr_len_list, is.null)] <- NULL
 
   utr_len_df  <- bind_rows(mclapply(utr_len_list, function(x){
+
     #for each gene
     gene_stats <- as.data.frame(x[[1]])
 
@@ -350,6 +356,7 @@ check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,cr
   }
   param_index <- which(param_table==param_id)
   if(is.null(param_index) || is.na(param_index)){
+    traceback()
     stop(paste("Parameter :",param_id,"is missing!"))
   }
   param_value <- param_table[param_index,c(2)]
@@ -360,6 +367,7 @@ check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,cr
   if(!stringi::stri_isempty(param_value) || optional){
     return(CAST_FUN(param_value))
   }else{
+    traceback()
     stop(paste("Parameter :",param_id,"is empty and is not optional!"))
   }
 }
@@ -370,6 +378,7 @@ set.seed(123)
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
+  traceback()
   stop("Give the (1) GTF_Slice files path (2) Org_name (3) Output File (is in csv,NOT Gzipped) (4) Parameter file", call.=FALSE)
 }
 
@@ -379,6 +388,7 @@ output_file <- args[3]
 param_file <- args[4] #"parameters.txt"
 
 if(!file.exists(param_file) || file.info(param_file)$size <= 4){
+  traceback()
   stop("ERROR: parameters.txt is missing and is required")
 }
 
@@ -402,6 +412,7 @@ dir.create(path = file.path(BED_PATH,org_name),recursive = T,showWarnings = F)
 BED_PATH_PREFIX <- file.path(BED_PATH,org_name,org_name)
 
 if (any(stringi::stri_isempty(slice_file_path), stringi::stri_isempty(org_name), stringi::stri_isempty(output_file))) {
+  traceback()
   stop("One/Many parameters are empty")
 }
 
@@ -432,7 +443,8 @@ tryCatch({
 
   print("Files Checked!")
 },error=function(cond){
-  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
+  # print(paste("Error but continuing:", cond)) #DEBUG
+  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS) 
 })
 
 quit()

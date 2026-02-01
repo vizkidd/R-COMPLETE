@@ -1,5 +1,5 @@
 param_id==value(CASE SENSITIVE)== comment(param_id should not be changed)
-gene_search_mode==== EASY/HARD, Mode to search for genes, HARD is default and matches the whole gene name (with grep -w flag wherever necessary) (ONLY FOR USER DATA) (Input, Optional)
+gene_search_mode==== EASY/HARD, Mode to search for genes, EASY is default and HARD matches the whole gene name (with grep -w flag wherever necessary) (ONLY FOR biomartr genomes/GTFs and USER DATA) (Input, Optional)
 e_value_thresh==1e-05== evalue threshold (Input)
 minIdent_thresh==25== minimum percentage identity threshold for BLAST RESULTS (Input)
 blast_options== -strand plus -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore score gaps frames qcovhsp sstrand qlen slen qseq sseq nident positive" == Extra options to pass to BLAST (Input)

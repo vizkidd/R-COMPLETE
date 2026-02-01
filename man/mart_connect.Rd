@@ -4,7 +4,7 @@
 \alias{mart_connect}
 \title{Connect to a biomaRt repo/dataset}
 \usage{
-mart_connect(MART_FUN = NULL, args = c(), verbose = F)
+mart_connect(MART_FUN = NULL, args = c(), verbose = T)
 }
 \arguments{
 \item{MART_FUN}{Fuction to be called}

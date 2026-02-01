@@ -24,12 +24,13 @@ BASH functions are stored in fs::path_package("COMPLETE","exec","functions.sh")
 \item Bedtools (in $PATH - BASH functions)
 \item OrthoDB (ODB) Flat Files (>= v10.1) (Pipeline is tested with ODB v10.1)
 \itemize{
-\item odb10v1_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level)
-\item odb10v1_genes.tab.gz  -Ortho DB genes with some info
-\item odb10v1_OG2genes.tab.gz - OGs to genes correspondence
+\item odb12v2_species.tab.gz - Ortho DB organism ids based on NCBI taxonomy ids (mostly species level)
+\item odb12v2_genes.tab.gz  -Ortho DB genes with some info
+\item odb12v2_OG2genes.tab.gz - OGs to genes correspondence
 (OR)
-\item odb10v1_OGgenes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
-\item odb10v1_OGgenes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
+\item odb12v2_OG2genes_fixed.tab.gz - Merged & Transformed ODB file (Done within pipeline)
+\item odb12v2_genes_fixed_user.tab.gz - Subset of ODB genelist BASED on user gene list (Done within pipeline)
+\item odb12v2_OG2genes_fixed_user.tab.gz - Merged & Transformed ODB file BASED on user gene list (Done within pipeline)
 }
 }
 \item PARAMETERS :

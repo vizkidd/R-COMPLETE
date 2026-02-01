@@ -267,7 +267,9 @@ COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
 INITIALIZE <- function() {
   options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
   #options(download.file.method="curl")
+  #options(error = function() {cat("Error detected. Printing traceback:\n");traceback(2);quit(save = "no", status = 1)})
 
+  future::plan(future::multisession)
   COMPLETE_env <<- new.env(parent=baseenv())
   
   COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
@@ -285,6 +287,11 @@ INITIALIZE <- function() {
   COMPLETE_env$SKIP_USER_DATA <- FALSE
   COMPLETE_env$USE_ORTHODB <- FALSE
   
+  unlink(file.path(tempdir(), "R-COMPLETE.file_lock"), force=T)
+  unlink(file.path(tempdir(), "R-COMPLETE.proc_lock"), force=T)
+  COMPLETE_env$file_lock <- file.path(tempdir(), "R-COMPLETE.file_lock")
+  COMPLETE_env$proc_lock <- file.path(tempdir(), "R-COMPLETE.proc_lock")
+
   #if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   #  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
   #}
@@ -356,6 +363,4 @@ INITIALIZE <- function() {
   }
 }
 
-#' @importFrom S4Vectors mcols
-#' @importFrom dplyr %>%
 NULL
