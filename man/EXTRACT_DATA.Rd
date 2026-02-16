@@ -9,21 +9,18 @@ EXTRACT_DATA(
   params_list,
   gene_list,
   user_data = NULL,
-  only.user.data = F,
   keep_data = F,
   ...
 )
 }
 \arguments{
-\item{db}{(string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"}
+\item{db}{(string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "user". For "user" only user data is fetched}
 
 \item{params_list}{(string/list/COMPLETE-options) Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().}
 
 \item{gene_list}{(string/vector) Vector or File with a list of genes to extract data for(check the github repo for an example)}
 
 \item{user_data}{(string/data.frame) File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. If data.frame is provided then it should have all the columns in c("name","accession","taxid","version","genome","gtf"). Check system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.}
-
-\item{only.user.data}{(bool) ONLY Process user data and not all available organisms? (TRUE/FALSE). (Default: FALSE)}
 
 \item{keep_data}{(bool) Keep downloaded Genomes and GTF data? (TRUE/FALSE). (Default: FALSE)}
 
@@ -44,9 +41,9 @@ This is the main function which calls all the other functions and performs and e
 If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 }
 \examples{
-    COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
-    COMPLETE::EXTRACT_DATA(db="genbank", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL, only.user.data = F )
-    COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL, only.user.data = T )
+    COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"))
+    COMPLETE::EXTRACT_DATA(db="genbank", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL)
+    COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL)
     COMPLETE::EXTRACT_DATA(db="genbank", params_list=COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt")), user_data="files/user_data.txt", gene_list = "files/genelist.txt", keep_data=T,db="genbank", type="subgroup", subset=c("Fishes","Amphibians"), skip_bacteria=T)
     COMPLETE::EXTRACT_DATA(params_list=COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt")), user_data="files/user_data.txt", gene_list = "files/genelist.txt", keep_data=T,db="ensembl", type="kingdom", subset=c("EnsemblVertebrates","EnsemblBacteria"))
     

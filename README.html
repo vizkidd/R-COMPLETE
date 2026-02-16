@@ -1579,6 +1579,7 @@ border-radius: 0px;
 <li><a href="#about">About</a></li>
 <li><a href="#install">Installation</a></li>
 <li><a href="#requires">Requirements</a></li>
+<li><a href="#install_requires">Install Requirements</a></li>
 <li><a href="#examples">Run Examples</a></li>
 <li><a href="#docs">Documentation</a>
 <ul>
@@ -1594,6 +1595,7 @@ border-radius: 0px;
 <li><a href="#fun1">EXTRACT_DATA()</a></li>
 <li><a href="#fun2">FIND_TRANSCRIPT_ORTHOLOGS()</a></li>
 </ul></li>
+<li><a href="#eg_data">Example Data</a></li>
 </ul></li>
 </ul>
 <p>(TODO : Add Omit list which negates from the total gene list of all
@@ -1628,25 +1630,18 @@ within the package, Play around with the functions for the rest</em></p>
 <h2>Installation (on R - Linux or RStudio Docker with WSL in Windows)
 :</h2>
 <p><a name="install"></a></p>
-<div id="from-bash" class="section level4">
-<h4>From <code>bash</code> :</h4>
+<ul>
+<li><h4 id="from-bash">From <code>bash</code> :</h4></li>
+</ul>
 <div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">sudo</span> apt-get update <span class="kw">&amp;&amp;</span> <span class="fu">sudo</span> apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libbio-perl-perl libclone-perl libgraph-perl liblwp-useragent-determined-perl libstatistics-r-perl libcarp-clan-perl libsort-naturally-perl libfile-share-perl libfile-sharedir-perl libfile-sharedir-install-perl libyaml-perl liblwp-protocol-https-perl libterm-progressbar-perl libparallel-forkmanager-perl libipc-sharelite-perl libtest-tempdir-perl libfile-chdir-perl</span></code></pre></div>
-</div>
-<div id="install-agat" class="section level4">
-<h4><a href="https://github.com/NBISweden/AGAT">Install AGAT</a> :</h4>
-<pre><code>git clone https://github.com/NBISweden/AGAT.git # Clone AGAT
-cd AGAT                                         # move into AGAT folder
-perl Makefile.PL                                # Check all the dependencies*
-make                                            # Compile
-make test                                       # Test
-sudo make install                                    # Install</code></pre>
-</div>
-<div id="from-r" class="section level4">
-<h4>From <code>R</code> :</h4>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>BiocManager<span class="sc">::</span><span class="fu">install</span>(<span class="fu">c</span>(<span class="st">&quot;Rhtslib&quot;</span>, <span class="st">&quot;devtools&quot;</span>, <span class="st">&quot;BiocManager&quot;</span>, <span class="st">&quot;Biostrings&quot;</span>, <span class="st">&quot;biomaRt&quot;</span>, <span class="st">&quot;S4Vectors&quot;</span>, <span class="st">&quot;IRanges&quot;</span>, <span class="st">&quot;rtracklayer&quot;</span>, <span class="st">&quot;GenomicRanges&quot;</span>, <span class="st">&quot;BiocGenerics&quot;</span>, <span class="st">&quot;remotes&quot;</span>))</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_git</span>(<span class="st">&quot;https://github.com/vizkidd/R-COMPLETE.git&quot;</span>)</span></code></pre></div>
+<ul>
+<li><h4 id="install-requirements"><a href="#install_requires">Install
+requirements</a></h4></li>
+<li><h4 id="from-r">From <code>R</code> :</h4></li>
+</ul>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>BiocManager<span class="sc">::</span><span class="fu">install</span>(<span class="fu">c</span>(<span class="st">&quot;Rhtslib&quot;</span>, <span class="st">&quot;devtools&quot;</span>, <span class="st">&quot;BiocManager&quot;</span>, <span class="st">&quot;Biostrings&quot;</span>, <span class="st">&quot;biomaRt&quot;</span>, <span class="st">&quot;S4Vectors&quot;</span>, <span class="st">&quot;IRanges&quot;</span>, <span class="st">&quot;rtracklayer&quot;</span>, <span class="st">&quot;GenomicRanges&quot;</span>, <span class="st">&quot;BiocGenerics&quot;</span>, <span class="st">&quot;remotes&quot;</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_git</span>(<span class="st">&quot;https://github.com/vizkidd/R-COMPLETE.git&quot;</span>)</span></code></pre></div>
 <p><a name="requires"></a></p>
-</div>
 </div>
 <div id="requires" class="section level2">
 <h2>REQUIRES :</h2>
@@ -1657,6 +1652,7 @@ SHELL=“/bin/bash”)</li>
 <li>Lot of space in <code>genomes_path</code>, <code>fasta_path</code>
 and <code>annos_path</code> path locations (in <a href="#params">parameters file</a>)</li>
 <li>GNU parallel (in $PATH - BASH functions)</li>
+<li><a href="https://github.com/NBISweden/AGAT">AGAT</a></li>
 <li><a href="https://github.com/gpertea/gffread">GffRead</a></li>
 <li><a href="http://www.htslib.org/download/">Samtools</a> (in $PATH -
 BASH functions)</li>
@@ -1728,52 +1724,110 @@ folder containing the binary)</b></li>
 (<code>COMPLETE_env$org.meta</code> has the list of organisms
 available)</li>
 </ul>
+<p><a name="install_requires"></a></p>
+</div>
+<div id="install-requirements-1" class="section level3">
+<h3>Install Requirements :</h3>
+<div id="install-agat" class="section level4">
+<h4><a href="https://github.com/NBISweden/AGAT">Install AGAT</a> :</h4>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/NBISweden/AGAT.git <span class="co"># Clone AGAT</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="bu">cd</span> AGAT                                         <span class="co"># move into AGAT folder</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">perl</span> Makefile.PL                                <span class="co"># Check all the dependencies*</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">make</span>                                            <span class="co"># Compile</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="fu">make</span> test                                       <span class="co"># Test</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">sudo</span> make install                                    <span class="co"># Install</span></span></code></pre></div>
+</div>
+<div id="install-gffread" class="section level4">
+<h4><a href="https://github.com/gpertea/gffread">Install GffRead</a>
+:</h4>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/gpertea/gffread</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="bu">cd</span> gffread</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="fu">make</span> release</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="fu">sudo</span> cp gffread /usr/bin/</span></code></pre></div>
+</div>
+<div id="install-samtools" class="section level4">
+<h4><a href="https://www.htslib.org/download/">Install Samtools</a>
+:</h4>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-OJL</span> https://github.com/samtools/samtools/releases/download/1.23/samtools-1.23.tar.bz2</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">tar</span> xvf samtools-1.23.tar.bz2</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="bu">cd</span> samtools-1.23</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="ex">./configure</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="fu">make</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
+</div>
+<div id="install-bedtools" class="section level4">
+<h4><a href="https://github.com/arq5x/bedtools2/releases">Install
+Bedtools</a> :</h4>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-OJL</span> https://github.com/arq5x/bedtools2/releases/download/v2.31.1/bedtools-2.31.1.tar.gz</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">tar</span> xvzf bedtools-2.31.1.tar.gz</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="bu">cd</span> bedtools2</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">make</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
+</div>
+<div id="install-ncbi-blast" class="section level4">
+<h4><a href="https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/">Install
+ncbi-blast+</a> :</h4>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-OJL</span> https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.17.0+-src.tar.gz</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">tar</span> xvzf ncbi-blast-2.17.0+-src.tar.gz</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="bu">cd</span> ncbi-blast-2.17.0+-src/c++</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="ex">./configure</span> <span class="at">--with-openmp</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="fu">make</span> all</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
 <p><a name="examples"></a></p>
+</div>
 </div>
 </div>
 <div id="run-example" class="section level2">
 <h2>Run Example :</h2>
 <p>To run the example, from the context of your current working
-directory, + Download <a href="#odb">OrthoDB(ODB) files</a> (optional)
-and <a href="#tools">Tools</a> + Check <a href="#files">config files</a>
-+ Provide paths and options in the parameters file + <strong>NOTE :
-Default parameters file (<a href="inst/pkg_data/parameters.txt">parameters.txt</a>) is at</strong>
-<code>fs::path_package(&quot;COMPLETE&quot;,&quot;pkg_data&quot;,&quot;parameters.txt&quot;)</code></p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>params_list <span class="ot">&lt;-</span> COMPLETE<span class="sc">::</span><span class="fu">load_params</span>(fs<span class="sc">::</span><span class="fu">path_package</span>(<span class="st">&quot;COMPLETE&quot;</span>,<span class="st">&quot;pkg_data&quot;</span>,<span class="st">&quot;parameters.txt&quot;</span>))</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>gene_list <span class="ot">=</span> fs<span class="sc">::</span><span class="fu">path_package</span>(<span class="st">&quot;COMPLETE&quot;</span>,<span class="st">&quot;pkg_data&quot;</span>,<span class="st">&quot;genelist.txt&quot;</span>)</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>user_data <span class="ot">=</span> fs<span class="sc">::</span><span class="fu">path_package</span>(<span class="st">&quot;COMPLETE&quot;</span>,<span class="st">&quot;pkg_data&quot;</span>, <span class="st">&quot;user_data.txt&quot;</span>)</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>COMPLETE<span class="sc">::</span><span class="fu">EXTRACT_DATA</span>(<span class="at">params_list =</span> params_list, <span class="at">gene_list =</span> gene_list, <span class="at">user_data =</span> user_data, <span class="at">keep_data=</span>F, <span class="at">only.user.data =</span> F )</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>COMPLETE<span class="sc">::</span><span class="fu">FIND_TRANSCRIPT_ORTHOLOGS</span>(<span class="at">params_list =</span> params_list, <span class="at">gene_list =</span> gene_list, <span class="at">blast_program =</span> <span class="st">&quot;tblastx&quot;</span>, <span class="at">group.mode=</span>COMPLETE_env<span class="sc">$</span>FORMAT_ID_INDEX<span class="sc">$</span>CLUSTERS, <span class="at">run.mode=</span><span class="st">&quot;both&quot;</span>, <span class="at">verbose=</span>F, <span class="at">seed=</span><span class="dv">123</span>)</span></code></pre></div>
-<p><span style="color: #ff0000"><strong>NOTE : First run will take some
-time due to conversion of ODB file structure (if OrthoDB is
+directory,</p>
+<ul>
+<li>Download <a href="#odb">OrthoDB(ODB) files</a> (optional) and <a href="#tools">Tools</a></li>
+<li>Check <a href="#files">config files</a></li>
+<li>Provide paths and options in the parameters file</li>
+<li><strong>NOTE : Default parameters file (<a href="inst/pkg_data/parameters.txt">parameters.txt</a>) is at</strong>
+<code>fs::path_package(&quot;COMPLETE&quot;,&quot;pkg_data&quot;,&quot;parameters.txt&quot;)</code></li>
+</ul>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>params_list <span class="ot">&lt;-</span> COMPLETE<span class="sc">::</span><span class="fu">load_params</span>(fs<span class="sc">::</span><span class="fu">path_package</span>(<span class="st">&quot;COMPLETE&quot;</span>,<span class="st">&quot;pkg_data&quot;</span>,<span class="st">&quot;parameters.txt&quot;</span>))</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>gene_list <span class="ot">=</span> fs<span class="sc">::</span><span class="fu">path_package</span>(<span class="st">&quot;COMPLETE&quot;</span>,<span class="st">&quot;pkg_data&quot;</span>,<span class="st">&quot;genelist.txt&quot;</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>user_data <span class="ot">=</span> fs<span class="sc">::</span><span class="fu">path_package</span>(<span class="st">&quot;COMPLETE&quot;</span>,<span class="st">&quot;pkg_data&quot;</span>, <span class="st">&quot;user_data.txt&quot;</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>COMPLETE<span class="sc">::</span><span class="fu">EXTRACT_DATA</span>(<span class="at">db=</span><span class="st">&quot;user&quot;</span>, <span class="at">params_list =</span> params_list, <span class="at">gene_list =</span> gene_list, <span class="at">user_data =</span> user_data, <span class="at">keep_data=</span>T)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>COMPLETE<span class="sc">::</span><span class="fu">EXTRACT_DATA</span>(<span class="at">db=</span><span class="st">&quot;ensembl&quot;</span>, <span class="at">params_list =</span> params_list, <span class="at">gene_list =</span> gene_list, <span class="at">keep_data=</span>T)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>COMPLETE<span class="sc">::</span><span class="fu">EXTRACT_DATA</span>(<span class="at">db=</span><span class="st">&quot;genbank&quot;</span>, <span class="at">params_list =</span> params_list, <span class="at">gene_list =</span> gene_list, <span class="at">user_data =</span> user_data, <span class="at">keep_data=</span>T)</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>COMPLETE<span class="sc">::</span><span class="fu">FIND_TRANSCRIPT_ORTHOLOGS</span>(<span class="at">params_list =</span> params_list, <span class="at">gene_list =</span> gene_list, <span class="at">blast_program =</span> <span class="st">&quot;tblastx&quot;</span>, <span class="at">group.mode=</span>COMPLETE_env<span class="sc">$</span>FORMAT_ID_INDEX<span class="sc">$</span>CLUSTERS, <span class="at">run.mode=</span><span class="st">&quot;both&quot;</span>, <span class="at">verbose=</span>F, <span class="at">seed=</span><span class="dv">123</span>)</span></code></pre></div>
+<blockquote>
+<p>[!CAUTION] <span style="color: #ff0000"><strong>NOTE : First run will
+take some time due to conversion of ODB file structure (if OrthoDB is
 used)</strong></span></p>
+</blockquote>
 </div>
 <div id="documentation" class="section level2">
 <h2>Documentation :</h2>
 <p><a name="docs"></a></p>
-<p><code>{R} ?COMPLETE_PIPELINE_DESIGN (in R docs)</code></p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>?<span class="fu">COMPLETE_PIPELINE_DESIGN</span> (<span class="cf">in</span> R docs)</span></code></pre></div>
 <div id="parameters" class="section level3">
 <h3>PARAMETERS</h3>
 <p><a name="params"></a></p>
 <p>The pipeline takes a single <a href="inst/pkg_data/parameters.txt"><strong>parameter</strong></a> file.
-This design was chosen, + To expose as many options as possible to the
-end-user + The pipeline uses BASH to BLAST and handle files
-(significantly faster than R) and the parameter file is shared between R
-and BASH.<br />
-+ Parameters tagged as output in comment column are outputs from
-COMPLETE</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode diff"><code class="sourceCode diff"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>* Delimited by &#39;==&#39;</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>* Inputs and Ouputs are specified in the comments</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>* The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (hard to check and convert param types in BASH). </span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>* A default/example file is in fs::path_package(&quot;COMPLETE&quot;,&quot;pkg_data&quot;,&quot;parameters.txt&quot;)</span></code></pre></div>
-<!--[EXTRACT_DATA()](#fun1) - `genomes_path`, `annos_path`, !-->
+This design was chosen,</p>
+<ul>
+<li>To expose as many options as possible to the end user.</li>
+<li>The pipeline uses BASH to BLAST and handle files (significantly
+faster than R) and the parameter file is shared between R and BASH.</li>
+<li>Parameters tagged as output in comment column are outputs from
+COMPLETE.</li>
+</ul>
+<div class="sourceCode" id="cb10"><pre class="sourceCode diff"><code class="sourceCode diff"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>* Delimited by &#39;==&#39;</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>* Inputs and Ouputs are specified in the comments</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>* The file is of the format [param_id==value==comment] where param_id and value columns are CASE-SENSITIVE (hard to check and convert param types in BASH). </span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>* A default/example file is in fs::path_package(&quot;COMPLETE&quot;,&quot;pkg_data&quot;,&quot;parameters.txt&quot;)</span></code></pre></div>
 </div>
 <div id="user-data-optional" class="section level3">
 <h3>USER DATA : (Optional)</h3>
 <p><a name="user_data"></a></p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode diff"><code class="sourceCode diff"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>* Columns Org,Version, genome, gtf</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>* Can accept empty or &#39;-&#39; in genome and/or gtf column. If empty or &#39;-&#39;, the genome/gtf is looked up in ENSEMBL or NCBI DBs </span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>* A default/example file is in fs::path_package(&quot;COMPLETE&quot;,&quot;pkg_data&quot;,&quot;user_data.txt&quot;)</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode diff"><code class="sourceCode diff"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>* Columns Org,Version, genome, gtf</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>* Can accept empty or &#39;-&#39; in genome and/or gtf column. If empty or &#39;-&#39;, the genome/gtf is looked up in ENSEMBL or NCBI DBs </span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>* A default/example file is in fs::path_package(&quot;COMPLETE&quot;,&quot;pkg_data&quot;,&quot;user_data.txt&quot;)</span></code></pre></div>
 </div>
 <div id="complete.format.ids" class="section level3">
 <h3>COMPLETE.format.ids</h3>
@@ -1789,9 +1843,9 @@ this context)</i></li>
 <li>COMPLETE.format.ids are indexed(internally) with
 <code>COMPLETE::index_BLAST_tables()</code> for compatibility</li>
 </ul>
-<div class="sourceCode" id="cb7"><pre class="sourceCode diff"><code class="sourceCode diff"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="va">&gt;$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $org_name/$DB/$org_version $seqID_delimiter $gene_name $seqID_delimiter $ortho_cluster</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="va">&gt;SOME_TRANSCRIPT||cds(+)::SOMEORG/DB/VERSION::RANDOMGENE::ORTHOLOG_CLUSTERS</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="va">&gt;ENSDART00000193157||cds(+)::danio_rerio/ensembl/115::sulf1::18335at7898,51668at7742,360590at33208</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode diff"><code class="sourceCode diff"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="va">&gt;$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $org_name/$DB/$org_version $seqID_delimiter $gene_name $seqID_delimiter $ortho_cluster</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="va">&gt;SOME_TRANSCRIPT||cds(+)::SOMEORG/DB/VERSION::RANDOMGENE::ORTHOLOG_CLUSTERS</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="va">&gt;ENSDART00000193157||cds(+)::danio_rerio/ensembl/115::sulf1::18335at7898,51668at7742,360590at33208</span></span></code></pre></div>
 <p><a name="blast"></a></p>
 </div>
 <div id="blast-functions" class="section level3">
@@ -1881,9 +1935,288 @@ filter any Hits .</li>
 R-COMPLETE. Use other helper function to work with custom BLAST files
 not generated by this R package.</strong></p></li>
 </ol>
-<!-- <a name="fun3"/>
-
-  3) -->
+<p><a name="fun3"></a></p>
+<ol start="3" style="list-style-type: decimal">
+<li></li>
+</ol>
+<p><a name="eg_data"></a></p>
+</div>
+<div id="example-data" class="section level3">
+<h3>Example Data</h3>
+<div id="parameters-1" class="section level4">
+<h4>Parameters :</h4>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter ID</th>
+<th align="left">Value (CASE SENSITIVE)</th>
+<th align="left">Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>gene_search_mode</code></td>
+<td align="left">EASY</td>
+<td align="left">EASY/HARD, Mode to search for genes, EASY is default
+and HARD matches the whole gene name (with grep -w flag wherever
+necessary) (ONLY FOR biomartr genomes/GTFs and USER DATA) (Input,
+Optional)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>e_value_thresh</code></td>
+<td align="left">1e-05</td>
+<td align="left">E-value threshold (Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>minIdent_thresh</code></td>
+<td align="left">25</td>
+<td align="left">Minimum % identity threshold for BLAST RESULTS
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>blast_options</code></td>
+<td align="left">-strand plus -outfmt “6 qseqid sseqid pident length
+mismatch gapopen qstart qend sstart send evalue bitscore score gaps
+frames qcovhsp sstrand qlen slen qseq sseq nident positive”</td>
+<td align="left">Extra options to pass to BLAST (Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>transcript_delimiter</code></td>
+<td align="left">||</td>
+<td align="left">Delimiter which splits transcript IDs (do not use equal
+sign or underscore!) (Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>strand</code></td>
+<td align="left">+</td>
+<td align="left">Either +/-/’ ’(<space>), Select genes from the strand
+(Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>transcript_regions</code></td>
+<td align="left">cds,3utr,5utr</td>
+<td align="left">Regions to extract sequences from,
+<code>cds,3utr,5utr,transcript,gene,exon,start_codon,stop_codon</code>
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>seqID_delimiter</code></td>
+<td align="left"><code>::</code></td>
+<td align="left">Delimiter which splits sections in sequence IDs
+(Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>transcript_regions_delimiter</code></td>
+<td align="left">|</td>
+<td align="left">Delimiter which splits RNA regions into CDS and UTR
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>fasta_path</code></td>
+<td align="left">files/fasta</td>
+<td align="left">Path to save transcript FASTA (Output)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>out_path</code></td>
+<td align="left">files</td>
+<td align="left">Path to save meta output (Output)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>temp_path</code></td>
+<td align="left">files/temp</td>
+<td align="left">Path to save temporary files (Temp)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>groups_path</code></td>
+<td align="left">files/groups</td>
+<td align="left">Path to save FASTA sequences as orthologous groups
+(Output)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>ref_orgs</code></td>
+<td align="left">files/reference_ORGS.txt</td>
+<td align="left">Subset of orgs from FASTA PATH(each line should be a
+folder name of an org) (Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>max_concurrent_jobs</code></td>
+<td align="left">10</td>
+<td align="left">Number of concurrent jobs/threads to be executed at any
+given time (threads) (Input, Optional)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>genomes_path</code></td>
+<td align="left">/mnt/data/storage/genomes</td>
+<td align="left">Path to save GENOMES (Input/Output)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>annos_path</code></td>
+<td align="left">/mnt/data/storage/annos</td>
+<td align="left">path to save GTF annotations (Input/Output)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>bed_path</code></td>
+<td align="left">files/bed</td>
+<td align="left">Path to save the extracted BED files (to avoid
+re-extraction each time) (Input/Output)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>clean_extract</code></td>
+<td align="left">FALSE</td>
+<td align="left">Remove old files and Re-extract transcript regions?
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>select_all_genes_from_cluster</code></td>
+<td align="left">FALSE</td>
+<td align="left">Select all genes from each cluster for each organism?
+(otherwise only the user specified genes are selected from each ODB
+cluster) (Default-FALSE) (Input, Optional)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>select_groups_with_ref_orgs</code></td>
+<td align="left">TRUE</td>
+<td align="left">Select only clusters which contain the sequences from
+the reference organisms? (Default-TRUE) (Input, Optional)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>select_groups_with_ref_orgs_method</code></td>
+<td align="left">ALL</td>
+<td align="left">Select only groups which contain the sequences from
+ANY/ALL of the reference organisms? (Default-ALL) (Input, Optional)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>plot_path</code></td>
+<td align="left">files/plots</td>
+<td align="left">Path to save plot images (Output)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>gene_drop_thresh</code></td>
+<td align="left">0</td>
+<td align="left">Threshold to filter genes (Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>orthodb_path_prefix</code></td>
+<td align="left">/mnt/data/storage/orthodb/odb12v2</td>
+<td align="left">Path and prefix to OrthoDB files, check docs to know
+which files you need (merge_OG2genes_OrthoDB.R) (Input/Output)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>macse_path</code></td>
+<td align="left">tools/macse_v2.jar</td>
+<td align="left">Path to MACSE jar file or the installed executable (for
+coding sequence alignment) (Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>mafft_path</code></td>
+<td align="left">/usr/local/bin/mafft-qinsi</td>
+<td align="left">Path to MAFFT executable (for UTR alignment)
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>transat_path</code></td>
+<td align="left">tools/Transat</td>
+<td align="left">Path to TRANSAT executable (for predicting helices)
+(Input)
+#/data/meyer/viz/tools/Transat_latest/TransatCDS/bin/TransatCDScluster/TransatM</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>rnadecoder_path</code></td>
+<td align="left">tools/</td>
+<td align="left">Path to RNADECODER FOLDER (only folder path,executable
+must be named RNA-decoder) (for predicting base-pair probabilities)
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>msys2_path</code></td>
+<td align="left"></td>
+<td align="left">Path to MSYS2 (ONLY FOR WINDOWS) (Input)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>fasttree_path</code></td>
+<td align="left">tools/FastTree</td>
+<td align="left">Path to FastTree executable (for generating trees)
+(Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>alignments_path</code></td>
+<td align="left">files/alns</td>
+<td align="left">Path to save alignments (Output)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>aln_gap_thres</code></td>
+<td align="left">0.50</td>
+<td align="left">The proportion of gaps to delete the column in an
+alignment (higher values will give more gaps and discards less
+sequences) (Input)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>min_coverage_thres</code></td>
+<td align="left">0.5</td>
+<td align="left">Threshold for minimum coverage(higher values give
+highly conserved sequences) (Input)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="user-data" class="section level4">
+<h4>User Data :</h4>
+<table style="width:100%;">
+<colgroup>
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Organism</th>
+<th align="left">Accession</th>
+<th align="left">TaxID</th>
+<th align="left">Version</th>
+<th align="left">Genome URL/Path</th>
+<th align="left">GTF URL/Path</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">xenopus_tropicalis</td>
+<td align="left">acc1</td>
+<td align="left">taxid1</td>
+<td align="left">0</td>
+<td align="left"><a href="https://ftp.xenbase.org/pub/Genomics/JGI/Xentr10.0/XENTR_10.0_genome.fasta.gz">URL</a></td>
+<td align="left"><a href="https://download.xenbase.org/xenbase/Genomics/JGI/Xentr10.0/XENTR_10.0_Xenbase.gff3.gz">URL</a></td>
+</tr>
+<tr class="even">
+<td align="left">xenopus_laevis</td>
+<td align="left">acc2</td>
+<td align="left">taxid2</td>
+<td align="left">1</td>
+<td align="left"><a href="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_genome.fa.gz">URL</a></td>
+<td align="left"><a href="https://download.xenbase.org/xenbase/Genomics/JGI/Xenla10.1/XENLA_10.1_GCF.gff3.gz">URL</a></td>
+</tr>
+<tr class="odd">
+<td align="left">danio_rerio</td>
+<td align="left">GCA_000002035.4</td>
+<td align="left">taxid3</td>
+<td align="left">GRCz11</td>
+<td align="left">-</td>
+<td align="left">-</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!NOTE] <strong>NOTE:</strong> When Genome/GTF is ‘-’ or empty, the
+query database given by <code>db</code> parameter is searched.</p>
+</blockquote>
+</div>
 </div>
 </div>
 </div>

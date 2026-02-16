@@ -877,7 +877,7 @@ get_gtf_attributes <- function(gtf_data,attribute){
 #'     fetch_FASTA_biomartr(c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param org_row (Named vector) Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1")
-#' @param db (string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"
+#' @param db (string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq".
 #' @param params_list (string/list/COMPLETE-options) Output of load_params()
 #' @param gene_list (string/vector) Vector or File containing list of genes
 #' @param data_types (vector) Data types to fetch, one or all of "gtf", "genome" (Default: c("gtf","genome"))
@@ -887,7 +887,7 @@ get_gtf_attributes <- function(gtf_data,attribute){
 #' @param subset (string/vector) Filter to organisms. Input of biomartr::listGenomes() [Differs between DBs and filter type, check manually - e.g,if type == "group|subgroup" then check biomartr::getGroups()] (Default: NULL)
 #' @param verbose (bool) Verbosity (Default: T)
 #' @return (Named vector) Organism details on successful extraction, NULL otherwise
-fetch_FASTA_biomartr <- function(org_row, db="", params_list, gene_list, data_types=c("gtf","genome"), keep_data=F, ...){ 
+fetch_FASTA_biomartr <- function(org_row, db, params_list, gene_list, data_types=c("gtf","genome"), keep_data=F, ...){ 
   dot_args <- list(...)
   verbose=T
   if("verbose" %in% names(dot_args)){
@@ -1189,7 +1189,7 @@ fetch_FASTA_biomartr <- function(org_row, db="", params_list, gene_list, data_ty
 #'     fetch_FASTA(c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1"), params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 #'
 #' @param org_row (Named vector) Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1")
-#' @param db (string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"
+#' @param db (string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq".
 #' @param params_list (string/list/COMPLETE-options) Output of load_params()
 #' @param gene_list (string/vector) Vector or File containing list of genes
 #' @param keep_data (bool) Keep the downloaded genomes and GTF data? (Default: FALSE)
@@ -1199,7 +1199,7 @@ fetch_FASTA_biomartr <- function(org_row, db="", params_list, gene_list, data_ty
 #' @param verbose (bool) Verbosity (Default: T)
 #' @return (Named vector) Organism details on successful extraction, NULL otherwise
 #' @export
-fetch_FASTA <- function(org_row, db="", params_list, gene_list, keep_data=F, ...) {
+fetch_FASTA <- function(org_row, db, params_list, gene_list, keep_data=F, ...) {
   # print(c("fetch_data(): ", org_row)) #DEBUG
   dot_args <- list(...)
   verbose=T
@@ -2054,19 +2054,18 @@ merge_OG2genes_OrthoDB <- function(params_list,quick.check=T,n_threads=tryCatch(
 #' This is the main function which calls all the other functions and performs and end-end execution of data extraction part of the pipeline. It requires a filename of a formatted parameter file and a gene list (check the github repo for an example) or fs::path_package("COMPLETE","pkg_data","parameters.txt").
 #'
 #' @examples
-#'     COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"), only.user.data = F )
-#'     COMPLETE::EXTRACT_DATA(db="genbank", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL, only.user.data = F )
-#'     COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL, only.user.data = T )
+#'     COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = fs::path_package("COMPLETE","pkg_data", "user_data.txt"))
+#'     COMPLETE::EXTRACT_DATA(db="genbank", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL)
+#'     COMPLETE::EXTRACT_DATA(db="ensembl", params_list = fs::path_package("COMPLETE","pkg_data","parameters.txt"), gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"), user_data = NULL)
 #'     COMPLETE::EXTRACT_DATA(db="genbank", params_list=COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt")), user_data="files/user_data.txt", gene_list = "files/genelist.txt", keep_data=T,db="genbank", type="subgroup", subset=c("Fishes","Amphibians"), skip_bacteria=T)
 #'     COMPLETE::EXTRACT_DATA(params_list=COMPLETE::load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt")), user_data="files/user_data.txt", gene_list = "files/genelist.txt", keep_data=T,db="ensembl", type="kingdom", subset=c("EnsemblVertebrates","EnsemblBacteria"))
 #'     
 #' @note If samtools/bedtools are not available in $PATH user data (genomes & GTFs) is not processed (unless "-" is used where the organism is looked-up in BIOMART using biomaRt). Files are still downloaded and saved in params_list$GENOMES_PATH and params_list$ANNOS_PATH
 #'
-#' @param db (string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"
+#' @param db (string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "user". For "user" only user data is fetched
 #' @param params_list (string/list/COMPLETE-options) Filename of a formatted parameter file (check the github repo for an example) or Output of load_params().
 #' @param gene_list (string/vector) Vector or File with a list of genes to extract data for(check the github repo for an example)
 #' @param user_data (string/data.frame) File name or table with user-specified organisms(genomes,GTFs). File must be in CSV format and should not contain header and column names are not required for the table. If data.frame is provided then it should have all the columns in c("name","accession","taxid","version","genome","gtf"). Check system.file("exec", "pkg_data", "user_data.txt", mustWork = T ,package = "COMPLETE") for an example user-data file.
-#' @param only.user.data (bool) ONLY Process user data and not all available organisms? (TRUE/FALSE). (Default: FALSE)
 #' @param keep_data (bool) Keep downloaded Genomes and GTF data? (TRUE/FALSE). (Default: FALSE)
 #@param rerun_count Number of times to rerun the function to account for extraction/network failures and other errors. Default 3
 #' @param only_fetch (bool) Only fetch data, without extraction (only genomes & GTF annotations from biomartr) (Default: FALSE)
@@ -2076,11 +2075,18 @@ merge_OG2genes_OrthoDB <- function(params_list,quick.check=T,n_threads=tryCatch(
 #' @param verbose (bool) Verbosity (Default: T)
 #' @seealso [biomartr::listGenomes()], [COMPLETE::FIND_ORTHOLOGS()]
 #' @export
-EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, only.user.data=F, keep_data=F, ...){
-  if(isTRUE(stringi::stri_isempty(db) || !any(grepl(x=db, pattern="genbank|refseq|ensembl")))){
-    stop("db should be one of genbank|refseq|ensembl.\n")
+EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, keep_data=F, ...){
+  if(isTRUE(stringi::stri_isempty(db) || !any(grepl(x=db, pattern="genbank|refseq|ensembl|user")))){
+    stop("db should be one of genbank|refseq|ensembl|user.\n")
   }
   
+  if(isTRUE(any(grepl(x=db, pattern="user")))){
+    only.user.data <- TRUE
+  }else{
+    only.user.data <- FALSE
+  }
+  
+
   dot_args <- list(...)
   verbose=T
   if("verbose" %in% names(dot_args)){
@@ -2128,8 +2134,8 @@ EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, only.use
   }
 
   # if(isTRUE(stringi::stri_isempty(db))){
-  #   return(dplyr::full_join(EXTRACT_DATA(db="ensembl", params_list=params_list, gene_list=gene_list, user_data=user_data, only.user.data=only.user.data, keep_data=keep_data, rerun_count=rerun_count, verbose=verbose),
-  #   EXTRACT_DATA(db="genbank", params_list=params_list, gene_list=gene_list, user_data=user_data, only.user.data=only.user.data, keep_data=keep_data, rerun_count=rerun_count, ...=...)))
+  #   return(dplyr::full_join(EXTRACT_DATA(db="ensembl", params_list=params_list, gene_list=gene_list, user_data=user_data, keep_data=keep_data, rerun_count=rerun_count, verbose=verbose),
+  #   EXTRACT_DATA(db="genbank", params_list=params_list, gene_list=gene_list, user_data=user_data, keep_data=keep_data, rerun_count=rerun_count, ...=...)))
   # }
 
   if (!curl::has_internet()) {
@@ -2139,7 +2145,7 @@ EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, only.use
   
   if( only.user.data && is.null(user_data) ){
     traceback(3)
-    stop("only.user.data=TRUE but user_data is not provided!\n")
+    stop("db=='user' but user_data is not provided!\n")
   }
 
   if (stringi::stri_isempty(Sys.which("samtools")) || stringi::stri_isempty(Sys.which("bedtools")) ) { # || stringi::stri_isempty(Sys.which("parallel"))
@@ -2482,7 +2488,7 @@ EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, only.use
   tictoc::tic.clearlog()
   invisible(gc(full = TRUE))
   # if(rerun_count > 0)
-  #   EXTRACT_DATA(params_list, gene_list, user_data=user_data, db=db, only.user.data=only.user.data, keep_data=keep_data, rerun_count=rerun_count - 1)
+  #   EXTRACT_DATA(params_list, gene_list, user_data=user_data, db=db, keep_data=keep_data, rerun_count=rerun_count - 1)
 
   #sessionInfo()
 }

@@ -4,12 +4,12 @@
 \alias{fetch_FASTA}
 \title{Internal Function - Get FASTA data}
 \usage{
-fetch_FASTA(org_row, db = "", params_list, gene_list, keep_data = F, ...)
+fetch_FASTA(org_row, db, params_list, gene_list, keep_data = F, ...)
 }
 \arguments{
 \item{org_row}{(Named vector) Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1")}
 
-\item{db}{(string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"}
+\item{db}{(string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq".}
 
 \item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 
