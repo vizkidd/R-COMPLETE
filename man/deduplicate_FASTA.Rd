@@ -7,11 +7,14 @@
 deduplicate_FASTA(fasta_path, duplicates.method, n_threads = 4)
 }
 \arguments{
-\item{fasta_path}{Path to FASTA File}
+\item{fasta_path}{(string) Path to FASTA File}
 
-\item{duplicates.method}{merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).}
+\item{duplicates.method}{(string) merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).}
 
-\item{n_threads}{Number of Threads}
+\item{n_threads}{(integer) Number of Threads (Default=4)}
+}
+\value{
+(data.frame) Data frame with seq_names and seqs
 }
 \description{
 Merge, Make Unique or Delete FASTA sequences with duplicated names. IF the duplicate sequence names are CDS blocks, merge them. If the duplicate seq names are EXON blocks, make them unique. If duplicate seq names are sequence duplicates, delete them.

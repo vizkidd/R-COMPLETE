@@ -4,13 +4,17 @@
 \alias{check_mart_dataset}
 \title{Check if a dataset exists for the organism in BIOMART (through biomaRt)}
 \usage{
-check_mart_dataset(org)
+check_mart_dataset(org, org_ver, db)
 }
 \arguments{
-\item{org}{Name of the organism}
+\item{org}{(string) - Name of the organism}
+
+\item{org_ver}{(string) - Dummy, just for verbosity}
+
+\item{db}{(string) - Dummy, just for verbosity}
 }
 \value{
-Name of the dataset in biomaRt
+(string) Name of the dataset in biomaRt
 }
 \description{
 This function accepts a name of an organism and

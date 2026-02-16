@@ -9,22 +9,44 @@ extract_transcript_regions(
   gtf_path,
   gene_list,
   org_name,
+  accession,
+  taxid,
+  org_ver,
+  db,
   params_list,
   keep_data,
-  verbose
+  verbose,
+  seed
 )
 }
 \arguments{
-\item{genome_path}{Path to genom}
+\item{genome_path}{(string) Path to genome}
 
-\item{gtf_path}{Path to annotation}
+\item{gtf_path}{(string) Path to annotation}
 
-\item{gene_list}{Filename of gene list}
+\item{gene_list}{(string/vector) Filename of gene list}
 
-\item{org_name}{Name of the organism}
+\item{org_name}{(string) Name of the organism}
 
-\item{params_list}{Parameter list from load_params()}
+\item{accession}{(string) Accession of the organism (For filenaming)}
+
+\item{taxid}{(integer) taxid of the organism (Dummy, returned back to the user)}
+
+\item{org_ver}{(string) Version of the organism (For filenaming)}
+
+\item{db}{(string) Query DB (For folder structure)}
+
+\item{params_list}{(string/list/COMPLETE-options) Parameter list from load_params()}
+
+\item{keep_data}{(bool) Keep fetched data after extraction?}
+
+\item{verbose}{(bool) Verbose?}
+
+\item{seed}{(integer) Seed value for future::future()}
+}
+\value{
+(future::future()) Future object that can be resolves to a named vector with organism details
 }
 \description{
-Requires a genome and an annotation. #' This function invokes external SHELL function extract_transcript_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
+Requires a genome and an annotation. This function invokes external SHELL function extract_transcript_regions from fs::path_package("COMPLETE","exec","functions.sh") (just like the piepline for user data) and cannot be monitored
 }

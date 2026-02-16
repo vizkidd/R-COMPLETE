@@ -7,18 +7,18 @@
 check_files(fasta_path, org, genes, verbose = T, params_list)
 }
 \arguments{
-\item{fasta_path}{Path of folder to check}
+\item{fasta_path}{(string) Path of folder to check}
 
-\item{org}{Name of the organism (format important, eg. "danio_rerio")}
+\item{org}{(string) Name of the organism (format important, eg. "danio_rerio")}
 
-\item{genes}{Vector of genes to check for}
+\item{genes}{(vector/string) Filename/Vector of genes to check for}
 
-\item{verbose}{Print check result messages?}
+\item{verbose}{(bool) Print check result messages?}
 
-\item{params_list}{Output of load_params()}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 }
 \value{
-TRUE if check passed, FALSE if check failed
+(bool) TRUE if check passed, FALSE if check failed
 }
 \description{
 This function checks if all the genes (and the transcript regions (cds,3utr,5utr)) are present

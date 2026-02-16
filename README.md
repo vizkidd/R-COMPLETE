@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 ## ToC
 + [About](#about)
 + [Installation](#install)
@@ -27,9 +32,24 @@ Pipeline for extracting localization elements/motifs using a comparitive approac
 
 <a name="install"></a>
 
+#### From `bash` :
+
 ```bash
-sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev
+sudo apt-get update && sudo apt-get install curl bzip2 parallel liblmdb-dev ncbi-blast+ samtools bedtools libz-dev liblzma-dev libbz2-dev libclang-dev gffread curl lsof libboost-dev libbio-perl-perl libclone-perl libgraph-perl liblwp-useragent-determined-perl libstatistics-r-perl libcarp-clan-perl libsort-naturally-perl libfile-share-perl libfile-sharedir-perl libfile-sharedir-install-perl libyaml-perl liblwp-protocol-https-perl libterm-progressbar-perl libparallel-forkmanager-perl libipc-sharelite-perl libtest-tempdir-perl libfile-chdir-perl
 ```
+
+#### [Install AGAT](https://github.com/NBISweden/AGAT) :
+
+```
+git clone https://github.com/NBISweden/AGAT.git # Clone AGAT
+cd AGAT                                         # move into AGAT folder
+perl Makefile.PL                                # Check all the dependencies*
+make                                            # Compile
+make test                                       # Test
+sudo make install                                    # Install
+```
+
+#### From `R` :
 
 ```R
 BiocManager::install(c("Rhtslib", "devtools", "BiocManager", "Biostrings", "biomaRt", "S4Vectors", "IRanges", "rtracklayer", "GenomicRanges", "BiocGenerics", "remotes"))
@@ -129,7 +149,7 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
 <a name="user_data"></a>
 
 ```diff
-* Columns Org, genome, gtf
+* Columns Org,Version, genome, gtf
 * Can accept empty or '-' in genome and/or gtf column. If empty or '-', the genome/gtf is looked up in ENSEMBL or NCBI DBs 
 * A default/example file is in fs::path_package("COMPLETE","pkg_data","user_data.txt")
 ```
@@ -143,9 +163,9 @@ COMPLETE::FIND_TRANSCRIPT_ORTHOLOGS(params_list = params_list, gene_list = gene_
   + COMPLETE.format.ids are indexed(internally) with `COMPLETE::index_BLAST_tables()` for compatibility
 
 ```diff
->$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
->SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
->ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
+>$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $org_name/$DB/$org_version $seqID_delimiter $gene_name $seqID_delimiter $ortho_cluster
+>SOME_TRANSCRIPT||cds(+)::SOMEORG/DB/VERSION::RANDOMGENE::ORTHOLOG_CLUSTERS
+>ENSDART00000193157||cds(+)::danio_rerio/ensembl/115::sulf1::18335at7898,51668at7742,360590at33208
 ```
 <a name="blast"></a>
 
@@ -165,7 +185,7 @@ Same as BLAST but OUTPUT Format is not available. List of available options can 
 <a name="fun1"></a>
 
 1) **EXTRACT_DATA():** Extracts the transcript regions for Protein Coding Transcripts `(provided in parameters, pipeline requires cds,5utr,3utr)`
-     from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
+     from BIOMART(ensembl),genbank(ncbi) and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
      and BASH function *`extract_transcript_regions()`* for user provided data.
      <br>Extraction priority/flow : `User Data > biomaRt > biomartr`<br>
    + ODB Files are merged and transformed with BASH function *`merge_OG2genes_OrthoDB()`*

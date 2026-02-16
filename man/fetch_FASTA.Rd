@@ -4,30 +4,38 @@
 \alias{fetch_FASTA}
 \title{Internal Function - Get FASTA data}
 \usage{
-fetch_FASTA(org_row, params_list, gene_list, keep_data = F, verbose = T)
+fetch_FASTA(org_row, db = "", params_list, gene_list, keep_data = F, ...)
 }
 \arguments{
-\item{org_row}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")}
+\item{org_row}{(Named vector) Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1")}
 
-\item{params_list}{Output of load_params()}
+\item{db}{(string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"}
 
-\item{gene_list}{Vector or File containing list of genes}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 
-\item{keep_data}{Keep the downloaded genomes and GTF data?}
+\item{gene_list}{(string/vector) Vector or File containing list of genes}
 
-\item{verbose}{Print Messages?}
+\item{keep_data}{(bool) Keep the downloaded genomes and GTF data? (Default: FALSE)}
+
+\item{only_fetch}{(bool) Only fetch data, without extraction (only genomes & GTF annotations from biomartr) (Default: FALSE)}
+
+\item{type}{(string) Filter to organisms. Input of biomartr::listGenomes() ["all", "kingdom", "group", "subgroup"] (Default: "all")}
+
+\item{subset}{(string/vector) Filter to organisms. Input of biomartr::listGenomes() [Differs between DBs and filter type, check manually - e.g,if type == "group|subgroup" then check biomartr::getGroups()] (Default: NULL)}
+
+\item{verbose}{(bool) Verbosity (Default: T)}
 }
 \value{
-Named Vector of the organism details
+(Named vector) Organism details on successful extraction, NULL otherwise
 }
 \description{
 Main function to download FASTA data.
 }
 \note{
-This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf are not provided)
+This function wraps around other fetch_FASTA_*() function (Except for fetch_FASTA_user() which calls fetch_FASTA() if a genome or a gtf is not provided)
 }
 \examples{
     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
-    fetch_FASTA(c(name="danio_rerio",version="106"), params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+    fetch_FASTA(c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1"), params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 
 }

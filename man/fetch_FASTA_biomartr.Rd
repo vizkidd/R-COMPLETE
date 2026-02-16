@@ -6,31 +6,37 @@
 \usage{
 fetch_FASTA_biomartr(
   org_row,
+  db = "",
   params_list,
   gene_list,
   data_types = c("gtf", "genome"),
-  only_fetch = F,
   keep_data = F,
-  verbose = T
+  ...
 )
 }
 \arguments{
-\item{org_row}{Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106")}
+\item{org_row}{(Named vector) Named vector with name of the organism (format important, eg. "danio_rerio") and other details eg, c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1")}
 
-\item{params_list}{Output of load_params()}
+\item{db}{(string) Any supported DB from biomartr::listGenomes(), Valid Inputs: "ensembl", "genbank", "refseq", "" (Default: "ensembl"). Note: If empty, data is retrieved from both "genbank" and "ensembl"}
 
-\item{gene_list}{Vector or File containing list of genes}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 
-\item{data_types}{Data types to fetch, one or all of "gtf", "genome" (Default: c("gtf","genome"))}
+\item{gene_list}{(string/vector) Vector or File containing list of genes}
 
-\item{only_fetch}{Only fetch data without extraction?}
+\item{data_types}{(vector) Data types to fetch, one or all of "gtf", "genome" (Default: c("gtf","genome"))}
 
-\item{keep_data}{Keep downloaded genomes and GTF data?}
+\item{keep_data}{(bool) Keep downloaded genomes and GTF data? (Default: FALSE)}
 
-\item{verbose}{Print Messages?}
+\item{only_fetch}{(bool) Only fetch data?, without extraction (only genomes & GTF annotations from biomartr) (Default: FALSE)}
+
+\item{type}{(string) Filter to organisms. Input of biomartr::listGenomes() ["all", "kingdom", "group", "subgroup"] (Default: "all")}
+
+\item{subset}{(string/vector) Filter to organisms. Input of biomartr::listGenomes() [Differs between DBs and filter type, check manually - e.g,if type == "group|subgroup" then check biomartr::getGroups()] (Default: NULL)}
+
+\item{verbose}{(bool) Verbosity (Default: T)}
 }
 \value{
-Named Vector of the organism details
+(Named vector) Organism details on successful extraction, NULL otherwise
 }
 \description{
 This function downloads FASTA data from BIOMART using biomartr. The GENOME and GTF for the organism are downloaded and passed through the shell pipeline for extracting transcripts.
@@ -38,6 +44,6 @@ This function invokes external SHELL function extract_transcript_regions from fs
 }
 \examples{
     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
-    fetch_FASTA_biomartr(c(name="danio_rerio",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+    fetch_FASTA_biomartr(c(name="danio_rerio",version="106",accession="acc1",taxid="dummy1"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 
 }

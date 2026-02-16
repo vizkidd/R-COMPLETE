@@ -7,9 +7,9 @@
 fetch_stat(x, col_name)
 }
 \arguments{
-\item{x}{Data Frame with columns named as required}
+\item{x}{(data.frame) - Data Frame with columns named as required}
 
-\item{col_name}{Name of the column for which the value is to be extracted}
+\item{col_name}{(string) - Name of the column for which the value is to be extracted}
 }
 \value{
 A value which was requested from the GTF data frame

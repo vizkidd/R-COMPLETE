@@ -4,22 +4,32 @@
 \alias{fetch_FASTA_mart}
 \title{Get FASTA data from BIOMART (using biomaRt)}
 \usage{
-fetch_FASTA_mart(org, gtf_stats, fasta_path, params_list)
+fetch_FASTA_mart(
+  org,
+  org_ver,
+  db,
+  gtf_stats,
+  fasta_path,
+  params_list,
+  ... = ...
+)
 }
 \arguments{
-\item{org}{Name of the organism (format important, eg. "danio_rerio")}
+\item{org}{(string) Name of the organism (format important, eg. "danio_rerio")}
 
-\item{gtf_stats}{Data Frame from calculate_stats()}
+\item{gtf_stats}{(data.frame) Data Frame from calculate_stats()}
 
-\item{fasta_path}{Output path for transcript FASTA files}
+\item{fasta_path}{(string) Output path for transcript FASTA files}
 
-\item{params_list}{Output of load_params()}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
+
+\item{verbose}{(bool) Verbosity (Default: T)}
 }
 \value{
-Data Frame with transcripts for which FASTA was obtained
+(data.frame) Data Frame with transcripts for which FASTA was obtained
 }
 \description{
-This function downloads FASTA data from BIOMART using biomaRt. The Data Frame from calculate_stats() is required.
+This function downloads FASTA data from ensembl BIOMART using biomaRt. The Data Frame from calculate_stats() is required.
 }
 \note{
 Columns required from biomaRt "gene_name","gene_id","transcript_id" (or) "seqnames","total_exon_len","total_cds_len", "five_len","three_len", "exon_count","cds_count","g.exon_start","g.exon_end","transcript_length","five_flank","three_flank","g.transcript_start","g.transcript_end","chromosome_name","strand"

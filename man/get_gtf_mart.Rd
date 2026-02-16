@@ -4,18 +4,22 @@
 \alias{get_gtf_mart}
 \title{Get GTF data from BIOMART (using biomaRt)}
 \usage{
-get_gtf_mart(org, gene_list)
+get_gtf_mart(org, org_ver, db, gene_list)
 }
 \arguments{
-\item{org}{Name of the organism (format important, eg. "danio_rerio")}
+\item{org}{(string) Name of the organism (format important, eg. "danio_rerio")}
 
-\item{gene_list}{Vector or File with genes to fetch the GTF data for}
+\item{org_ver}{(string) Version of the organism (ONLY for Debug)}
+
+\item{db}{(string) Query Database (ONLY for Debug)}
+
+\item{gene_list}{(vector/string) Vector or File with genes to fetch the GTF data for}
 }
 \value{
-GTF Data
+(data.frame) GTF Data
 }
 \description{
-This function downloads GTF data from BIOMART using biomaRt. The attributes downloaded are
+This function downloads GTF data from ensembl BIOMART using biomaRt. The attributes downloaded are
 c("chromosome_name", "strand", "ensembl_gene_id", "ensembl_transcript_id", "external_gene_name",
 "start_position","end_position","exon_chrom_start","exon_chrom_end","transcript_version","transcript_length",
 "5_utr_start","5_utr_end","transcript_start","transcription_start_site","transcript_end","cds_start","cds_end","3_utr_start","3_utr_end")

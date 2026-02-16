@@ -4,21 +4,27 @@
 \alias{fetch_FASTA_user}
 \title{Get FASTA for User data}
 \usage{
-fetch_FASTA_user(data, params_list, gene_list, keep_data = F, verbose = T)
+fetch_FASTA_user(data, params_list, gene_list, keep_data = F, ...)
 }
 \arguments{
-\item{data}{Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106").}
+\item{data}{(Named vector) Named vector with name of the organism (format important, eg. "danio_rerio"), Genome, GTF and other details eg, c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106",accession="acc1",taxid="dummy1").}
 
-\item{params_list}{Output of load_params()}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 
-\item{gene_list}{Filename with the list of genes}
+\item{gene_list}{(string/vector) Filename with the list of genes}
 
-\item{keep_data}{Keep downloaded Genomes and GTF data?}
+\item{keep_data}{(bool) Keep downloaded Genomes and GTF data? (Default: FALSE)}
 
-\item{verbose}{Print Messages?}
+\item{only_fetch}{(bool) Only fetch data, without extraction (only genomes & GTF annotations from biomartr) (Default: FALSE)}
+
+\item{type}{(string) Filter to organisms. Input of biomartr::listGenomes() ["all", "kingdom", "group", "subgroup"] (Default: "all")}
+
+\item{subset}{(string/vector) Filter to organisms. Input of biomartr::listGenomes() [Differs between DBs and filter type, check manually - e.g,if type == "group|subgroup" then check biomartr::getGroups()] (Default: NULL)}
+
+\item{verbose}{(bool) Verbosity (Default: T)}
 }
 \value{
-Named Vector of the organism details
+(Named vector) Organism details on successful extraction, NULL otherwise
 }
 \description{
 Function to download FASTA data for user data. fetch_FASTA() is invoked if a genome and a gtf are not provided.
@@ -28,8 +34,8 @@ Use "-" in Genome/GTF to check for the organism in BIOMART
 }
 \examples{
     params_list <- load_params(fs::path_package("COMPLETE","pkg_data","parameters.txt"))
-    fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
-    fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
-    fetch_FASTA_user(c(org="xenopus_laevis",genome="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_genome.fa.gz",gtf="https://download.xenbase.org/xenbase/Genomics/JGI/Xenla10.1/XENLA_10.1_GCF.gff3.gz",version="106"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+    fetch_FASTA_user(c(org="danio_rerio",genome="http://some.link",gtf="some.file",version="106",accession="acc1",taxid="dummy1"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+    fetch_FASTA_user(c(org="danio_rerio",genome="-",gtf="-",version="106",accession="acc1",taxid="dummy1"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
+    fetch_FASTA_user(c(org="xenopus_laevis",genome="https://ftp.xenbase.org/pub/Genomics/JGI/Xenla10.1/XENLA_10.1_genome.fa.gz",gtf="https://download.xenbase.org/xenbase/Genomics/JGI/Xenla10.1/XENLA_10.1_GCF.gff3.gz",version="106",accession="acc1",taxid="dummy1"),params_list, gene_list = fs::path_package("COMPLETE","pkg_data","genelist.txt"))
 
 }

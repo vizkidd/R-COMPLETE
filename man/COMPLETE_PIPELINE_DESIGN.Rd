@@ -54,15 +54,15 @@ fs::path_package("COMPLETE","pkg_data","parameters.txt")
    - Sequences are labelled with the following long ID format of R-COMPLETE
    (specific to this pipeline and referred to as COMPLETE.format.ids)
    (seqID_delimiter & transcripID_delimiter set in parameters, "::" & "||" respectively in this context )
-        >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $seqID_delimiter $org_name $gene_name $seqID_delimiter $ortho_cluster
-        >SOME_TRANSCRIPT||cds(+)::SOMEORG::RANDOMGENE::ORTHOLOG_CLUSTERS
-        >ENSDART00000193157||cds(+)::danio_rerio::sulf1::18335at7898,51668at7742,360590at33208
+        >$transcript_id $transcripID_delimiter $transcript_region ($strand) $seqID_delimiter $org_name/$DB/$org_version $seqID_delimiter $gene_name $seqID_delimiter $ortho_cluster
+        >SOME_TRANSCRIPT||cds(+)::SOMEORG/DB/VERSION::RANDOMGENE::ORTHOLOG_CLUSTERS
+        >ENSDART00000193157||cds(+)::danio_rerio/ensembl/115::sulf1::18335at7898,51668at7742,360590at33208
 }\if{html}{\out{</div>}}
 \item FLOW :
 \enumerate{
 \item EXTRACT_DATA() -
 Extracts the transcript regions for Protein Coding Transcripts (provided in parameters, pipeline requires cds,5utr,3utr)
-from BIOMART and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
+from BIOMART(ensembl),genbank(ncbi) and/or User provided genomes & GTFs. This functions uses biomaRt/biomartr for extracting data from BIOMART
 and BASH function extract_transcript_regions() for user provided data. Extraction priority/flow : User Data > biomaRt > biomartr
 \itemize{
 \item ODB Files are merged and transformed with BASH function merge_OG2genes_OrthoDB()

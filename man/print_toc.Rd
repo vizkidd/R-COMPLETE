@@ -10,7 +10,7 @@ print_toc(clk)
 \item{clk}{output of function tictoc::toc()}
 }
 \value{
-A formatted string to print to stdout/console
+(string) A formatted string to print to stdout/console
 }
 \description{
 This function takes the output of tictoc::toc() and

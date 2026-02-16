@@ -1,17 +1,11 @@
 Package: COMPLETE
 Type: Package
 Title: Comparative Orthologous Motif Prediction of Localization Elements with Transcript Extraction
-Version: 0.3.1
+Version: 0.4.2
 Authors@R: c(
 	person("Vishvesh", "Karthik", role=c("aut","cre"),
 		email="vishveshkarthik@gmail.com"))
-Description: R package for extracting motifs of localization elements using a comparitive approach.
-    * The package takes a list of genes and downloads protein coding transcripts of said genes for user provided organisms and organisms from Ensembl
-    * Groups the transcripts into ortholog/gene clusters and finds transcript level orthologs of genes/clusters with iterative BLAST approach (iBLAST). Ungrouped transcripts are optionally grouped during iBLAST
-    * Constructs Multiple Sequence Alignments (MSA) for clusters/genes
-    * Folds the MSAs and takes advantage of the evolutionary information to predict motifs which enable localization
-    Pipeline is split into multiple parts. The functions named in uppercase denote the functions which perform end-end execution of respective parts of the pipeline. 
-    Check ?COMPLETE_PIPELINE_DESIGN for more information
+Description: R package for extracting motifs of localization elements using a comparitive approach. 1) The package takes a list of genes and downloads protein coding transcripts of said genes for user provided organisms and organisms from Ensembl. 2) Groups the transcripts into ortholog/gene clusters and finds transcript level orthologs of genes/clusters with iterative BLAST approach (iBLAST). Ungrouped transcripts are optionally grouped during iBLAST. 3) Constructs Multiple Sequence Alignments (MSA) for clusters/genes. 4) Folds the MSAs and takes advantage of the evolutionary information to predict motifs which enable localization. Pipeline is split into multiple parts. The functions named in uppercase denote the functions which perform end-end execution of respective parts of the pipeline. Check ?COMPLETE_PIPELINE_DESIGN for more information.
 License: GPL-3
 Encoding: UTF-8
 Additional_repositories:
@@ -55,8 +49,10 @@ Imports:
     IRanges (>= 2.26.0),
     R.utils (>= 2.11),
     wisard,
-    QuickBLAST,
+    QuickBLAST (>= 1.2.4),
     future (>= 1.29.0),
+    future.apply (>= 1.20.1),
+    progressr (>= 0.18.0),
     furrr (>= 0.3.0),
     ggforce (>= 0.3.3),
     ggplot2 (>= 3.3.6),
@@ -67,6 +63,7 @@ Imports:
 Remotes:
     github::robbueck/wisard,
     github::vizkidd/QuickBLAST
+SystemRequirements: Perl, BioPerl, AGAT
 LinkingTo: Rcpp
 RoxygenNote: 7.3.2
 Collate:

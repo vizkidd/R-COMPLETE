@@ -7,6 +7,8 @@
 label_FASTA_files(
   fasta_path,
   org,
+  db,
+  org_ver,
   gene_list,
   odb_gene_map = NULL,
   params_list,
@@ -14,18 +16,18 @@ label_FASTA_files(
 )
 }
 \arguments{
-\item{fasta_path}{Path of FASTA Files}
+\item{fasta_path}{(string) Path of FASTA File}
 
-\item{org}{Name of the organism}
+\item{org}{(string) Name of the organism}
 
-\item{gene_list}{Filename of gene list or Vector of gene names}
+\item{gene_list}{(string/vector) Filename of gene list or Vector of gene names}
 
-\item{odb_gene_map}{Filename of OrthoDB Ortholog Clusters mapped to gene names  (Optional). If not provided, sequences cluster ID/name "ungrouped" is used}
+\item{odb_gene_map}{(string) Filename of OrthoDB Ortholog Clusters mapped to gene names  (Optional). If not provided, sequences cluster ID/name "ungrouped" is used}
 
-\item{params_list}{Output of load_params()}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 
-\item{duplicates.method}{merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).}
+\item{duplicates.method}{(string) merge/delete/make_unique. How to handle sequences with duplicate names?. For CDS/UTR blocks - merge (Concatenate sequences with duplicate names), for Exon blocks - make_unique (Sequence names/IDs are made unique), delete - for deleting all duplicate sequences (first seq is kept).}
 }
 \description{
-Convert short sequence IDs into longer COMPLETE format IDs
+Convert short sequence IDs in a FASTA file into longer COMPLETE format IDs
 }

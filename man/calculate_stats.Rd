@@ -15,16 +15,16 @@ calculate_stats(
 )
 }
 \arguments{
-\item{org}{Name of the organism (Only for DEBUG)}
+\item{org}{(string) Name of the organism (Only for DEBUG)}
 
-\item{gtf_data}{GTF data obtained from biomaRt for an organism}
+\item{gtf_data}{(data.frame) GTF data obtained from biomaRt for an organism}
 
-\item{allow_strand}{Only allow the specified strand. ("+","-",Default - "" (or) " " (or) "*")}
+\item{allow_strand}{(string) Only allow the specified strand. ("+","-",Default - "" (or) " " (or) "*")}
 
-\item{n_threads}{Number of Threads}
+\item{n_threads}{(integer) Number of Threads}
 }
 \value{
-Transcript Statistics from GTF data
+(data.frame) Transcript Statistics from GTF data
 }
 \description{
 This function calculates Flank Values (for transcripts whose UTR lengths are not known in which case Flank values are used instead of lengths to obtain the Flanking regions),

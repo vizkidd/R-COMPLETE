@@ -15,16 +15,16 @@ merge_OG2genes_OrthoDB(
 )
 }
 \arguments{
-\item{params_list}{Output of load_params() that contains prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz) in ORTHODB_PREFIX parameter}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params() that contains prefix to the Flat Files from OrthoDB (Prefix of \*_OG2genes.tab.gz,\*_genes.tab.gz,\*_species.tab.gz) in ORTHODB_PREFIX parameter}
 
-\item{quick.check}{Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes}
+\item{quick.check}{(bool) Only check if files exist? (TRUE/FALSE). FALSE - When running the pipeline with a new list of genes (Default:T)}
 
-\item{n_threads}{Number of threads}
+\item{n_threads}{(integer) Number of threads}
 
-\item{gene_list}{File name of gene list}
+\item{gene_list}{(string) File name of gene list}
 }
 \value{
-TRUE if output files exist, FALSE otherwise
+(bool) TRUE if output files exist, FALSE otherwise
 }
 \description{
 This step is essential for speeding up the extraction process. The gene information (Gene IDs and Gene Names) are merged with Ortholog Groups (Cluster IDs and Gene IDs) and the format is converted into a Tab Delimited file wrapped over a CSV of Gene IDs and Gene Names. This is performed because one Ortholog Group/Cluster can encompass multiple genes (across organisms). The final format looks like this [cluster1][tab][geneID1,geneID2..geneIDN][tab][gene_name1,gene_name2..gene_nameN].

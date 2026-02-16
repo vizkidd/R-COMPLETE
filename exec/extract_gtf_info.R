@@ -247,7 +247,7 @@ get_bed <- function(bed_df, BED_PATH_PREFIX, TRANSCRIPT_REGIONS) {
   }
 }
 
-get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, output_file, TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX, TRANSCRIPT_REGIONS) {
+get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, org_ver, db, output_file, TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX, TRANSCRIPT_REGIONS) {
   #mcmapply has some issues and R doesnt not work with GNU parallel (Rscript)
   # https://stat.ethz.ch/pipermail/r-help/2021-March/470501.html
   ##CAREFUL with mcmapply return value (do not return(NULL) or return(0) etc, unless you are returning  data (return(data)) just do a plain return())
@@ -274,7 +274,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
 
   if(nrow(gtf_data) == 0){
     traceback()
-    stop(paste("GTF data is empty : ",org_name, " - Possibly no genes were found. (or gene_name attribute is missing from GTF)"))
+    stop(paste("GTF data is empty : ",org_name,org_ver,db, " - Possibly no genes were found. (or gene_name attribute is missing from GTF)"))
   }
 
   utr_len_list <- extract_info(gtf_data,strandedness = STRAND)
@@ -316,7 +316,7 @@ get_stats_parallel <- function(slice_file_path, STRAND, n_cores, org_name, outpu
   },  mc.cores = n_cores))
 #save("utr_len_df",file="utr_len.RData")
   if(any(nrow(utr_len_df) > 0, length(utr_len_df) > 0, !is.null(utr_len_df))){
-    utr_len_df <- utr_len_df %>% mutate(org=org_name)
+    utr_len_df <- utr_len_df %>% mutate(org=org_name) %>% mutate(version=org_ver) %>% mutate(db=db)
   #  print(utr_len_df$gene_name)
     utr_len_df$gene_name <- tolower(utr_len_df$gene_name)
     write.table(utr_len_df, file(output_file, open = "w"), sep = ",", quote = F,row.names = F, col.names = T,na = "-")
@@ -379,13 +379,15 @@ args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
   traceback()
-  stop("Give the (1) GTF_Slice files path (2) Org_name (3) Output File (is in csv,NOT Gzipped) (4) Parameter file", call.=FALSE)
+  stop("Give the (1) GTF_Slice files path (2) Org_name (3) Org version (4) DB name (5) Output File (is in csv,NOT Gzipped) (6) Parameter file", call.=FALSE)
 }
 
 slice_file_path <- args[1]
 org_name <- args[2]
-output_file <- args[3]
-param_file <- args[4] #"parameters.txt"
+org_ver <- args[3]
+db <- args[4]
+output_file <- args[5]
+param_file <- args[6] #"parameters.txt"
 
 if(!file.exists(param_file) || file.info(param_file)$size <= 4){
   traceback()
@@ -409,7 +411,7 @@ if(is.na(n_cores) || n_cores > max_concurrent_jobs){
 }
 
 dir.create(path = file.path(BED_PATH,org_name),recursive = T,showWarnings = F)
-BED_PATH_PREFIX <- file.path(BED_PATH,org_name,org_name)
+BED_PATH_PREFIX <- file.path(BED_PATH,org_name, paste0(db,"_",org_ver))
 
 if (any(stringi::stri_isempty(slice_file_path), stringi::stri_isempty(org_name), stringi::stri_isempty(output_file))) {
   traceback()
@@ -436,7 +438,7 @@ tryCatch({
   bed_genes <- tolower(bed_df$gene_name) #sapply(stri_split(bed_df[bed_df$feature=="gene",c("name")], fixed = TRANSCRIPT_ID_DELIM), function(x){return(x[[1]])})
   if(!all(!is.na(match(unique(bed_genes),unique(utr_len_df$gene_name)))) || !all(!is.na(match(unique(utr_len_df$gene_name),unique(bed_genes))))){
     print("Some genes were missing, re-extracting")
-    get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
+    get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, org_ver=org_ver,db=db, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
   }else{
     get_bed(bed_df=bed_df, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS)
   }
@@ -444,7 +446,7 @@ tryCatch({
   print("Files Checked!")
 },error=function(cond){
   # print(paste("Error but continuing:", cond)) #DEBUG
-  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS) 
+  get_stats_parallel(slice_file_path=slice_file_path, STRAND=STRAND, n_cores=n_cores, org_name=org_name, org_ver=org_ver,db=db,output_file=output_file, TRANSCRIPT_ID_DELIM=TRANSCRIPT_ID_DELIM, BED_PATH_PREFIX=BED_PATH_PREFIX, TRANSCRIPT_REGIONS=TRANSCRIPT_REGIONS) 
 })
 
 quit()

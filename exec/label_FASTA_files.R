@@ -51,7 +51,7 @@ deduplicate_FASTA <- function(fasta_file, duplicates.method, n_threads=4) {
   return(seq_set)
 }
 
-label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_list, duplicates.method="merge"){
+label_sequenceIDs <- function(fasta_path,org,db,org_ver,gene_list,odb_gene_map=NULL,params_list, duplicates.method="merge"){
 
   if(is.null(duplicates.method) || !grepl(pattern = c("merge|delete|make_unique"), x = duplicates.method,ignore.case = T)){
     stop(paste("duplicates.method must be one of merge|delete|make_unique"))
@@ -93,11 +93,11 @@ label_sequenceIDs <- function(fasta_path,org,gene_list,odb_gene_map=NULL,params_
         if( ncol(split_seq_names) == 1 ){ #length(COMPLETE$FORMAT_ID_INDEX)
           #print(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
           #print(names(seq_set)) #DEBUG
-          names(seq_set) <- paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
+          names(seq_set) <- paste(names(seq_set),paste(org,db,org_ver,sep=.Platform$file.sep),x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)
           writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
           #return(paste(names(seq_set),org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM)) #DEBUG
         }else if( ncol(split_seq_names) < 4 && ncol(split_seq_names) >= 1){
-          names(seq_set) <- paste(split_seq_names[,1] ,org,x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM) #stringi::stri_split(str = split_seq_names, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
+          names(seq_set) <- paste(split_seq_names[,1] ,paste(org,db,org_ver,sep=.Platform$file.sep),x,odb_clusters,sep = params_list$SEQUENCE_ID_DELIM) #stringi::stri_split(str = split_seq_names, fixed = params_list$SEQUENCE_ID_DELIM, simplify=T)[,1]
           writeXStringSet(x = seq_set,filepath = y,append = F,format = "fasta")
         }else if(ncol(split_seq_names) != 4){
           message(paste("Error : Check sequence ID format of", y))
@@ -134,15 +134,17 @@ set.seed(123)
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
-  stop("Give the (1) Organism FASTA Path (2) Name of the Organism (3) Gene List (4) Parameter List (5) Filename of OrthoDB Ortholog Clusters mapped to gene names (Optional). If not provided, sequences cluster ID/name 'ungrouped' is used", call.=FALSE)
+  stop("Give the (1) Organism FASTA Path (2) Name of the Organism (3) DB Name (4) Org version (5) Gene List (6) Parameter List (7) Filename of OrthoDB Ortholog Clusters mapped to gene names (Optional). If not provided, sequences cluster ID/name 'ungrouped' is used", call.=FALSE)
 }
 
 org_fasta_path <- args[1]
 org_name <- args[2]
-gene_list <- args[3]
-param_file <- args[4] #"parameters.txt"
-if(length(args)==5){
-  odb_gene_map <- args[5]
+db <- args[3]
+org_ver <- args[4]
+gene_list <- args[5]
+param_file <- args[6] #"parameters.txt"
+if(length(args)==7){
+  odb_gene_map <- args[7]
 }else{
   odb_gene_map <- NULL
 }
@@ -166,4 +168,4 @@ if(is.na(params_list$numWorkers) || params_list$numWorkers > params_list$max_con
   params_list$numWorkers <- params_list$max_concurrent_jobs
 }
 
-invisible(label_sequenceIDs(fasta_path = org_fasta_path,org = org_name,gene_list = gene_list,odb_gene_map = odb_gene_map,params_list = params_list,duplicates.method="merge"))
+invisible(label_sequenceIDs(fasta_path = org_fasta_path,org = org_name, db=db, org_ver=org_ver,gene_list = gene_list,odb_gene_map = odb_gene_map,params_list = params_list,duplicates.method="merge"))

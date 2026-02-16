@@ -12,10 +12,16 @@ read.gtf(
 )
 }
 \arguments{
-\item{verbose}{Print Messages?}
+\item{file}{(string) Path to GTF}
+
+\item{attr}{(string) Method to process GTF attributes. Accepted values are "split", "intact", "skip"}
+
+\item{features}{(string) Vector with feature names to extract from GTF}
+
+\item{quiet}{(bool) Print Messages? (Default: F)}
 }
 \value{
-Named Vector of the organism details
+(data.frame) Extracted GTF
 }
 \description{
 Sourcing and using read.gtf script from the deprecated R-Genome Browser (Rgb) package. Credits to the original author(s), Sylvain Mareschal <maressyl@gmail.com>

@@ -5,17 +5,17 @@
 #'
 #' @return Path to GNU parallel
 install_parallel <- function(){
-  if (stringi::stri_isempty(Sys.which("parallel")) && !file.exists(paste(fs::path_home(),"/bin/parallel",sep=""))) {
+  if (stringi::stri_isempty(Sys.which("parallel")) && !file.exists(file.path(fs::path_home(),"/bin/parallel"))) {
     install_status <- processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"install_parallel") ,spinner = T,stdout = "",stderr = "")
     if(install_status$status>0){
       stop("Problem installing GNU parallel. Is $SHELL set? check permissions in $HOME directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
     }else{
-      return(paste(fs::path_home(),"/bin/parallel",sep=""))
+      return(file.path(fs::path_home(),"/bin/parallel"))
     }
   }else if(!stringi::stri_isempty(Sys.which("parallel"))){
     return(Sys.which("parallel"))
-  }else if(file.exists(paste(fs::path_home(),"/bin/parallel",sep=""))){
-    return(paste(fs::path_home(),"/bin/parallel",sep=""))
+  }else if(file.exists(file.path(fs::path_home(),"/bin/parallel"))){
+    return(file.path(fs::path_home(),"/bin/parallel"))
   }else{
     stop("Problem with GNU parallel installation. Is $SHELL set? check permissions in $HOME/bin directory and check https://www.gnu.org/software/parallel/parallel_tutorial.html")
   }
@@ -194,7 +194,8 @@ load_params <- function(param_file){
   {
     ORTHODB_PREFIX <- file.path(tools::file_path_as_absolute(dirname(ORTHODB_PREFIX_path)), basename(ORTHODB_PREFIX_path))
   }else{
-    stop(paste(ORTHODB_PREFIX_path, "does not seem to have *_genes.tab.gz|*_OG2genes.tab.gz|*_species.tab.gz"))
+    # stop(paste(ORTHODB_PREFIX_path, "does not seem to have *_genes.tab.gz|*_OG2genes.tab.gz|*_species.tab.gz"))
+    warning(paste(ORTHODB_PREFIX_path, "does not seem to have *_genes.tab.gz|*_OG2genes.tab.gz|*_species.tab.gz"))
   }
   MACSE_PATH <- tools::file_path_as_absolute(check_param(param_table,"macse_path",optional=F,CAST_FUN=as.character))
   MAFFT_PATH <- tools::file_path_as_absolute(check_param(param_table,"mafft_path",optional=F,CAST_FUN=as.character))
@@ -267,17 +268,35 @@ COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
 INITIALIZE <- function() {
   options(RCurlOptions = list(ssl.verifyhost=0, ssl.verifypeer=0, timeout=200,maxconnects=200,connecttimeout=200)) #ssl.verifyhost=0, ssl.verifypeer=0,
   #options(download.file.method="curl")
-  #options(error = function() {cat("Error detected. Printing traceback:\n");traceback(2);quit(save = "no", status = 1)})
+  # options(error = function() {
+  #     # geterrmessage() retrieves the last error string.
+  #     # User interrupts usually result in an empty string or "invocation interrupted"
+  #     cat("(R-COMPLETE) Error detected. Printing traceback:\n")
+  #     traceback(2)
+  #     # quit(save = "no", status = 1)
+  #   })
+  
+  options(error = function() {
+    # message("\nStopping R session: Terminating all background workers...")
+    future::plan(future::sequential)
+  })
+  
+  #options(future.globals.maxSize = 1000 * 1024^2) # Increase to 1GB
 
   future::plan(future::multisession)
+  
   COMPLETE_env <<- new.env(parent=baseenv())
   
-  COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
+  COMPLETE_env$ENSEMBL_MART <<- "ENSEMBL_MART_ENSEMBL"
   
   if (curl::has_internet()) {
-    COMPLETE_env$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_env$ENSEMBL_MART)) #For biomaRt
-    COMPLETE_env$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_env$using.mart)) #For biomaRt
-    COMPLETE_env$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+    tryCatch({
+      COMPLETE_env$using.mart <- mart_connect(biomaRt::useMart,args=list(COMPLETE_env$ENSEMBL_MART)) #For biomaRt
+      # COMPLETE_env$org.meta.list <- mart_connect(biomaRt::listDatasets,args=list(mart=COMPLETE_env$using.mart)) #For biomaRt
+      ## COMPLETE_env$org.meta <- mart_connect(biomartr::listGenomes,args=list(db = "ensembl", type = "all", details = T)) #For biomartr #db = tolower(GENOMES_SOURCE)
+    }, error=function(err){
+      warning(paste("(R-COMPLETE) Error initializing marts and datasets:",err))
+    })
   }else{
     warning("Warning : Check if there is an internet connection")
   }
@@ -288,9 +307,11 @@ INITIALIZE <- function() {
   COMPLETE_env$USE_ORTHODB <- FALSE
   
   unlink(file.path(tempdir(), "R-COMPLETE.file_lock"), force=T)
-  unlink(file.path(tempdir(), "R-COMPLETE.proc_lock"), force=T)
+  unlink(file.path(tempdir(), "R-COMPLETE.ensembl_lock"), force=T)
+  unlink(file.path(tempdir(), "R-COMPLETE.ncbi_lock"), force=T)
   COMPLETE_env$file_lock <- file.path(tempdir(), "R-COMPLETE.file_lock")
-  COMPLETE_env$proc_lock <- file.path(tempdir(), "R-COMPLETE.proc_lock")
+  COMPLETE_env$ensembl_lock <- file.path(tempdir(), "R-COMPLETE.ensembl_lock")
+  COMPLETE_env$ncbi_lock <- file.path(tempdir(), "R-COMPLETE.ncbi_lock")
 
   #if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   #  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")

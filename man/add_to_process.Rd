@@ -13,18 +13,18 @@ add_to_process(
 )
 }
 \arguments{
-\item{p_cmd}{Command to be executed}
+\item{p_cmd}{(string) Command to be executed}
 
-\item{p_args}{Arguments to be passed to the command}
+\item{p_args}{(list) Arguments to be passed to the command}
 
-\item{verbose}{Print status messages?}
+\item{verbose}{(bool) Print status messages?}
 
-\item{logfile}{Redirect output (stdout & stderr) to this file}
+\item{logfile}{(string) Redirect output (stdout & stderr) to this file}
 
-\item{params_list}{Output of load_params()}
+\item{params_list}{(string/list/COMPLETE-options) Output of load_params()}
 }
 \value{
-Process ID from processx::new() which can be used for further monitoring of the process
+(processx::process() object) Process ID from processx::new() which can be used for further monitoring of the process
 }
 \description{
 This function adds process to a list and makes sure hte number of processes do not
