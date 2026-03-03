@@ -2650,13 +2650,14 @@ merge_OG2genes_OrthoDB <- function(params_list,quick.check=T,n_threads=tryCatch(
   odb_prefix <- params_list$ORTHODB_PREFIX
   # print(c(gene_list, odb_prefix))
   if(!quick.check){
-    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,n_threads,gene_list ) ,spinner = T,stdout = "1",stderr = "2>&1")
+    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,params_list$OUT_PATH,n_threads,gene_list ) ,spinner = T,stdout = "1",stderr = "2>&1")
   }
   
-  if( (file.exists(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(file.path(dirname(odb_prefix),"odb.gene_list")) && file.info(file.path(dirname(odb_prefix),"odb.gene_list"))$size > 0)){
-    if(!all(tools::md5sum(file.path(dirname(odb_prefix),"odb.gene_list")) == tools::md5sum(gene_list))){
+  if( (file.exists(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(file.path(params_list$OUT_PATH,"odb.gene_list")) && file.info(file.path(params_list$OUT_PATH,"odb.gene_list"))$size > 0)){
+    if(!all(tools::md5sum(file.path(params_list$OUT_PATH,"odb.gene_list")) == tools::md5sum(gene_list))){
       cat(paste("New gene list detected:",print_toc(tictoc::toc(quiet = T))))
       fs::file_delete(x = c(paste(params_list$OUT_PATH,"available_orgs.txt"),
+                            file.path(params_list$OUT_PATH,"odb.gene_list"),
                             file.path(params_list$OUT_PATH,"unavailable_orgs.txt"),
                             file.path(params_list$OUT_PATH,"selected_ORGS.txt"),
                             file.path(params_list$OUT_PATH,"ALL_GROUPS.txt"),

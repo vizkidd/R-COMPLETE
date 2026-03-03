@@ -750,8 +750,9 @@ function merge_OG2genes_OrthoDB(){
 	local ORTHODB_PATH_PREFIX=$(realpath ${script_args[0]}) #$1 #$(grep -i -w "orthodb_path_prefix" $1 | check_param) 
 	local ORTHODB_PATH=$(dirname "$ORTHODB_PATH_PREFIX")
 	local CLEAN_EXTRACT=${script_args[1]} #$2 #$(grep -i -w "clean_extract" $1 | check_param) 
-	local n_threads=${script_args[2]} #$3 #$(grep -i -w "max_concurrent_jobs" $1 | check_param)
-	local gene_list=${script_args[3]} #$4
+	local OUT_PATH=${script_args[2]} #$3
+	local n_threads=${script_args[3]} #$4 #$(grep -i -w "max_concurrent_jobs" $1 | check_param)
+	local gene_list=${script_args[4]} #$5
 	
 	# echo "pwd:"$(pwd)
 	if [[ $(ls -1 "$ORTHODB_PATH_PREFIX"*.gz | awk "END{print NR}") == 0 ]] ; then
@@ -826,24 +827,24 @@ function merge_OG2genes_OrthoDB(){
 
 	if [ ${#script_args[@]} -eq 4 ]; then
 		#   echo "here 2"
-		if [[ -s "$ORTHODB_PATH"/odb.gene_list ]]; then
+		if [[ -s "$OUT_PATH"/odb.gene_list ]]; then
 			#if old list is different from new list, recreate "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
 			if [[ ! -z $(diff -q files/genelist.txt ./files/reference_ORGS.txt) ]]; then
 				# rm -f $ORTHODB_PATH/notInODB.orgs
 				>&1 echo $(color_FG $Green "New gene list detected: Recreating ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz and "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz)
 				#gene lists are different, recalculate
-				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list
-				cp "$ORTHODB_PATH"/odb.gene_list $gene_list
-				$(which time) zgrep -i -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
+				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$OUT_PATH"/odb.gene_list
+				cp "$OUT_PATH"/odb.gene_list $gene_list
+				$(which time) zgrep -i -f "$OUT_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
 				$(which time) zgrep -i -f $gene_list "$ORTHODB_PATH_PREFIX"_genes.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz
 			fi
 			>&1 echo $(color_FG $Green "(User gene list) Fixed ODB file found in : ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz)
 		else
 			if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz &> /dev/null ; then
 				# echo "here 2.1"
-				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list	
-				cp "$ORTHODB_PATH"/odb.gene_list $gene_list
-				$(which time) zgrep -i -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
+				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$OUT_PATH"/odb.gene_list	
+				cp "$OUT_PATH"/odb.gene_list $gene_list
+				$(which time) zgrep -i -f "$OUT_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
 				$(which time) zgrep -i -f $gene_list "$ORTHODB_PATH_PREFIX"_genes.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz
 			else
 				>&1  echo $(color_FG $Green "File exists!")
