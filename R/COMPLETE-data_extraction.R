@@ -1503,8 +1503,6 @@ fetch_FASTA_biomartr <- function(org_row, db, params_list, gene_list, data_types
       return(NULL)
     }
     
-    
-    
     if(isTRUE(only_fetch)){
       return(future::future({
         return(c(org=org_row[["name"]],accession=as.character(org_row[["accession"]]),taxid=as.character(org_row[["taxid"]]), version=as.character(org_row[["version"]]), db=org_row[["db"]], genome=genome_path, gtf=gtf_path, source="r-biomartr"))
@@ -1563,6 +1561,7 @@ fetch_FASTA_biomartr <- function(org_row, db, params_list, gene_list, data_types
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
       message(paste("Organism not available :",  org_row[["accession"]], org_row[["name"]], org_row[["db"]], org_row[["version"]],"\n\n"))
     }
+    cat(paste(org_row[["name"]],org_row[["version"]],org_row[["db"]],org_row[["accession"]],sep="\t"), sep="\n", file = file.path(params_list$OUT_PATH,"unavailable_orgs.txt"), append = TRUE)
     return(NULL)
   }
 }
@@ -2184,6 +2183,7 @@ fetch_FASTA <- function(org_row, db, params_list, gene_list, keep_data=F, ...) {
     if(verbose)
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
     # traceback(3)
+    cat(paste(org_name,org_ver,db,accession,sep="\t"), sep="\n", file = file.path(params_list$OUT_PATH,"unavailable_orgs.txt"), append = TRUE)
     stop(paste("[fetch_FASTA()] Organism not available :", org_name, db, org_ver,"\n\n"))
   }
 }
