@@ -202,7 +202,7 @@ calculate_stats <- function(org, gtf_data, allow_strand="", n_threads=tryCatch(p
 #' @param verbose (bool) Print status messages?
 #' @param logfile (string) Redirect output (stdout & stderr) to this file
 #' @param params_list (string/list/COMPLETE-options) Output of load_params()
-#' @return (processx::process() object) Process ID from processx::new() which can be used for further monitoring of the process
+#' @return (processx::process() object) Process ID from processx::process$new() which can be used for further monitoring of the process
 #' @export
 add_to_process <- function(p_cmd, p_args=list(), verbose=F, logfile=NULL, params_list, ...){
   dot_args <- list(...)
@@ -2646,15 +2646,48 @@ label_FASTA_files <- function(fasta_path,org,db,org_ver,gene_list,odb_gene_map=N
 #' @return (bool) TRUE if output files exist, FALSE otherwise
 #' @export
 merge_OG2genes_OrthoDB <- function(params_list,quick.check=T,n_threads=tryCatch(parallel::detectCores(all.tests = T, logical = T), error=function(cond){return(2)}),gene_list){
+  odb_pb <- cli::cli_progress_bar(format="{cli::pb_spin} Checking and Transforming ODB Files...",
+                                  format_done = "{cli::col_green(cli::symbol$tick)} ODB file transformed in {cli::pb_elapsed}.")
   tictoc::tic(msg = paste("Checking and Transforming ODB Files..."))
   odb_prefix <- params_list$ORTHODB_PREFIX
+  file_prefix <- basename(odb_prefix)
   # print(c(gene_list, odb_prefix))
   if(!quick.check){
-    processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,params_list$OUT_PATH,n_threads,gene_list ) ,spinner = T,stdout = "1",stderr = "2>&1")
+    # processx::run( command = COMPLETE_env$SHELL ,args=c(fs::path_package("COMPLETE","exec","functions.sh"),"merge_OG2genes_OrthoDB",odb_prefix,!quick.check,params_list$OUT_PATH,n_threads,gene_list ) ,spinner = T,stdout = "1",stderr = "") #2>&1
+    # f <- future::future({
+    # print("HERE1")
+    odb_proc <- processx::process$new(
+      command =  COMPLETE_env$SHELL,
+      args = c(fs::path_package("COMPLETE", "exec", "functions.sh"), 
+               "merge_OG2genes_OrthoDB", odb_prefix, !quick.check, 
+               params_list$OUT_PATH, n_threads, gene_list),
+      cleanup = T, cleanup_tree = T, supervise = TRUE, stdout = "", stderr = ""
+    )
+    # }, globals= list(shell=COMPLETE_env$SHELL, odb_prefix=odb_prefix, quick.check=quick.check, out_path=params_list$OUT_PATH,n_threads=n_threads, gene_list=gene_list), seed = TRUE, packages=c("processx","fs")) # seed=TRUE is good practice for reproducibility
+    # if (!is.list(COMPLETE_env$future_list)) {
+    #   COMPLETE_env$future_list <- list()
+    # }
+    # COMPLETE_env$future_list[[length(COMPLETE_env$future_list) + 1]] <- f
+    # while (!future::resolved(f)) {
+    #   cli::cli_progress_update(id = odb_pb)
+    #   Sys.sleep(0.05)
+    # }
+    # res <- value(f)
+    if(cli::is_dynamic_tty()){
+      while (odb_proc$is_alive()) {
+        cli::cli_progress_update(id = odb_pb)
+        Sys.sleep(0.05)
+      }
+    }
+    odb_proc$wait(timeout=-1)
   }
-  
-  if( (file.exists(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_OG2genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep="")) && file.info(paste(odb_prefix,"_genes_fixed_user.tab.gz",sep=""))$size > 23) && (file.exists(file.path(params_list$OUT_PATH,"odb.gene_list")) && file.info(file.path(params_list$OUT_PATH,"odb.gene_list"))$size > 0)){
-    if(!all(tools::md5sum(file.path(params_list$OUT_PATH,"odb.gene_list")) == tools::md5sum(gene_list))){
+  cli::cli_progress_done(id=odb_pb)
+  gene_fixed_file <- paste0(odb_prefix,"_OG2genes_fixed.tab.gz")
+  gene_fixed_user <- file.path(params_list$OUT_PATH,"odb", paste0(file_prefix,"_OG2genes_fixed_user.tab.gz"))
+  genes_fixed <- file.path(params_list$OUT_PATH,"odb", paste0(file_prefix,"_genes_fixed_user.tab.gz"))
+  odb_gene_file <- file.path(params_list$OUT_PATH,"odb","odb.gene_list")
+  if( (file.exists(gene_fixed_file) && file.info(gene_fixed_file)$size > 23) && (file.exists(gene_fixed_user) && file.info(gene_fixed_user)$size > 23) && (file.exists(genes_fixed) && file.info(genes_fixed)$size > 23) && (file.exists(odb_gene_file) && file.info(odb_gene_file)$size > 0)){
+    if(!all(tools::md5sum(odb_gene_file) == tools::md5sum(gene_list))){
       cat(paste("New gene list detected:",print_toc(tictoc::toc(quiet = T))))
       fs::file_delete(x = c(paste(params_list$OUT_PATH,"available_orgs.txt"),
                             file.path(params_list$OUT_PATH,"odb.gene_list"),
@@ -2806,7 +2839,7 @@ EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, keep_dat
   
   install_parallel()
   
-  message(paste("MAX PROCESSES:",loaded_PARAMS$numWorkers))
+  termcolor(message(paste("MAX PROCESSES:",loaded_PARAMS$numWorkers)), color="#00FFFF",underline=T)
   
   # if(parallelly::supportsMulticore()){
   #   future::plan(future::multicore, workers = loaded_PARAMS$numWorkers)
@@ -2955,7 +2988,7 @@ EXTRACT_DATA <- function(db="", params_list, gene_list, user_data=NULL, keep_dat
   
   if(isTRUE(COMPLETE_env$USE_ORTHODB)){
     if(!merge_OG2genes_OrthoDB(params_list = loaded_PARAMS,quick.check = !loaded_PARAMS$CLEAN_EXTRACT,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)){
-      merge_OG2genes_OrthoDB(params_list = loaded_PARAMS,quick.check = F,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list)
+      merge_OG2genes_OrthoDB(params_list = loaded_PARAMS,quick.check = F,n_threads = loaded_PARAMS$numWorkers,gene_list = gene_list) #, italic=T, color=get_contrast_color("#FFFF00"))
     }
   }
   

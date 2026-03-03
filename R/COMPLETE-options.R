@@ -438,6 +438,7 @@ INITIALIZE <- function() {
   COMPLETE_env$EStrand <- list(ePlus=0, eMinus=1);
   COMPLETE_env$EInputType <- list(eFile=0, eSequenceString=1);
   
+  termcolor(message("Github: https://github.com/vizkidd/R-COMPLETE"), color=get_contrast_color("#004AFF"),url="https://github.com/vizkidd/R-COMPLETE",bold=F, bg_color=NULL)
   
   if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
     message("Warning: NCBI-BLAST path is empty")
@@ -455,7 +456,7 @@ INITIALIZE <- function() {
   # something to run
   packageStartupMessage("Initializing R-COMPLETE")
   tryCatch({
-    INITIALIZE()
+    termcolor(INITIALIZE(), color=gen_hex_color(1))
   }, error=function(cond) {stop(cond)})
   packageStartupMessage("R-COMPLETE loaded successfully!")
 }
