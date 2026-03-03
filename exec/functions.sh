@@ -834,8 +834,8 @@ function merge_OG2genes_OrthoDB(){
 				#gene lists are different, recalculate
 				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list
 				cp "$ORTHODB_PATH"/odb.gene_list $gene_list
-				time zgrep -i -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
-				time zgrep -i -f $gene_list "$ORTHODB_PATH_PREFIX"_genes.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz
+				$(which time) zgrep -i -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
+				$(which time) zgrep -i -f $gene_list "$ORTHODB_PATH_PREFIX"_genes.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz
 			fi
 			>&1 echo $(color_FG $Green "(User gene list) Fixed ODB file found in : ")$(color_FG_BG_Bold $White $BG_Purple "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz)
 		else
@@ -843,8 +843,8 @@ function merge_OG2genes_OrthoDB(){
 				# echo "here 2.1"
 				zcat -f $gene_list | sort | uniq | grep -v -w -i "gene" | grep -v '^$' > "$ORTHODB_PATH"/odb.gene_list	
 				cp "$ORTHODB_PATH"/odb.gene_list $gene_list
-				time zgrep -i -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
-				time zgrep -i -f $gene_list "$ORTHODB_PATH_PREFIX"_genes.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz
+				$(which time) zgrep -i -f "$ORTHODB_PATH"/odb.gene_list "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
+				$(which time) zgrep -i -f $gene_list "$ORTHODB_PATH_PREFIX"_genes.tab.gz | gzip -c > "$ORTHODB_PATH_PREFIX"_genes_fixed_user.tab.gz
 			else
 				>&1  echo $(color_FG $Green "File exists!")
 			fi
@@ -928,7 +928,7 @@ function filter_GTF(){
   while [[ $(ls /proc/$$/fd | wc -l) -gt $threshold ]]; 
   do
       current_count=$(ls /proc/$$/fd | wc -l)
-      printf "Waiting for file handles to close... Current: %s / Max: %s\n" "$current_count" "$limit"
+      printf "\nWaiting for file handles to close... Current: %s / Max: %s\n" "$current_count" "$limit"
       sleep 5
   done
 
@@ -958,8 +958,8 @@ function filter_GTF(){
 	  
 	  if [[ ${#eexp_gene[@]} > 0 ]]; then
 	  	#Splitting GTF into multiple parts based on grep output for downstream parallel processing in extract_gtf_info.R
-	  time zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
-	#   time zgrep -i $MODE -A 0 --group-separator='>' -f <(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene" | grep -v '^$') $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}'
+	  $(which time) zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
+	#   $(which time) zgrep -i $MODE -A 0 --group-separator='>' -f <(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene" | grep -v '^$') $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}'
 	  fi
 
 	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/$DB/$org_ver/*.gtf_slice | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/$DB/$org_ver/1.list
@@ -994,8 +994,8 @@ function filter_GTF(){
 
 	  if [[ "${#short_list[@]}" > 0 ]] ; then
 	    local eexp_gene=($(printf -- '%s\n' "${short_list[@]}"))
-	    # time echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/2.gtf_slice 
-		time zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/2." --suppress-matched - '/>/' '{*}'
+	    # $(which time) echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/2.gtf_slice 
+		$(which time) zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/2." --suppress-matched - '/>/' '{*}'
 	  fi
 
 	  ##REFRESH geene list based on file names
@@ -1114,7 +1114,7 @@ function extract_transcript_regions(){
   while [[ $(ls /proc/$$/fd | wc -l) -gt $threshold ]]; 
   do
       current_count=$(ls /proc/$$/fd | wc -l)
-      printf "Waiting for file handles to close... Current: %s / Max: %s\n" "$current_count" "$limit"
+      printf "\nWaiting for file handles to close... Current: %s / Max: %s\n" "$current_count" "$limit"
       sleep 5
   done
 
@@ -1160,8 +1160,8 @@ function extract_transcript_regions(){
 	  
 	  if [[ ${#eexp_gene[@]} > 0 ]]; then
 	  	#Splitting GTF into multiple parts based on grep output for downstream parallel processing in extract_gtf_info.R
-	  time zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
-	#   time zgrep -i $MODE -A 0 --group-separator='>' -f <(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene" | grep -v '^$') $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}'
+	  $(which time) zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/1." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/1.gtf_slice 
+	#   $(which time) zgrep -i $MODE -A 0 --group-separator='>' -f <(cat $GENE_LIST | sort | uniq | grep -v -w -i "gene" | grep -v '^$') $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/1." --suppress-matched - '/>/' '{*}'
 	  fi
 
 	  zgrep -hPo 'gene_name "\K[^"]+' $TEMP_PATH/$f_org_name/$DB/$org_ver/*.gtf_slice | sort | uniq | awk 'NF' | awk '{print tolower($0)}' > $OUT_PATH/genes/$f_org_name/$DB/$org_ver/1.list
@@ -1201,8 +1201,8 @@ function extract_transcript_regions(){
 
 	  if [[ "${#short_list[@]}" > 0 ]] ; then
 	    local eexp_gene=($(printf -- '%s\n' "${short_list[@]}"))
-	    # time echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/2.gtf_slice 
-		time zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/2." --suppress-matched - '/>/' '{*}'
+	    # $(which time) echo "${eexp_gene[@]}" | zgrep -i $MODE -A 0 --group-separator='>' -f - $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/2." --suppress-matched - '/>/' '{*}' #> $TEMP_PATH/$f_org_name/2.gtf_slice 
+		$(which time) zgrep -i $MODE -A 0 --group-separator='>' -f <(printf -- '%s\n' "${eexp_gene[@]}") $ANNO_FILE | csplit --quiet -z --suffix-format="%0d.gtf_slice" --prefix="$TEMP_PATH/$f_org_name/$DB/$org_ver/2." --suppress-matched - '/>/' '{*}'
 
 	  fi
 
@@ -1221,7 +1221,7 @@ function extract_transcript_regions(){
 
 	>&1 color_FG_BG_Bold $Black $BG_Yellow "3. Extracting Transcript Stats from GTF_Slices..." #(log:$TEMP_PATH/$f_org_name/get_GTF_info.[o/e])
 
-	time Rscript --vanilla --verbose $(echo $(dirname $0))/extract_gtf_info.R $TEMP_PATH/$f_org_name/$DB/$org_ver/ $f_org_name $org_ver $DB $OUT_PATH/genes/$f_org_name/$DB/$org_ver/gtf_stats.csv $param_file #1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
+	$(which time) Rscript --vanilla --verbose $(echo $(dirname $0))/extract_gtf_info.R $TEMP_PATH/$f_org_name/$DB/$org_ver/ $f_org_name $org_ver $DB $OUT_PATH/genes/$f_org_name/$DB/$org_ver/gtf_stats.csv $param_file #1> $TEMP_PATH/$f_org_name/get_GTF_info.o 2> $TEMP_PATH/$f_org_name/get_GTF_info.e
 	r_exit_code="$?"
 
 	if [[ ! -s $OUT_PATH/genes/$f_org_name/$DB/$org_ver/gtf_stats.csv || $r_exit_code != 0 ]] ; then #|| ! -s $OUT_PATH/genes/$f_org_name/final.list
@@ -1267,7 +1267,7 @@ function extract_transcript_regions(){
 	# echo "get_FASTA {1} {2} $bed_prefix $gfile_name $f_org_name $FASTA_PATH/$f_org_name/$DB/$org_ver $ANNO_FILE $TEMP_PATH/$f_org_name/$DB/$org_ver $OUT_PATH ;"
 
 	if [[ -s $gfile_name ]]; then
-	  time $PARALLEL_PATH --max-procs $n_threads "get_FASTA {1} {2} $bed_prefix $gfile_name $f_org_name $DB $org_ver $FASTA_PATH/$f_org_name/$DB/$org_ver $ANNO_FILE $TEMP_PATH/$f_org_name/$DB/$org_ver $OUT_PATH ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
+	  $(which time) $PARALLEL_PATH --max-procs $n_threads "get_FASTA {1} {2} $bed_prefix $gfile_name $f_org_name $DB $org_ver $FASTA_PATH/$f_org_name/$DB/$org_ver $ANNO_FILE $TEMP_PATH/$f_org_name/$DB/$org_ver $OUT_PATH ;" ::: ${gene_list[@]} ::: ${TRANSCRIPT_REGIONS[@]}
 
 	  >&1 echo $(color_FG $Green "4. DONE : FASTA PATH : ")$(color_FG_BG_Bold $White $BG_Purple "$FASTA_PATH/$f_org_name/$DB/$org_ver")
 	else
@@ -1280,8 +1280,8 @@ function extract_transcript_regions(){
 	#if [[ $LABEL_SEQS ==  "TRUE" && -s $OUT_PATH/genes/$f_org_name/odb.final_map ]] ; then
 	  >&1 color_FG_BG_Bold $Black $BG_Yellow "4.1 Labelling sequences..."
 	  #local tmp_names=($(parallel --link --max-procs $n_threads "echo {1},{2}" ::: ${gene_list[@]} ::: ${s_names[@]}))
-	  #time parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/genes/$f_org_name/odb.final_map" 
-	  time Rscript --vanilla --verbose $(echo $(dirname $0))/label_FASTA_files.R $FASTA_PATH/$f_org_name/$DB/$org_ver/ $f_org_name $DB $org_ver $OUT_PATH/genes/$f_org_name/$DB/$org_ver/final.list $param_file $OUT_PATH/genes/$f_org_name/$DB/$org_ver/odb.final_map
+	  #$(which time) parallel --max-procs $n_threads "printf -- %s,%s\\\n {1} {2}" ::: ${tmp_names[@]} ::: ${TRANSCRIPT_REGIONS[@]} | parallel --colsep "," --max-procs $n_threads "label_sequenceIDs $f_org_name {1} $FASTA_PATH/$f_org_name/{2}.{3} $FASTA_PATH/$f_org_name/{2}.{3}.tmp $param_file $OUT_PATH/genes/$f_org_name/odb.final_map" 
+	  $(which time) Rscript --vanilla --verbose $(echo $(dirname $0))/label_FASTA_files.R $FASTA_PATH/$f_org_name/$DB/$org_ver/ $f_org_name $DB $org_ver $OUT_PATH/genes/$f_org_name/$DB/$org_ver/final.list $param_file $OUT_PATH/genes/$f_org_name/$DB/$org_ver/odb.final_map
 	#fi
 
 	#######################################################################################################
@@ -1385,29 +1385,29 @@ function check_OrthoDB(){
 	  exit -1
 	fi
 
-	# if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz ; then
-	#   if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz ; then
-	#     >&2 color_FG_Bold $Red "2. Error in ODB files! Missing "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz : Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
-	# 	## merge_OG2genes_OrthoDB $ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]}
-	# # 	exit -1
-	# #   else
-	# #     local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz
-	# #     >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
-	#   fi
-	#   >&2 color_FG_Bold $Red "2. Error in ODB files! Corrupt "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz : Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
-	#   exit -1
+	# # if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz ; then
+	# #   if ! gunzip -t "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz ; then
+	# #     >&2 color_FG_Bold $Red "2. Error in ODB files! Missing "$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz : Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
+	# # 	## merge_OG2genes_OrthoDB $ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]}
+	# # # 	exit -1
+	# # #   else
+	# # #     local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz
+	# # #     >&1 echo $(color_FG $Yellow "\n2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	# #   fi
+	# #   >&2 color_FG_Bold $Red "2. Error in ODB files! Corrupt "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz : Rerun merge_OG2genes_OrthoDB($ORTHODB_PATH_PREFIX FALSE $n_threads ${script_args[1]})"
+	# #   exit -1
+	# # else
+	# #   local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
+	# #   >&1 echo $(color_FG $Yellow "\n2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	# # fi
+	# 
+	# if [ -s "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz ]; then
+	# 	local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
+	# 	>&1 echo $(color_FG $Yellow "\n2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
 	# else
-	#   local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
-	#   >&1 echo $(color_FG $Yellow "2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
+	# 	local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz
+	# 	>&1 echo $(color_FG $Yellow "\n2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
 	# fi
-
-	if [ -s "$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz ]; then
-		local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed_user.tab.gz
-		>&1 echo $(color_FG $Yellow "2. Selected Fixed ODB (User) file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
-	else
-		local ODB_FILE="$ORTHODB_PATH_PREFIX"_OG2genes_fixed.tab.gz
-		>&1 echo $(color_FG $Yellow "2. Selected Fixed ODB file : ")$(color_FG_BG_Bold $White $BG_Purple "$ODB_FILE")
-	fi
 	
 	readarray refs < <(grep -v '^[[:space:]]*$' "$REF_ORGS")
 
@@ -1488,7 +1488,7 @@ function check_OrthoDB(){
 	#   if [[ $(grep -w "$f_org_name" $ORTHODB_PATH/notInODB.orgs | awk "END{print NR}") == 0 ]]; then
 	# 	echo "$f_org_name" >> $ORTHODB_PATH/notInODB.orgs
 	#   fi
-	  >&2 color_FG_Bold $Red "2. $org_name not found in OrthoDB files"
+	  >&2 color_FG_Bold $Red "\n2. $org_name not found in OrthoDB files"
 	fi
 
 	#exit 0
@@ -1644,6 +1644,7 @@ if [ $# -gt 0 ] ; then
 	#>&2 echo $@
 	#echo "${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
 	#export -f "${script_args[0]}"
-	time "${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
+	#time
+	"${script_args[0]}" "$(echo ${script_args[@]:1:${#script_args[@]}})" 
 	exit 0
 fi

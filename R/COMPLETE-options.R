@@ -29,36 +29,83 @@ install_parallel <- function(){
 #' @param MART_FUN Fuction to be called
 #' @param args Named list of arguments to be used by the function
 #' @return Name of the dataset in biomaRt
-mart_connect <- function(MART_FUN=NULL,args=c(),verbose=T){
-  # print(c("mart_connect():", args)) #DEBUG
-
-  if (!is.null(MART_FUN)) {
-    #print(args)
-    time_out <- 0
-    while (time_out < 600) { #max time out is 10mins, code will fibonacci to it stepping up 5 seconds
-      time_out <- time_out+5
-      
-      catch_value <- tryCatch(do.call(MART_FUN,args),
-                              error=function(cond){
-                                if(verbose){
-                                  message(cond)
-                                  #print(class(cond))
-                                  message(paste("\nWaiting for",time_out,"s & trying again...\n"))
-                                }
-                                Sys.sleep(time_out)
-                              })
-      # print(c("mart_connect():", catch_value, time_out))
-      # print(paste("mart_connect() timeout:", time_out))
-      if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
-        #print("Done!")
-        return(catch_value)
+mart_connect <- function(MART_FUN = NULL, try_once=F, args = list(), verbose = TRUE) {
+  if (is.null(MART_FUN)) return(0)
+  
+  max_wait <- 600 * 6 # 1 hour
+  current_wait <- 5
+  total_time <- 0
+  
+  while (total_time < max_wait) {
+    # Attempt the function call
+    catch_value <- tryCatch({
+      do.call(MART_FUN, args)
+    }, error = function(cond) {
+      if (verbose) {
+        message(paste("\n[mart_connect] Attempt failed:", conditionMessage(cond)))
       }
+      return(structure(list(), class = "try-error", condition = cond))
+    })
+    
+    # Check for success: Not a try-error and not NULL
+    if (!inherits(catch_value, "try-error") && !is.null(catch_value)){
+      return(catch_value)
     }
-    stop("\nEnsembl is unresponsive, please check connection\n")
-  }else{
-    return(0)
+    if(try_once){
+      return(NULL)
+    }
+    # If we are here, it failed. Prepare for retry.
+    if (verbose) {
+      message(paste("Waiting for", current_wait, "s before trying again..."))
+    }
+    
+    Sys.sleep(current_wait)
+    
+    total_time <- total_time + current_wait
+    # Optional: Implement a real Fibonacci or exponential backoff here
+    # For your linear +5s approach:
+    current_wait <- current_wait + 5 
   }
+  
+  stop("\n[mart_connect] Ensembl is unresponsive after 10 minutes of attempts.\n")
 }
+
+# mart_connect <- function(MART_FUN=NULL,args=c(),verbose=T){
+#   # print(c("mart_connect():", args)) #DEBUG
+#   # suppressMessages(resp <- invisible(httr2::request("https://rest.ensembl.org/info/rest") %>%
+#   #                     httr2::req_retry() %>%
+#   #                     httr2::req_perform()))
+#   # Sys.sleep(5)
+#   if (!is.null(MART_FUN)) {
+#     #print(args)
+#     time_out <- 0
+#     while (time_out < 600) { #max time out is 10mins, code will fibonacci to it stepping up 5 seconds
+#       time_out <- time_out+5
+#       
+#       catch_value <- tryCatch(do.call(MART_FUN,args),
+#                               error=function(cond){
+#                                 if(verbose){
+#                                   message(cond)
+#                                   #print(class(cond))
+#                                   message(paste("\nWaiting for",time_out,"s & trying again...\n"))
+#                                 }
+#                                 # Sys.sleep(time_out)
+#                               })
+#       # print(c("mart_connect():", catch_value, time_out))
+#       # print(paste("mart_connect() timeout:", time_out))
+#       # Sys.sleep(time_out)
+#       if(!any(grepl(pattern = "error|exception|try-error|try|fail|timeout",ignore.case = T,x = class(catch_value))) && !is.null(catch_value)){
+#         #print("Done!")
+#         return(catch_value)
+#       }else{
+#         stop(paste("[mart_connect()] Error:", catch_value))
+#       }
+#     }
+#     stop("\nEnsembl is unresponsive, please check connection\n")
+#   }else{
+#     return(0)
+#   }
+# }
 
 #' Checks for parameter and return the value
 #'
@@ -75,12 +122,12 @@ check_param <- function(param_table,param_id,optional=F,CAST_FUN=as.character,cr
   if(is.null(param_index) || is.na(param_index)){
     stop(paste("Parameter :",param_id,"is missing!"))
   }
-
+  
   if(nrow(param_table[param_index,]) > 1){
     stop(paste("Parameter :",param_id,"has multiple entries!"))
   }
   param_value <- param_table[param_index,c(2)]
-
+  
   if(create_dir){
     dir.create(CAST_FUN(param_value),showWarnings = F,recursive = T)
   }
@@ -108,7 +155,7 @@ load_params <- function(param_file){
     message("Give the file name of the parameters")
     return(NULL)
   }
-
+  
   # if (grepl(pattern = "bash",ignore.case = T,x = Sys.getenv("SHELL"))) {
   #   SHELL <<- Sys.getenv("SHELL")
   #   print(paste("SHELL :",SHELL))
@@ -118,15 +165,15 @@ load_params <- function(param_file){
   # }else{
   #   stop(paste("SHELL (",SHELL,") : bash not available, or not in $PATH or SHELL=/bin/bash not set"))
   # }
-
+  
   #param_file <<- param_file
   param_table <- read.table(textConnection(gsub("==", "^", readLines(param_file))),sep="^", header = T, quote = "'") #Convert multibyte seperator to one byte sep
-
+  
   param_dups <- duplicated(param_table$param_id)
   if(any(param_dups)){
     stop(paste("Duplicate entries in parameter file :", paste(unique(param_table$param_id[param_dups]),collapse=",") ))
   }
-
+  
   GENOMES_PATH <- tools::file_path_as_absolute(check_param(param_table,"genomes_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="genomes_path"),c(2)]
   ANNOS_PATH <- tools::file_path_as_absolute(check_param(param_table,"annos_path",optional=F,CAST_FUN=as.character,create_dir=T))  #param_table[which(param_table=="annos_path"),c(2)]
   TEMP_PATH <- tools::file_path_as_absolute(check_param(param_table,"temp_path",optional=T,CAST_FUN=as.character,create_dir=T)) #param_table[which(param_table=="temp_path"),c(2)]
@@ -151,14 +198,14 @@ load_params <- function(param_file){
   TRANSCRIPT_REGIONS <- tolower(gsub("[[:space:]]","",x = unlist(stringi::stri_split( check_param(param_table,"transcript_regions",optional=F,CAST_FUN=as.character) ,fixed = ",")))) #param_table[which(param_table=="transcript_regions"),c(2)]
   STRAND <-  check_param(param_table,"strand",optional=F,CAST_FUN=as.character) #param_table[which(param_table=="strand"),c(2)]
   max_concurrent_jobs <- check_param(param_table,"max_concurrent_jobs",optional=T,CAST_FUN=as.numeric) #as.numeric(param_table[which(param_table=="max_concurrent_jobs"),c(2)])
-  if(is.na(max_concurrent_jobs) || length(max_concurrent_jobs) == 0){
+  if(isTRUE(is.na(max_concurrent_jobs) || length(max_concurrent_jobs) == 0 || max_concurrent_jobs <= 0)){
     max_concurrent_jobs <- parallel::detectCores(all.tests = T, logical = T)
   }
   tryCatch(numWorkers <- parallel::detectCores(all.tests = T, logical = T), error=function(){numWorkers <- 2})
   if(is.na(numWorkers) || numWorkers > max_concurrent_jobs){
     numWorkers <- max_concurrent_jobs
   }
-
+  
   GENE_SEARCH_MODE <- check_param(param_table,"gene_search_mode",optional=T,CAST_FUN=as.character)
   if(is.na(GENE_SEARCH_MODE) || length(GENE_SEARCH_MODE) == 0){
     GENE_SEARCH_MODE <- "HARD"
@@ -167,17 +214,17 @@ load_params <- function(param_file){
   if(is.na(SELECT_ALL_GENES) || length(SELECT_ALL_GENES) == 0){
     SELECT_ALL_GENES <- FALSE
   }
-
+  
   SELECT_REF_ORG_GROUPS <- check_param(param_table,"select_groups_with_ref_orgs",optional=T,CAST_FUN=as.logical)
   if(is.na(SELECT_REF_ORG_GROUPS) || length(SELECT_REF_ORG_GROUPS) == 0){
     SELECT_REF_ORG_GROUPS <- FALSE
   }
-
+  
   SELECT_REF_ORG_GROUPS_METHOD <- toupper(check_param(param_table,"select_groups_with_ref_orgs_method",optional=T,CAST_FUN=as.character))
   if(is.na(SELECT_REF_ORG_GROUPS_METHOD) || length(SELECT_REF_ORG_GROUPS_METHOD) == 0){
     SELECT_REF_ORG_GROUPS_METHOD <- "ANY"
   }
-
+  
   E_VALUE_THRESH <- check_param(param_table,"e_value_thresh",optional=F,CAST_FUN=as.double)
   MIN_IDENT_THRESH  <- check_param(param_table,"minIdent_thresh",optional=F,CAST_FUN=as.double)
   BLAST_OPTIONS  <- check_param(param_table,"blast_options",optional=F,CAST_FUN=as.character)
@@ -206,11 +253,11 @@ load_params <- function(param_file){
   ALIGNMENTS_PATH <- tools::file_path_as_absolute(check_param(param_table,"alignments_path",optional=F,CAST_FUN=as.character,create_dir=T))
   ALIGNMENT_GAP_THRESHOLD  <- check_param(param_table,"aln_gap_thres",optional=F,CAST_FUN=as.double)
   MIN_COVERAGE_THRESHOLD <- check_param(param_table,"min_coverage_thres",optional=F,CAST_FUN=as.double)
-
+  
   COMPLETE_env$numWorkers <- max_concurrent_jobs
-COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
-
-  #COMPLETE_env <- new.env(parent=emptyenv())
+  COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
+  
+  ##COMPLETE_env <- new.env(parent=emptyenv())
   #COMPLETE_env$PARAMS <-
   param_list <- list(param_file=param_file,
                      GENOMES_PATH=GENOMES_PATH,
@@ -251,7 +298,7 @@ COMPLETE_env$USE_ORTHODB <- !stringi::stri_isempty(ORTHODB_PREFIX)
                      ALIGNMENT_GAP_THRESHOLD=ALIGNMENT_GAP_THRESHOLD,
                      MIN_COVERAGE_THRESHOLD=MIN_COVERAGE_THRESHOLD,
                      PARAMETERS_LOADED=TRUE)
-
+  
   #return(COMPLETE_env$PARAMS)
   if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
     message("Warning: NCBI-BLAST path is empty")
@@ -276,18 +323,58 @@ INITIALIZE <- function() {
   #     # quit(save = "no", status = 1)
   #   })
   
+  # options(future.debug = TRUE)
+  
   options(error = function() {
     # message("\nStopping R session: Terminating all background workers...")
+    # future::plan(future::sequential)
+    if(isTRUE(!is.null(COMPLETE_env$process_list))){
+      lapply(COMPLETE_env$process_list, function(x){ 
+        if(isTRUE(!is.null(x) && x$is_alive())){
+          x$kill()
+        }
+      })
+      COMPLETE_env$process_list <- NULL
+      # rm(COMPLETE_env$process_list)
+    }
+    processx::supervisor_kill()
+    if(isTRUE(!is.null(COMPLETE_env$future_list))){
+      lapply(COMPLETE_env$future_list, function(x){ 
+        if(isTRUE(!is.null(x))){
+          future::cancel(x)
+          # future::reset(x)
+        }
+      })
+      COMPLETE_env$future_list <- NULL
+      # rm(COMPLETE_env$future_list)
+    }
     future::plan(future::sequential)
+    future::resetWorkers(future::plan())
+    #system("pkill -9 -f 'R --slave --no-restore'")
+    gc(full=T)
   })
   
   #options(future.globals.maxSize = 1000 * 1024^2) # Increase to 1GB
-
-  future::plan(future::multisession)
   
-  COMPLETE_env <<- new.env(parent=baseenv())
+  # future::plan(future::multicore)
+  if(parallelly::supportsMulticore()){
+    future::plan(future::multicore, workers = 1)
+  }else{
+    future::plan(future::multisession, workers = 1)
+  }
   
-  COMPLETE_env$ENSEMBL_MART <<- "ENSEMBL_MART_ENSEMBL"
+  options(
+    compiler.optimize = 3,
+    compiler.jit = 3
+  )
+  invisible(compiler::enableJIT(3))
+  
+  # options(future.globals.maxSize = Inf)
+  # options(future.globals.onReference = "ignore")
+  
+  # COMPLETE_env <- new.env(parent=baseenv())
+  
+  COMPLETE_env$ENSEMBL_MART <- "ENSEMBL_MART_ENSEMBL"
   
   if (curl::has_internet()) {
     tryCatch({
@@ -312,7 +399,7 @@ INITIALIZE <- function() {
   COMPLETE_env$file_lock <- file.path(tempdir(), "R-COMPLETE.file_lock")
   COMPLETE_env$ensembl_lock <- file.path(tempdir(), "R-COMPLETE.ensembl_lock")
   COMPLETE_env$ncbi_lock <- file.path(tempdir(), "R-COMPLETE.ncbi_lock")
-
+  
   #if(!grepl(x=Sys.info()["sysname"],pattern="linux",ignore.case = T)){
   #  stop("R-COMPLETE Pipeline only supports Linux (and bash) :(")
   #}
@@ -350,7 +437,7 @@ INITIALIZE <- function() {
   COMPLETE_env$ESeqType <- list(eNucleotide=0, eProtein=1);
   COMPLETE_env$EStrand <- list(ePlus=0, eMinus=1);
   COMPLETE_env$EInputType <- list(eFile=0, eSequenceString=1);
-
+  
   
   if(stringi::stri_isempty(COMPLETE_env$BLAST_BIN)){
     message("Warning: NCBI-BLAST path is empty")
@@ -369,7 +456,7 @@ INITIALIZE <- function() {
   packageStartupMessage("Initializing R-COMPLETE")
   tryCatch({
     INITIALIZE()
-    }, error=function(cond) {stop(cond)})
+  }, error=function(cond) {stop(cond)})
   packageStartupMessage("R-COMPLETE loaded successfully!")
 }
 
@@ -378,10 +465,15 @@ INITIALIZE <- function() {
   sapply(COMPLETE_env$process_list, function(x) {
     if(x$is_alive())
       x$kill()
-    })
-  if(exists("COMPLETE_env", mode="environment")){
-    COMPLETE_env <<- new.env(parent=emptyenv())
-  }
+  })
+  # if(exists("COMPLETE_env", mode="environment")){
+  #   COMPLETE_env <- new.env(parent=emptyenv())
+  # }
 }
+
+load_params <- compiler::cmpfun(load_params)
+check_param <- compiler::cmpfun(check_param)
+mart_connect <- compiler::cmpfun(mart_connect)
+INITIALIZE <- compiler::cmpfun(INITIALIZE)
 
 NULL
