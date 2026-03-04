@@ -7,7 +7,9 @@
 #' @return (string) A formatted string to print to stdout/console
 #' @export
 print_toc <- function(clk){
-  return(paste(tictoc::toc.outmsg(clk$tic,clk$toc,clk$msg),"\n\n", sep = ""))
+  return(termcolor({
+    cat(paste(tictoc::toc.outmsg(clk$tic,clk$toc,clk$msg),"\n\n", sep = ""))
+  },italic=T))
 }
 
 #' Load a Matrix
@@ -60,7 +62,7 @@ check_mart_dataset <- function(org, org_ver, db, ...){
   mart.dataset <- grep(x = org_meta_list$dataset, pattern=stringr::regex(split_org[2],ignore_case = T),fixed=F, value = T)
   if(isTRUE(length(mart.dataset)==0)){
     if(verbose)
-      message(paste("1. Dataset not found in BIOMART for :",org, org_ver, db,"\nYou can provide the organism in user data\n"))
+      termcolor(cat(paste("\n1. Dataset not found in BIOMART for :",org, org_ver, db,"\nYou can provide the organism in user data\n\n")), color=get_contrast_color("#FF0000"), bold=T)
     # warning(paste("Dataset not found in BIOMART for :",org, org_ver, db,"\nYou can provide the organism in user data\n"))
     return(NULL)
   }else if (length(unique(mart.dataset))==1) {
@@ -74,11 +76,11 @@ check_mart_dataset <- function(org, org_ver, db, ...){
       # traceback(3)
       # print(mart.dataset) #DEBUG
       if(verbose)
-        message(paste("2. Multiple datasets found in BIOMART for :",org,":",paste(mart.dataset,collapse = ","),"\n"))
+        termcolor(cat(paste("\n2. Multiple datasets found in BIOMART for :",org,":",paste(mart.dataset,collapse = ","),"\n\n")), color=get_contrast_color("#FF0000"), bold=T)
     }else{
       # stop(paste("\nUnknown Error :",org,":",paste(mart.dataset,collapse = ","),"\n"))
       if(verbose)
-        message(paste("3. Dataset not found in BIOMART for :",org, org_ver, db,"\nYou can provide the organism in user data\n"))
+        termcolor(cat(paste("\n3. Dataset not found in BIOMART for :",org, org_ver, db,"\nYou can provide the organism in user data\n\n")), color=get_contrast_color("#FF0000"), bold=T)
     }
   }
 }
@@ -341,14 +343,14 @@ check_files <-function(fasta_path,org,db,accession,org_ver,genes, verbose=T, par
         return(TRUE)
       }
       if(verbose){
-        termcolor(cat(paste("1] Org:",org,db,accession,", Genes in Dir:",length(files_in_dir),", User Genes:",length(genes)," : Check FAILED!\n")),italic=T) #", Available:",length(available_genes),", Missing:",length(missing_genes)
+        termcolor(cat(paste("\n1] Org:",org,db,accession,", Genes in Dir:",length(files_in_dir),", User Genes:",length(genes)," : Check FAILED!\n")),italic=T) #", Available:",length(available_genes),", Missing:",length(missing_genes)
         #print(org,":",setdiff(available_genes,files_in_dir)) #DEBUG
       }
       return(FALSE)
     }
     
     if(verbose){
-      termcolor(cat(paste("2] Org:",org,db,accession,",",fasta_path," : Check FAILED!\n")),italic=T)
+      termcolor(cat(paste("\n2] Org:",org,db,accession,",",fasta_path," : Check FAILED!\n")),italic=T)
     }
     return(FALSE)
   }, error=function(cond){
@@ -1497,7 +1499,7 @@ fetch_FASTA_biomartr <- function(org_row, db, params_list, gene_list, data_types
       
     }else{
       if(verbose)
-        message(paste("Organism not available :", org_row[["accession"]],org_row[["name"]],org_row[["version"]],"in",org_row[["db"]],"\n\n"))
+        cat(paste("Organism not available :", org_row[["accession"]],org_row[["name"]],org_row[["version"]],"in",org_row[["db"]],"\n\n"))
       #Append to unavailable_orgs.txt
       cat(paste(org_row[["name"]],org_row[["version"]],org_row[["db"]],org_row[["accession"]],sep="\t"), sep="\n", file = file.path(params_list$OUT_PATH,"unavailable_orgs.txt"), append = TRUE)
       return(NULL)
@@ -1559,7 +1561,7 @@ fetch_FASTA_biomartr <- function(org_row, db, params_list, gene_list, data_types
     }
     if(verbose){
       cat(print_toc(tictoc::toc(quiet = T, log = T)))
-      message(paste("Organism not available :",  org_row[["accession"]], org_row[["name"]], org_row[["db"]], org_row[["version"]],"\n\n"))
+      cat(paste("Organism not available :",  org_row[["accession"]], org_row[["name"]], org_row[["db"]], org_row[["version"]],"\n\n"))
     }
     cat(paste(org_row[["name"]],org_row[["version"]],org_row[["db"]],org_row[["accession"]],sep="\t"), sep="\n", file = file.path(params_list$OUT_PATH,"unavailable_orgs.txt"), append = TRUE)
     return(NULL)
@@ -1889,7 +1891,7 @@ fetch_FASTA <- function(org_row, db, params_list, gene_list, keep_data=F, ...) {
             odb_list_genes <- odb_list_genes[grep("gene",tolower(odb_list_genes), invert = T, fixed = T)]
           }else{
             if(verbose)
-              message(paste("ODB gene list could not be found for : ",orgx[["name"]], orgx[["version"]], orgx[["accession"]]))
+              termcolor(cat(paste("ODB gene list could not be found for : ",orgx[["name"]], orgx[["version"]], orgx[["accession"]], "\n")),color=get_contrast_color("#FFAA00"),bold=T)
           }
         }
         
@@ -2056,7 +2058,7 @@ fetch_FASTA <- function(org_row, db, params_list, gene_list, keep_data=F, ...) {
               odb_list_genes <- factor(scan(odb_list, character(), quiet = T))
               odb_list_genes <- odb_list_genes[grep("gene",tolower(odb_list_genes), invert = T, fixed = T)]
             }else{
-              message(paste("ODB gene list could not be found for : ",orgx[["name"]], orgx[["version"]], orgx[["accession"]]))
+              termcolor(cat(paste("ODB gene list could not be found for : ",orgx[["name"]], orgx[["version"]], orgx[["accession"]])),color=get_contrast_color("#FFAA00"),bold=T)
             }
           }
           gtf <- read.gtf(gtf_details[["gtf"]],attr = c("intact"),quiet=T)
@@ -2173,7 +2175,7 @@ fetch_FASTA <- function(org_row, db, params_list, gene_list, keep_data=F, ...) {
       }
       return(ret_vals)
       # return(unlist(ret_vals))
-    }, globals = list(org=org, params_list=params_list, genes=genes, gene_list=gene_list, tmp_gene_list=tmp_gene_list,org_meta_list=org_meta_list,org_meta_names=org_meta |> purrr::compact("name"), org_meta_colnames=colnames(org_meta),ensembl_lock=COMPLETE_env$ensembl_lock,ncbi_file_lock=COMPLETE_env$ncbi_lock,ensembl_mart=COMPLETE_env$ENSEMBL_MART, org_fasta_path=org_fasta_path, org_row=org_row, unavailable_orgs=unavailable_orgs, verbose=verbose, keep_data=keep_data, only_fetch=only_fetch, type=type, subset=subset, seed=seed, FORMAT_ID_INDEX=COMPLETE_env$FORMAT_ID_INDEX, use_orthodb=COMPLETE_env$USE_ORTHODB, shell=COMPLETE_env$SHELL, parallel_path=COMPLETE_env$parallel, check_files=check_files, check_mart_dataset=check_mart_dataset, get_gtf_mart=get_gtf_mart, read.gbff=read.gbff, fetch_FASTA_biomartr=fetch_FASTA_biomartr, add_to_process=add_to_process, read.gtf=read.gtf, get_gtf_attributes=get_gtf_attributes, calculate_stats=calculate_stats, fetch_FASTA_mart=fetch_FASTA_mart, label_FASTA_files=label_FASTA_files, print_toc=print_toc), packages = c("S4Vectors", "IRanges", "dplyr", "purrr", "fs", "tictoc"), label=paste("fetch_FASTA():",paste(org_name,org_ver,db,sep=":")), seed=seed)) 
+    }, globals = list(org=org, params_list=params_list, genes=genes, gene_list=gene_list, tmp_gene_list=tmp_gene_list,org_meta_list=org_meta_list,org_meta_names=org_meta |> purrr::compact("name"), org_meta_colnames=colnames(org_meta),ensembl_lock=COMPLETE_env$ensembl_lock,ncbi_file_lock=COMPLETE_env$ncbi_lock,ensembl_mart=COMPLETE_env$ENSEMBL_MART, org_fasta_path=org_fasta_path, org_row=org_row, unavailable_orgs=unavailable_orgs, verbose=verbose, keep_data=keep_data, only_fetch=only_fetch, type=type, subset=subset, seed=seed, FORMAT_ID_INDEX=COMPLETE_env$FORMAT_ID_INDEX, use_orthodb=COMPLETE_env$USE_ORTHODB, shell=COMPLETE_env$SHELL, parallel_path=COMPLETE_env$parallel, termcolor=termcolor, get_contrast_color=get_contrast_color, check_files=check_files, check_mart_dataset=check_mart_dataset, get_gtf_mart=get_gtf_mart, read.gbff=read.gbff, fetch_FASTA_biomartr=fetch_FASTA_biomartr, add_to_process=add_to_process, read.gtf=read.gtf, get_gtf_attributes=get_gtf_attributes, calculate_stats=calculate_stats, fetch_FASTA_mart=fetch_FASTA_mart, label_FASTA_files=label_FASTA_files, print_toc=print_toc), packages = c("S4Vectors", "IRanges", "dplyr", "purrr", "fs", "tictoc"), label=paste("fetch_FASTA():",paste(org_name,org_ver,db,sep=":")), seed=seed)) 
     #,, ,,,process_list=COMPLETE_env$process_list, max_file_handles=COMPLETE_env$max_file_handles
     #COMPLETE_env = COMPLETE_env [cannot pass extrnptrs in exported globals] #END - future::future
   }else{
